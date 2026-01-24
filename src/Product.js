@@ -192,4 +192,15 @@ export const products = [
     series: "Riviera",
     description: "An intricate twist on classic straw. This set features a delicate white lace crochet overlay on both the tote and the hat brim for a romantic, artisanal finish."
   },
+  {
+    id: "executive-tri-set-08",
+    name: "Heritage Tri-Element Set",
+    price: 2450,
+    category: "underarm",
+    image: Underarm7,
+    material: "Grained Vegan Leather & Antique Gold Hardware",
+    origin: "Italy",
+    series: "Executive Collection",
+    description: "The ultimate professional toolkit. This 3-in-1 set includes a high-capacity structured tote with braided leather detailing, a matching continental envelope wallet, and a compact cylindrical tech/accessory pouch."
+  },
 ];

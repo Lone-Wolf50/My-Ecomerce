@@ -1,6 +1,4 @@
 import { Link, useNavigate } from "react-router-dom";
-
-// CHANGE: Import from the dedicated hook file
 import useCart from './useCart'; 
 
 function Navbar() {
@@ -9,35 +7,39 @@ function Navbar() {
 
     return (
         <>
-            <header className="sticky top-0 z-30 bg-black border-b border-white/10 px-6 py-6 flex items-center justify-between">
-                {/* Back Button */}
+            {/* UPDATED: Changed bg-black to bg-cream/80 with glassmorphism */}
+            <header className="fixed top-0 left-0 w-full z-50 bg-cream/80 backdrop-blur-xl border-b border-black/5 px-6 py-6 flex items-center justify-between">
+                
+                {/* Back Button - Updated to black-solid */}
                 <button 
                     onClick={() => navigate('/')} 
-                    className="flex items-center text-off-white hover:text-primary-gold transition-colors"
+                    className="flex items-center text-black-solid hover:text-primary transition-colors"
                 >
                     <span className="material-symbols-outlined text-2xl">home</span>
                 </button>
 
-                {/* Center Logo */}
+                {/* Center Logo - Updated to black-solid and primary gold */}
                 <div className="flex items-center gap-2">
-                    <div className="size-6 text-primary-gold ">
+                    <div className="size-6 text-primary">
                         <svg className="size-7" fill="currentColor" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
                             <path d="M36.7273 44C33.9891 44 31.6043 39.8386 30.3636 33.69C29.123 39.8386 26.7382 44 24 44C21.2618 44 18.877 39.8386 17.6364 33.69C16.3957 39.8386 14.0109 44 11.2727 44C7.25611 44 4 35.0457 4 24C4 12.9543 7.25611 4 11.2727 4C14.0109 4 16.3957 8.16144 17.6364 14.31C18.877 8.16144 21.2618 4 24 4C26.7382 4 29.123 8.16144 30.3636 14.31C31.6043 8.16144 33.9891 4 36.7273 4C40.7439 4 44 12.9543 44 24C44 35.0457 40.7439 44 36.7273 44Z"></path>
                         </svg>
                     </div>
-                    <span className="text-sm font-bold tracking-[0.2em] text-white">LUXE</span>
+                    <span className="text-sm font-black tracking-[0.2em] text-black-solid">LUXE</span>
                 </div>
 
-                {/* Dynamic Cart Icon */}
-                <Link to="/cart" className="relative p-2 text-off-white hover:text-primary-gold transition-colors">
+                {/* Dynamic Cart Icon - Updated to black-solid */}
+                <Link to="/cart" className="relative p-2 text-black-solid hover:text-primary transition-colors">
                     <span className="material-symbols-outlined">shopping_bag</span>
                     {cartCount > 0 && (
-                        <span className="absolute top-0 right-0 bg-primary-gold text-black text-[9px] font-black size-4 flex items-center justify-center rounded-full animate-pulse">
+                        <span className="absolute top-0 right-0 bg-primary text-white text-[9px] font-black size-4 flex items-center justify-center rounded-full">
                             {cartCount}
                         </span>
                     )}
                 </Link>
             </header>
+            {/* Added a spacer so content doesn't hide under the fixed navbar */}
+            <div className="h-20"></div>
         </>
     );
 }

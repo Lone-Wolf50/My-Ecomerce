@@ -3,20 +3,16 @@ import containerQueries from "@tailwindcss/container-queries";
 
 export default {
 	content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
-	darkMode: "class",
+	
 	theme: {
 		extend: {
 			colors: {
-				primary: "#D4AF37",
-				"background-dark": "#000000",
-				"accent-gold": "#C5A028",
-				"off-white": "#F5F5F5",
-				"slate-grey": "#4A4A4A",
-				"border-gold": "rgba(212, 175, 55, 0.2)",
-				"card-dark": "#0A0A0A",
-				"primary-black": "#000000",
-				"primary-gold": "#D4AF37",
-        "modern-black": "#000000",
+				"primary": "#D4AF37",
+                        "cream": "#FDFBF7",
+                        "accent-gold": "#C5A028",
+                        "black-solid": "#000000",
+                        "slate-grey": "#4A4A4A"
+
 
 			},
 			fontFamily: {

@@ -6,11 +6,9 @@ import useCart from './useCart';
 import DetailsNavBar from './DetailsNavBar'; 
 
 const ProductDetail = () => {
-  // FIXED: Changed 'productId' to 'id' to match your Holder.jsx route (:id)
   const { id } = useParams();
   const { addToCart } = useCart();
 
-  // Find the product using the 'id' from the URL
   const product = products.find(p => String(p.id) === String(id));
 
   useLayoutEffect(() => {
@@ -19,55 +17,62 @@ const ProductDetail = () => {
   }, [id]);
 
   if (!product) return (
-    <div className="p-20 text-primary-gold font-display bg-black min-h-screen">
+    <div className="p-20 text-primary font-black bg-cream min-h-screen">
       Product not found. (Searching for ID: {id})
     </div>
   );
 
-  // Logic for related items
   const related = products
     .filter(p => p.category === product.category && String(p.id) !== String(id))
     .slice(0, 4);
 
   return (
-    <div className="bg-black min-h-screen selection:bg-primary-gold/30">
+    /* UPDATED: Changed bg-black to bg-cream and text-off-white to black-solid */
+    <div className="bg-cream min-h-screen selection:bg-primary/20 text-black-solid">
       <DetailsNavBar category={product.category} />
 
-      <main key={id} className="max-w-[1440px] mx-auto px-6 lg:px-12 pt-32 pb-12 font-display animate-in fade-in duration-700">
+      <main key={id} className="max-w-[1440px] mx-auto px-6 lg:px-12 pt-40 pb-12 animate-in fade-in duration-700">
         
         <div className="flex flex-col lg:flex-row gap-10 lg:h-[75vh] items-stretch mb-24">
-          {/* Image Box */}
-          <div className="w-full lg:w-[60%] bg-white rounded-[2.5rem] flex items-center justify-center p-8 lg:p-16 shadow-2xl overflow-hidden">
+          
+          {/* Image Box - Light Glass Style */}
+          <div className="w-full lg:w-[60%] bg-white/40 backdrop-blur-xl rounded-[3rem] border border-black/5 flex items-center justify-center p-8 lg:p-16 shadow-2xl shadow-black/5 overflow-hidden">
             <img 
               src={product.image} 
               alt={product.name} 
-              className="max-h-full max-w-full object-contain animate-in zoom-in-95 duration-1000" 
+              className="max-h-full max-w-full object-contain animate-in zoom-in-95 duration-1000 drop-shadow-2xl" 
             />
           </div>
 
           {/* Text Box */}
           <div className="w-full lg:w-[40%] flex flex-col justify-center max-w-[420px] mx-auto lg:ml-auto lg:mr-0">
-            <p className="text-[10px] font-black text-primary-gold uppercase tracking-[0.6em] mb-3">{product.series}</p>
-            <h1 className="text-4xl lg:text-5xl font-black text-off-white uppercase mb-4 tracking-tighter leading-[0.9]">{product.name}</h1>
-            <p className="text-2xl font-medium text-primary-gold mb-8">${product.price?.toLocaleString()}</p>
+            <p className="text-[10px] font-black text-primary uppercase tracking-[0.6em] mb-3">{product.series}</p>
+            <h1 className="text-4xl lg:text-6xl font-black text-black-solid uppercase mb-4 tracking-tighter leading-[0.9] italic">
+                {product.name}
+            </h1>
+            <p className="text-2xl font-black text-primary mb-8">${product.price?.toLocaleString()}</p>
             
-            <div className="border-t border-white/10 pt-8 mb-10">
-              <p className="text-off-white/40 text-[13px] leading-relaxed font-light mb-8 italic">{product.description}</p>
+            <div className="border-t border-black/10 pt-8 mb-10">
+              <p className="text-black-solid/60 text-[14px] leading-relaxed font-light mb-8">
+                {product.description}
+              </p>
+              
               <div className="flex gap-12">
                 <div className="flex flex-col gap-1">
-                  <p className="text-[8px] uppercase font-black text-white/20 tracking-[0.2em]">Material</p>
-                  <p className="text-[11px] text-off-white">{product.material}</p>
+                  <p className="text-[8px] uppercase font-black text-black-solid/20 tracking-[0.2em]">Material</p>
+                  <p className="text-[11px] font-bold text-black-solid/70">{product.material}</p>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <p className="text-[8px] uppercase font-black text-white/20 tracking-[0.2em]">Origin</p>
-                  <p className="text-[11px] text-off-white">{product.origin}</p>
+                  <p className="text-[8px] uppercase font-black text-black-solid/20 tracking-[0.2em]">Origin</p>
+                  <p className="text-[11px] font-bold text-black-solid/70">{product.origin}</p>
                 </div>
               </div>
             </div>
 
+            {/* UPDATED: Button matches the new theme */}
             <button 
               onClick={() => addToCart(product)}
-              className="w-full bg-primary-gold text-black py-5 text-[10px] font-black uppercase tracking-[0.4em] hover:bg-white transition-all rounded-2xl shadow-lg active:scale-[0.98]"
+              className="w-full bg-black-solid text-white py-6 text-[10px] font-black uppercase tracking-[0.4em] hover:bg-primary transition-all duration-500 rounded-2xl shadow-xl shadow-black/10 active:scale-[0.98]"
             >
               Add to Bag
             </button>
@@ -76,9 +81,12 @@ const ProductDetail = () => {
 
         {/* Related Products Section */}
         {related.length > 0 && (
-          <section className="border-t border-white/5 pt-20">
-            <h3 className="text-[9px] font-black tracking-[0.4em] text-white/60 uppercase mb-12 text-center">Explore Similar Pieces</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <section className="border-t border-black/10 pt-20">
+            <div className="flex flex-col items-center mb-12">
+                <h3 className="text-[10px] font-black tracking-[0.5em] text-black-solid uppercase mb-2">Explore Similar Pieces</h3>
+                <div className="h-1 w-12 bg-primary rounded-full"></div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
               {related.map(item => (
                 <ProductCard key={item.id} product={item} />
               ))}
@@ -86,6 +94,14 @@ const ProductDetail = () => {
           </section>
         )}
       </main>
+
+      {/* Matching Footer */}
+      <footer className="w-full py-20 border-t border-black/10 text-center bg-white/20 mt-20">
+          <h2 className="text-2xl font-black tracking-[0.4em] text-primary uppercase">LUXE</h2>
+          <p className="text-[9px] uppercase tracking-[0.3em] text-black-solid/20 font-bold mt-4">
+              © 2026 Luxury Reimagined — Handcrafted Excellence
+          </p>
+      </footer>
     </div>
   );
 };

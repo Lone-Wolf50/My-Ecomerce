@@ -1,7 +1,11 @@
-import UnderarmsBag2 from './assets/UnderarmsBag2.jpg'; 
-import UnderarmsBag1 from './assets/UnderarmsBag1.jpg';
+
 import Crossbody2 from './assets/Crossbody2.jpg';
-import Crossbody1 from './assets/Crossbody.jpg';
+import Purse1 from './assets/purse1.jpg';
+import Purse2 from './assets/purse2.jpg';
+import purse3 from './assets/purse3.jpg';
+import Crossbody3 from './assets/Crossbody3.jpg';
+import Crossbody from './assets/Crossbody.jpg';
+import  purses from './assets/bagandpurse.jpg';
 // Picnic & Summer Sets
 // Summer/Picnic Collection Assets
 import SummerSetLight from './assets/summer.jpg';
@@ -17,6 +21,8 @@ import Underarm4 from './assets/underarms4.jpg';
 import Underarm5 from './assets/underarms5.jpg';
 import Underarm6 from './assets/underarms6.jpg';
 import Underarm7 from './assets/underarms7.jpg';
+import UnderarmsBag1 from './assets/UnderarmsBag1.jpg';
+import UnderarmsBag2 from './assets/UnderarmsBag2.jpg';
 
 export const products = [
   {
@@ -42,45 +48,36 @@ export const products = [
     description: "An exquisite woven companion designed for longevity and timeless appeal. Perfect for summer escapes."
   },
   {
-    id: "UnderarmsBag2",
-    name: "UnderarmsBag2",
-    price: 1850,
-    category: "picnic",
-    image: UnderarmsBag2,
-    material: "Natural Straw",
-    origin: "Spain",
-    series: "Natural Straw",
-    description: "An exquisite woven companion designed for longevity and timeless appeal. Perfect for summer escapes."
-  },{
-    id: "UnderarmsBag1",
-    name: "UnderarmsBag1",
-    price: 185000,
-    category: "crossbody",
-    image: UnderarmsBag1,
-    material: "Natural Straw",
-    origin: "Spain",
-    series: "Natural Straw",
-    description: "An exquisite woven companion designed for longevity and timeless appeal. Perfect for summer escapes."
-  },{
     id: "Crossbody2",
-    name: "Crossbody Classic 2",
+    name: "Geneva Croc Trio",
     price: 18500,
     category: "limited",
     image: Crossbody2,
-    material: "Natural Straw",
-    origin: "Spain",
-    series: "Natural Straw",
-    description: "An exquisite woven companion designed for longevity and timeless appeal. Perfect for summer escapes."
-  },{
-    id: "Crossbody1",
-    name: "Crossbody Classic",
-    price: 18,
-    category: "crossbody",
-    image: Crossbody1,
-    material: "Calfskin Leather",
+    material: "Patent Croc-Embossed Leather",
+    origin: "Switzerland",
+    series: "Executive Suite",
+    description: "The Geneva Trio is the ultimate statement in functional opulence. This coordinated set features a grand structured satchel, a matching envelope clutch, and a compact card wallet, all finished in high-shine patent croc-emboss with polished gold-tone hardware."},
+  {
+    id: "Purse3",
+    name: "Luna Dome Micro",
+    price: 26,
+    category: "purse",
+    image: Purse1,
+    material: "Pebbled Vegan Leather",
     origin: "Italy",
-    series: "Crossbody Classic",
-    description: "The Mini Crème Crossbody is a masterclass in minimalist luxury. Handcrafted from premium calfskin leather, this piece features a structural silhouette that transitions seamlessly from day to evening."
+    series: "Moonlight Series",
+    description: "The Luna Dome Micro is an architectural statement in a compact form. Crafted from high-durability pebbled leather, it features a dual top-handle design and a detachable silver bijoux chain strap for effortless versatility."
+  },
+  {
+    id: "Purse2",
+    name: "Aurora Geometric Satchel",
+    price: 35,
+    category: "purse",
+    image: Purse2, 
+    material: "Croc-Embossed Vegan Leather",
+    origin: "Spain",
+    series: "Geometrica Heritage",
+    description: "A masterclass in bold geometry, the Aurora features a striking triangular envelope flap secured by a single gold pyramid stud. The contrasting croc-embossed side panels provide a high-fashion architectural silhouette, available in a curated palette of vibrant seasonal hues."
   },
   {
     id: "heritage-2in1-set",
@@ -202,5 +199,71 @@ export const products = [
     origin: "Italy",
     series: "Executive Collection",
     description: "The ultimate professional toolkit. This 3-in-1 set includes a high-capacity structured tote with braided leather detailing, a matching continental envelope wallet, and a compact cylindrical tech/accessory pouch."
+  },
+  {
+    id: "Underarm1",
+    name: "Sienna Baguette",
+    price: 24,
+    category: "underarm",
+    image: UnderarmsBag1,
+    material: "Vegan Polished Leather",
+    origin: "Italy",
+    series: "City Nomad Series",
+    description: "The Sienna Baguette captures a vintage silhouette with modern chocolate tones. Featuring a distinctive gold-plated push-lock and a knotted cord strap, it is the perfect companion for the urban minimalist."
+  },
+  {
+    id: "Underarm2",
+    name: "Colette Ribbon Clasp",
+    price: 22,
+    category: "underarm",
+    image: UnderarmsBag2,
+    material: "Smooth Nappa Finish",
+    origin: "France",
+    series: "Elysée Collection",
+    description: "A vision in ivory, the Colette Ribbon Clasp defines feminine luxury. Its pristine rectangular structure is accented by a delicate gold-toned bow, offering a sophisticated edge to any contemporary ensemble."
+  },
+  {
+    id: "Crossbody",
+    name: "Valentina Pyramid Tote",
+    price: 28,
+    category: "underarm",
+    image: Crossbody, // Note: Using the filename from your upload
+    material: "Croc-Embossed Vegan Leather",
+    origin: "Spain",
+    series: "Geometrica Edition",
+    description: "Available in a spectrum of vibrant hues, the Valentina features a unique structured 'envelope' front with a signature gold pyramid stud. The croc-embossed side panels provide a high-texture contrast for the bold fashionista."
+  },
+  {
+    id: "Purse5",
+    name: "Hampton Slouch & Pouch",
+    price: 42,
+    category: "purse",
+    image: purses,
+    material: "Soft Grain Calfskin",
+    origin: "Denmark",
+    series: "Minimalist Travel Series",
+    description: "The Hampton Slouch is designed for the modern woman who values both space and style. This oversized hobo bag features a soft, architectural drape and includes a coordinated zip pouch to keep your smaller essentials organized within its generous interior."
+  },
+  {
+    id: "Purse3",
+    name: "Scarlet Halo Clutch",
+    price: 38,
+    category: "purse",
+    image: purse3,
+    material: "Ultra-Smooth Matte Leather",
+    origin: "Belgium",
+    series: "Avant-Garde Series",
+    description: "The Scarlet Halo is a wearable piece of art. Its vibrant red pillowy structure is contrasted by a massive, semi-circular gold hardware handle that defines the silhouette. A perfect choice for high-profile galas where making a statement is mandatory."
+  },
+  {
+    id: "Crossbody",
+    name: "Cannes Striped Tote",
+    price: 34,
+    category: "purse",
+    image: Crossbody3,
+    material: "Woven Canvas & Vegan Leather Trim",
+    origin: "France",
+    series: "Riviera Resort Series",
+    description: "Inspired by the coastal elegance of the French Riviera, the Cannes Striped Tote features a durable woven canvas body accented by high-contrast vertical stripes. With sturdy top handles and a refined structural shape, it’s the quintessential accessory for sophisticated summer outings."
   },
 ];

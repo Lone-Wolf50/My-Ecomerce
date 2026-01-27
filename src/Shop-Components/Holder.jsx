@@ -10,36 +10,69 @@ import Notification from "./Notification.jsx";
 import CheckoutPage from "./CheckoutPage.jsx";
 import OrderConfirmed from "./OrderConfirmed.jsx";
 import AuthPage from "./AuthPage.jsx"; 
-import UpdatePassword from "./UpdatePassword.jsx"; // Ensure this filename matches!
+import UpdatePassword from "./UpdatePassword.jsx";
 
 function Holder() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Check current auth status
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
+    let mounted = true;
 
-    // 2. Listen for auth changes (Login, Logout, Password Recovery)
+    // IT Guardrail: Ensure the loading screen clears even if Supabase is slow
+    const timeoutFallback = setTimeout(() => {
+      if (mounted && loading) {
+        console.warn("Auth check timed out. Forcing UI load.");
+        setLoading(false);
+      }
+    }, 5000); // 5-second safety net
+
+    async function initializeAuth() {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (mounted) {
+          if (error) throw error;
+          setSession(session);
+        }
+      } catch (err) {
+        console.error("Supabase Auth Error:", err.message);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+          clearTimeout(timeoutFallback);
+        }
+      }
+    }
+
+    initializeAuth();
+
+    // Listen for Auth Events (Login, Logout, Recovery)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
-      
-      // IT Tip: If the event is PASSWORD_RECOVERY, Supabase has verified the email link
-      if (event === "PASSWORD_RECOVERY") {
-        console.log("Lone Wolf, recovery mode activated.");
+      if (mounted) {
+        setSession(session);
+        // Force loading to false if an event happens (like clicking a recovery link)
+        setLoading(false); 
+        
+        if (event === "PASSWORD_RECOVERY") {
+          console.log("Lone Wolf, Password Recovery flow detected.");
+        }
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+      clearTimeout(timeoutFallback);
+    };
   }, []);
 
   if (loading) {
     return (
       <div className="h-screen bg-[#FDFBF7] flex items-center justify-center">
-        <p className="text-[#D4AF37] font-black tracking-[0.5em] animate-pulse uppercase text-xs">Initializing Atelier...</p>
+        <p className="text-[#D4AF37] font-black tracking-[0.5em] animate-pulse uppercase text-xs">
+          Initializing Atelier...
+        </p>
       </div>
     );
   }
@@ -48,15 +81,15 @@ function Holder() {
     <div className="bg-black min-h-screen font-display text-off-white relative">
       <Notification />
       <Routes>
-        {/* PUBLIC ROUTE: Always accessible (especially from email links) */}
+        {/* PUBLIC ROUTE: Accessible even when not logged in (Required for Email Links) */}
         <Route path="/update-password" element={<UpdatePassword />} />
 
         {/* AUTH LOGIC */}
         {!session ? (
-          // IF NOT LOGGED IN: Every other path sends them to AuthPage
+          /* IF NOT LOGGED IN: Redirect all other paths to AuthPage */
           <Route path="*" element={<AuthPage />} />
         ) : (
-          // IF LOGGED IN: Full App access
+          /* IF LOGGED IN: Full App Access */
           <>
             <Route path="/" element={<Homepage />} />
             <Route path="/reviews" element={<Reviews />} />
@@ -65,7 +98,7 @@ function Holder() {
             <Route path="/product/:id" element={<ProductDetail />} />
             <Route path="/order-confirmed" element={<OrderConfirmed />} />
             <Route path="/checkout" element={<CheckoutPage />} />
-            {/* Catch-all for logged in users to prevent 404s */}
+            {/* Prevent broken links for logged-in users */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </>
         )}

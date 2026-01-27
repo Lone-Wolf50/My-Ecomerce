@@ -65,7 +65,7 @@ function Holder() {
       subscription.unsubscribe();
       clearTimeout(timeoutFallback);
     };
-  }, []);
+  }, [loading]);
 
   if (loading) {
     return (

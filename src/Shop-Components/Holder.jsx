@@ -84,12 +84,12 @@ function Holder() {
         {/* PUBLIC ROUTE: Accessible even when not logged in (Required for Email Links) */}
         <Route path="/update-password" element={<UpdatePassword />} />
 
-        {/* AUTH LOGIC */}
+  
         {!session ? (
-          /* IF NOT LOGGED IN: Redirect all other paths to AuthPage */
+        
           <Route path="*" element={<AuthPage />} />
         ) : (
-          /* IF LOGGED IN: Full App Access */
+      
           <>
             <Route path="/" element={<Homepage />} />
             <Route path="/reviews" element={<Reviews />} />

@@ -1,165 +1,202 @@
 import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import useCart from "./useCart";
 import { supabase } from "../Database-Server/Superbase-client.js";
 import Footer from "./Footer.jsx";
+
 function Homepage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState([]);
+  const [userName, setUserName] = useState(""); 
   const [loading, setLoading] = useState(true);
   const { cartCount } = useCart();
   const searchRef = useRef(null);
+  const navigate = useNavigate();
 
-  // FETCH LIVE DATA FROM SUPABASE
   useEffect(() => {
-    const fetchProducts = async () => {
+    const initializePage = async () => {
       try {
         setLoading(true);
-        const { data, error } = await supabase
-          .from('products')
-          .select('*');
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', user.id)
+            .single();
+          if (profile) setUserName(profile.full_name);
+        }
 
+        const { data, error } = await supabase.from("products").select("*");
         if (error) throw error;
         setProducts(data || []);
       } catch (error) {
-        console.error("Error fetching products:", error.message);
+        console.error("Error:", error.message);
       } finally {
         setLoading(false);
       }
     };
-
-    fetchProducts();
+    initializePage();
   }, []);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (searchRef.current && !searchRef.current.contains(event.target)) {
-        setSearchQuery("");
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/'); 
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmDelete = window.confirm("Lone Wolf, this will permanently remove your Luxe account. Proceed?");
+    if (confirmDelete) {
+      const { error } = await supabase.rpc('delete_user');
+      if (!error) {
+        await supabase.auth.signOut();
+        navigate('/');
+      } else {
+        alert(error.message);
       }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    }
+  };
 
-  const filteredProducts = products.filter((product) =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredProducts = products.filter((p) => {
+    const name = p?.name?.toLowerCase() ?? "";
+    const cat = p?.category?.toLowerCase() ?? "";
+    const q = searchQuery.toLowerCase();
+    return name.includes(q) || cat.includes(q);
+  });
+
+  const bagCategories = [
+    { id: "crossbody", title: "Crossbody", image: "/Images/Crossbody2.jpg" },
+    { id: "underarm", title: "Underarm", image: "/Images/underarms.jpg" },
+    { id: "picnic", title: "Summer/Picnic", image: "/Images/summer.jpg" },
+    { id: "limited", title: "Limited Edition", image: "/Images/purse2.jpg" },
+  ];
 
   const communityImages = [
-    { id: 0, url: "https://lh3.googleusercontent.com/aida-public/AB6AXuCaO_LALs2EBDmGdlSVgY5zgAkBgK-_UdMJCsbL4rRDxcNo6b2-x-JpTyIzx9fxGhwLYik_Hlc9-3ev3lpKNfcbVtkp8rce1Xuk3lrDNpHH1oIgSx7daCpPKVC5Y_YvtzLhn6FfFwJhv1z9hn87F-WmbNv824ktlhzpzYX7BwH8NWsHRzjYp59ASmc1Q5ZI_NhZfdXrscoOAvX68beROynof5d2sXZ-T-J7J5oiEFFndReSy2GrDRtpv8wdMitzv3RDaiQoyRofQNRB" },
-    { id: 1, url: "https://lh3.googleusercontent.com/aida-public/AB6AXuD4ru0F9HdKxDVcgpwILAHi8tSrpeUl_sME2jN0e5ioelOwR6JiTH3s2xNqbgqfKoCMqdPcqfn91_u1XOd5u0hR3UsVR2NOx2I5bTQ0HHYHTrtdtAxj1QzmMZzX4zyJYjz3SxWmPkPIRDrqv_upzCdV2Td4Wf1s-QI0LWQ9jI3XzDDQBsVHhP74RGoHX6Prq6VALB-_g1zMT4Ex2EhrWs3eR9i3YaG4GFkz76yL3ImFMy5H3TtDZhJZztIwPvhMWIVsfM7r_eLcQHLS" },
-    { id: 2, url: "https://lh3.googleusercontent.com/aida-public/AB6AXuBNED0C7MdztWGjxuuoAXZqoJt9lpF7ktn-Wq9aC-CTZfkja91zoZu75mR3wW6ryZAvgi8TkVgDYe4I2Aid35BQ3oB9uzUkfi0gylLvRrGtETPfDxU3L3Z-aDrXM3Tr0fuwzrCu2HFfe1nEs4dAlMIukE97yGCZzaffMM8_UxVZE_S1Z5Zenpm2RyqJjrmMijwRg-wB2qWINsdaKs9OD_3OHng8zRajYxB7uZhCFCSmeQpa7bdQu2r1bSVQco5Dti3IHs8wU8QwIrkr" },
-    { id: 3, url: "https://lh3.googleusercontent.com/aida-public/AB6AXuAa1S9Um7rKrxmYtsz21zrkWZgzdC5dEdHu7knBkemhqVYr_WR2q3_ANmyeuv_j-Q31IeJTn0J3_LPF8gZyVdZvCjsGCk8w1nIy_QDF-8qBKNKxCaChNGqXRSg_ae_c8CbYYsoBLNZl1aTPC3gyurgAEA_q_ARsPT1AGw_B7zXtBXFJ8Z6PFBr5-60V0qWop168Aw89MnAVAmif8m_BILOa32UUWzeOv-OPL85Be6a0vL_3YhDDJtc2GHhvCY3DWzPKTnO74g4K1nNA" },
-    { id: 4, url: "https://lh3.googleusercontent.com/aida-public/AB6AXuCU_QFPGUmN26qDIuE7hxad3VCnfvA_iBqBEPIshFBMhq9iyobQO6FFvdgclPaWM1f20GXnJ7p3p5llBV8L7o4FxB2Z7p3pQgVyZW99EME01n6WyZUtVJT-jtJ5dBvocDsRQwyMkqZOfOS2kkKyv_HaeeEZuY_JFBP9P3uCkLa0_eHFYEoCBeMY23cCnDPeSMbMQFXW6nKTL8iv5KWDdZGdfXZ1s3oYgCdUSo07E-I93YL0Jm2RzHUczVz_zwEs5ewqQj7lTYZnUfNn" },
-    { id: 5, url: "https://lh3.googleusercontent.com/aida-public/AB6AXuDnmzwGNV5VBmlE-NXOhdeBNLTYezQ5sl6tVIkI-7Re_kfE380_Hrnvzb88CsroL79Xn7piTqRgBTfqoaemOKjSfflv-AQ7We8BKHigU4NSCB4OdryAMy3NR38KbvSIuJitPxkW05D43PmdhH7stMsym5uxAG_QwTgxrNcISfUlbzUwGQcL6Pk31mbHTXCsHzz8v1BJSdrdy9FtYAjc4pHdOXskW2IVihc3hSsM-sNsaPewva-A0hnxhBhhyQcoqlcMeGPw4MdFK_Vy" },
-  ];
-const bagCategories = [
-    { id: "crossbody", title: "Crossbody", image: "/Images/Crossbody2.jpg" }, // Changed to capital I
-    { id: "underarm", title: "Underarm", image: "/Images/underarms.jpg" },    // Changed to capital I
-    { id: "picnic", title: "Summer/Picnic", image: "/Images/summer.jpg" },       // Changed to capital I
-    { id: "limited", title: "Limited Edition", image: "/Images/purse2.jpg" }, // Changed to capital I
+    { id: 0, url: "/Images/community1.jpg" },
+    { id: 1, url: "/Images/community2.jpg" },
+    { id: 2, url: "/Images/community3.jpg" },
+    { id: 3, url: "/Images/community4.jpg" },
+    { id: 4, url: "/Images/community5.jpg" },
+    { id: 5, url: "/Images/community6.jpg" },
   ];
 
   if (loading) {
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center">
-        <div className="text-primary font-black uppercase tracking-[0.5em] animate-pulse">
-          Luxe is Loading...
-        </div>
+        <div className="text-primary font-black uppercase tracking-[0.5em] animate-pulse">LUXE...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-cream text-black-solid">
+    <div className="min-h-screen bg-cream text-black-solid overflow-x-hidden">
+      
+      {/* MOBILE SLIDER MENU */}
+      <div className={`fixed inset-0 z-[100] transition-visibility duration-300 ${isMenuOpen ? "visible" : "invisible"}`}>
+        <div className={`absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity duration-300 ${isMenuOpen ? "opacity-100" : "opacity-0"}`} onClick={() => setIsMenuOpen(false)}></div>
+        <div className={`absolute top-0 right-0 h-full w-[80%] max-w-xs bg-white shadow-2xl transition-transform duration-500 p-8 flex flex-col ${isMenuOpen ? "translate-x-0" : "translate-x-full"}`}>
+          <button className="self-end mb-8" onClick={() => setIsMenuOpen(false)}>
+            <span className="material-symbols-outlined text-3xl">close</span>
+          </button>
+          <nav className="flex flex-col gap-8 flex-1">
+            <Link className="text-sm font-black uppercase tracking-widest border-b border-black/5 pb-2" to="/" onClick={() => setIsMenuOpen(false)}>Home</Link>
+            <Link className="text-sm font-black uppercase tracking-widest border-b border-black/5 pb-2" to="/shop/underarm" onClick={() => setIsMenuOpen(false)}>Shop</Link>
+          </nav>
+          <div className="mt-auto pt-8 border-t border-black/10">
+            <p className="text-[10px] uppercase font-bold text-primary mb-4">Member: {userName || "Guest"}</p>
+            <button onClick={handleLogout} className="flex items-center gap-2 text-red-500 font-bold text-xs uppercase mb-4">
+              <span className="material-symbols-outlined text-sm">logout</span> Logout
+            </button>
+            <button onClick={handleDeleteAccount} className="text-[9px] text-black/30 font-bold uppercase underline">Delete Account</button>
+          </div>
+        </div>
+      </div>
+
       {/* HEADER */}
       <header className="fixed top-0 left-0 w-full z-50 bg-cream/80 backdrop-blur-xl border-b border-black/5">
         <div className="max-w-[1440px] mx-auto flex items-center justify-between px-8 py-6">
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="text-primary">
-              <svg className="size-7" fill="currentColor" viewBox="0 0 48 48">
-                <path d="M36.7273 44C33.9891 44 31.6043 39.8386 30.3636 33.69C29.123 39.8386 26.7382 44 24 44C21.2618 44 18.877 39.8386 17.6364 33.69C16.3957 39.8386 14.0109 44 11.2727 44C7.25611 44 4 35.0457 4 24C4 12.9543 7.25611 4 11.2727 4C14.0109 4 16.3957 8.16144 17.6364 14.31C18.877 8.16144 21.2618 4 24 4C26.7382 4 29.123 8.16144 30.3636 14.31C31.6043 8.16144 33.9891 4 36.7273 4C40.7439 4 44 12.9543 44 24C44 35.0457 40.7439 44 36.7273 44Z"></path>
-              </svg>
-            </div>
-            <h1 className="text-2xl font-black tracking-widest text-black-solid">LUXE</h1>
-          </div>
-
-          <nav className={`${isMenuOpen ? "flex flex-col absolute top-full left-0 w-full bg-cream/95 p-6 border-b border-black/10" : "hidden"} md:static md:flex md:flex-row items-center gap-12`}>
-            <Link className="text-[11px] font-bold uppercase tracking-[0.3em] text-black-solid/60 hover:text-primary transition-colors" to="/">Home</Link>
-            <Link className="text-[11px] font-bold uppercase tracking-[0.3em] text-black-solid/60 hover:text-primary transition-colors" to="/shop/underarm">Shop</Link>
-            <Link className="text-[11px] font-bold uppercase tracking-[0.3em] text-black-solid/60 hover:text-primary transition-colors" to="/reviews">Reviews</Link>
+          <h1 className="text-2xl font-black tracking-widest">LUXE</h1>
+          <nav className="hidden md:flex items-center gap-12">
+            <Link className="text-[11px] font-bold uppercase tracking-[0.3em] hover:text-primary" to="/">Home</Link>
+            <Link className="text-[11px] font-bold uppercase tracking-[0.3em] hover:text-primary" to="/shop/underarm">Shop</Link>
+            <div className="h-4 w-[1px] bg-black/10 mx-2"></div>
+            <span className="text-[10px] font-black text-primary uppercase">{userName}</span>
+            <button onClick={handleLogout} className="material-symbols-outlined text-xl hover:text-red-500 transition-colors">logout</button>
           </nav>
-
-          <div className="flex items-center gap-4 text-black-solid">
-            <Link to="/cart" className="relative p-2 hover:text-primary transition-colors">
+          <div className="flex items-center gap-4">
+            <Link to="/cart" className="relative p-2">
               <span className="material-symbols-outlined">shopping_bag</span>
-              {cartCount > 0 && (
-                <span className="absolute top-0 right-0 bg-primary text-white text-[9px] font-black size-4 flex items-center justify-center rounded-full">{cartCount}</span>
-              )}
+              {cartCount > 0 && <span className="absolute top-0 right-0 bg-primary text-white text-[9px] font-black size-4 flex items-center justify-center rounded-full">{cartCount}</span>}
             </Link>
-            <button className="md:hidden" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-              <span className="material-symbols-outlined">{isMenuOpen ? "close" : "menu"}</span>
+            <button className="md:hidden" onClick={() => setIsMenuOpen(true)}>
+              <span className="material-symbols-outlined">menu</span>
             </button>
           </div>
         </div>
       </header>
 
       <main className="max-w-[1440px] mx-auto px-8 pt-32">
-        {/* SEARCH SECTION */}
-        <section className="mt-12 mb-12 flex justify-center relative z-[40]" ref={searchRef}>
+        {/* SEARCH */}
+        <section className="mt-8 mb-12 flex justify-center relative z-[40]" ref={searchRef}>
           <div className="relative w-full max-w-2xl group">
             <input
               type="text"
-              placeholder="Search name or category..."
-              className="w-full bg-white/40 border border-black/20 rounded-2xl py-5 px-8 focus:border-primary/50 outline-none transition-all text-black-solid placeholder:text-black-solid/30 shadow-sm"
+              placeholder="Search masterpieces..."
+              className="w-full bg-white/40 border border-black/10 rounded-2xl py-5 px-8 focus:border-primary/50 outline-none shadow-sm"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
             {searchQuery && (
-              <div className="absolute top-full left-0 w-full mt-2 bg-white border border-black/5 rounded-2xl overflow-hidden z-[60] shadow-2xl max-h-[400px] overflow-y-auto">
+              <div className="absolute top-full left-0 w-full mt-2 bg-white border border-black/5 rounded-2xl overflow-hidden shadow-2xl z-[60] max-h-60 overflow-y-auto">
                 {filteredProducts.length > 0 ? (
-                  filteredProducts.map(p => (
-                    <Link key={p.id} to={`/product/${p.id}`} className="flex items-center gap-4 p-4 hover:bg-cream border-b border-black/5 transition-colors">
-                      <img src={p.image} className="size-12 rounded-lg object-cover" alt="" />
-                      <div className="flex flex-col">
-                        <span className="text-[11px] font-black uppercase text-black-solid">{p.name}</span>
-                        <span className="text-[9px] text-primary uppercase font-bold">{p.category}</span>
-                      </div>
+                    filteredProducts.map(p => (
+                    <Link key={p.id} to={`/product/${p.id}`} className="flex items-center gap-4 p-4 hover:bg-cream border-b border-black/5">
+                        <img src={p.image} className="size-10 rounded object-cover" alt="" />
+                        <span className="text-xs font-black uppercase">{p.name}</span>
                     </Link>
-                  ))
+                    ))
                 ) : (
-                  <div className="p-6 text-center text-[10px] uppercase font-bold text-black-solid/40">No pieces found</div>
+                    <div className="p-4 text-center text-[10px] uppercase font-bold text-black/40">No pieces found</div>
                 )}
               </div>
             )}
           </div>
         </section>
 
-        {/* HERO SECTION */}
-        <section className="py-16 md:py-28">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            <div className="relative group">
-              <div className="aspect-[4/5] w-full rounded-[2.5rem] overflow-hidden bg-white/40 border border-black/5 p-4 backdrop-blur-md shadow-2xl">
-                <div className="w-full h-full rounded-[2rem] bg-cover bg-center transition-transform duration-1000 group-hover:scale-105" style={{ backgroundImage: `url("/Images/summer3.jpg")` }}></div>
-              </div>
-            </div>
-            <div className="flex flex-col gap-10 lg:pl-16">
-              <div className="flex flex-col gap-6">
-                <span className="text-primary font-bold tracking-[0.4em] uppercase text-[10px]">Exclusively Crafted</span>
-                <h1 className="text-6xl md:text-8xl font-black leading-[1] tracking-tighter text-black-solid">The Essence <br /> <span className="text-primary">of Elegance</span></h1>
-                <p className="text-lg text-black-solid/60 max-w-lg leading-relaxed font-light">Handcrafted for the modern woman who values timeless design and superior quality.</p>
-              </div>
-              <div className="flex flex-wrap gap-6">
-                <Link to="/shop/underarm" className="bg-white/60 backdrop-blur-md border border-black/5 text-primary px-12 py-5 rounded-2xl font-black text-[11px] tracking-[0.2em] uppercase hover:bg-primary hover:text-white transition-all duration-500 shadow-lg">Shop Collection</Link>
-                <button className="bg-black-solid/5 backdrop-blur-md border border-black/5 text-black-solid px-12 py-5 rounded-2xl font-bold text-[11px] tracking-[0.2em] uppercase hover:bg-black-solid/10 transition-all duration-300">Our Story</button>
-              </div>
-            </div>
-          </div>
-        </section>
+        {/* HERO */}
+        <section className="py-16">
+  {/* Using items-center to keep everything vertically aligned */}
+  <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+    
+    {/* TEXT BLOCK: order-1 (first on mobile), lg:order-1 (stays left on PC) */}
+    <div className="flex flex-col gap-8 order-1 lg:order-1">
+      <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-black-solid leading-none">
+        Welcome back, <br/> 
+        <span className="text-primary italic font-serif lowercase">
+          {userName.split(' ')[0] || "Collector"}
+        </span>
+      </h1>
+      <p className="text-lg text-black/60 max-w-md">
+        Your personal luxury atelier is curated and ready.
+      </p>
+      <Link to="/shop/underarm" className="bg-primary text-white w-fit px-12 py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl hover:scale-105 transition-transform">
+        Explore Collection
+      </Link>
+    </div>
 
-        {/* FEATURED COLLECTIONS */}
+    {/* IMAGE BLOCK: order-2 (after text on mobile), lg:order-2 (on the right for PC) */}
+    <div className="aspect-[4/5] rounded-[2.5rem] overflow-hidden shadow-2xl order-2 lg:order-2">
+      <div 
+        className="w-full h-full bg-cover bg-center" 
+        style={{ backgroundImage: `url("/Images/summer3.jpg")` }}
+      ></div>
+    </div>
+
+  </div>
+</section>
+
+        {/* FEATURED COLLECTIONS SECTION - ADDED BACK */}
         <section className="py-20 border-t border-black/5">
           <h2 className="text-4xl font-black uppercase mb-12 text-black-solid">Featured Collections</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -168,19 +205,16 @@ const bagCategories = [
                 <div className="aspect-[3/4] rounded-[2rem] overflow-hidden bg-white/40 border border-black/5 p-2 mb-4 shadow-lg shadow-black/5">
                   <div className="w-full h-full rounded-[1.5rem] bg-cover bg-center group-hover:scale-105 transition-all duration-700" style={{ backgroundImage: `url(${cat.image})` }}></div>
                 </div>
-                <div className="text-center space-y-2">
+                <div className="text-center">
                   <h3 className="text-[11px] font-black uppercase tracking-widest text-black-solid">{cat.title}</h3>
-                  <div className="flex items-center justify-center gap-2 text-primary">
-                    <span className="text-[9px] font-bold uppercase tracking-widest">Explore More</span>
-                    <span className="material-symbols-outlined text-sm group-hover:translate-x-1 transition-transform">arrow_forward</span>
-                  </div>
+                  <p className="text-[9px] text-primary font-bold uppercase mt-1">View Gallery</p>
                 </div>
               </Link>
             ))}
           </div>
         </section>
 
-        {/* COMMUNITY SECTION */}
+        {/* COMMUNITY SECTION - ADDED BACK */}
         <section className="py-20 border-t border-black/5">
           <h3 className="text-2xl font-black uppercase tracking-widest text-center mb-12 text-black-solid">The Community</h3>
           <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
@@ -193,7 +227,6 @@ const bagCategories = [
         </section>
 
         <Footer />
-        
       </main>
     </div>
   );

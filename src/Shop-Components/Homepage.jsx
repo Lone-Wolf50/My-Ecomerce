@@ -14,18 +14,29 @@ function Homepage() {
   const searchRef = useRef(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
+ useEffect(() => {
     const initializePage = async () => {
       try {
         setLoading(true);
+        // 1. Get the current session
         const { data: { user } } = await supabase.auth.getUser();
+        
         if (user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', user.id)
-            .single();
-          if (profile) setUserName(profile.full_name);
+          // Check BOTH metadata possibilities (Supabase sometimes varies the key)
+          const nameFromMetadata = user.user_metadata?.full_name || 
+                                   user.user_metadata?.fullName;
+          
+          if (nameFromMetadata) {
+            setUserName(nameFromMetadata);
+          } else {
+            // Fallback: If metadata is empty, try your profiles table
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('full_name')
+              .eq('id', user.id)
+              .single();
+            if (profile) setUserName(profile.full_name);
+          }
         }
 
         const { data, error } = await supabase.from("products").select("*");
@@ -39,7 +50,6 @@ function Homepage() {
     };
     initializePage();
   }, []);
-
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/'); 

@@ -107,11 +107,11 @@ const AuthPage = () => {
               </div>
 
               <button disabled={loading} className="w-full h-14 bg-[#D4AF37] text-white rounded-full text-[10px] font-black uppercase tracking-[0.3em] shadow-lg shadow-[#D4AF37]/20 transition-all active:scale-95">
-                {loading ? 'Entering...' : 'Sign In'}
+                {loading ? 'Entering...' : 'Login'}
               </button>
             </form>
             <p className="mt-10 text-[10px] text-center text-black/40 uppercase tracking-widest">
-              No account? <span onClick={() => setView('signup')} className="text-[#D4AF37] cursor-pointer font-black underline underline-offset-4">Join Luxe</span>
+              No account? <span onClick={() => setView('signup')} className="text-[#D4AF37] cursor-pointer font-black underline underline-offset-4">Sign up</span>
             </p>
           </div>
 

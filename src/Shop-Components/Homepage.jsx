@@ -14,22 +14,20 @@ function Homepage() {
   const searchRef = useRef(null);
   const navigate = useNavigate();
 
- useEffect(() => {
+  useEffect(() => {
     const initializePage = async () => {
       try {
         setLoading(true);
-        // 1. Get the current session
+        // 1. Get the current user
         const { data: { user } } = await supabase.auth.getUser();
         
         if (user) {
-          // Check BOTH metadata possibilities (Supabase sometimes varies the key)
-          const nameFromMetadata = user.user_metadata?.full_name || 
-                                   user.user_metadata?.fullName;
+          // Check metadata first, then fall back to profiles table
+          const nameFromMeta = user.user_metadata?.full_name || user.user_metadata?.fullName;
           
-          if (nameFromMetadata) {
-            setUserName(nameFromMetadata);
+          if (nameFromMeta) {
+            setUserName(nameFromMeta);
           } else {
-            // Fallback: If metadata is empty, try your profiles table
             const { data: profile } = await supabase
               .from('profiles')
               .select('full_name')
@@ -39,17 +37,19 @@ function Homepage() {
           }
         }
 
+        // 2. Load Products
         const { data, error } = await supabase.from("products").select("*");
         if (error) throw error;
         setProducts(data || []);
       } catch (error) {
-        console.error("Error:", error.message);
+        console.error("Initialization Error:", error.message);
       } finally {
         setLoading(false);
       }
     };
     initializePage();
   }, []);
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/'); 
@@ -103,22 +103,46 @@ function Homepage() {
     <div className="min-h-screen bg-cream text-black-solid overflow-x-hidden">
       
       {/* MOBILE SLIDER MENU */}
-      <div className={`fixed inset-0 z-[100] transition-visibility duration-300 ${isMenuOpen ? "visible" : "invisible"}`}>
-        <div className={`absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity duration-300 ${isMenuOpen ? "opacity-100" : "opacity-0"}`} onClick={() => setIsMenuOpen(false)}></div>
-        <div className={`absolute top-0 right-0 h-full w-[80%] max-w-xs bg-white shadow-2xl transition-transform duration-500 p-8 flex flex-col ${isMenuOpen ? "translate-x-0" : "translate-x-full"}`}>
-          <button className="self-end mb-8" onClick={() => setIsMenuOpen(false)}>
+      <div className={`fixed inset-0 z-[100] transition-all duration-300 ${isMenuOpen ? "visible" : "invisible"}`}>
+        <div className={`absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300 ${isMenuOpen ? "opacity-100" : "opacity-0"}`} onClick={() => setIsMenuOpen(false)}></div>
+        <div className={`absolute top-0 right-0 h-full w-[85%] max-w-xs bg-white shadow-2xl transition-transform duration-500 p-8 flex flex-col ${isMenuOpen ? "translate-x-0" : "translate-x-full"}`}>
+          
+          <button className="self-end mb-8 p-2" onClick={() => setIsMenuOpen(false)}>
             <span className="material-symbols-outlined text-3xl">close</span>
           </button>
-          <nav className="flex flex-col gap-8 flex-1">
-            <Link className="text-sm font-black uppercase tracking-widest border-b border-black/5 pb-2" to="/" onClick={() => setIsMenuOpen(false)}>Home</Link>
-            <Link className="text-sm font-black uppercase tracking-widest border-b border-black/5 pb-2" to="/shop/underarm" onClick={() => setIsMenuOpen(false)}>Shop</Link>
+
+          {/* User Section in Menu */}
+          <div className="mb-10 pb-6 border-b border-black/5">
+            <p className="text-[10px] uppercase font-black text-primary tracking-widest mb-1">Authenticated Member</p>
+            <h2 className="text-2xl font-black italic tracking-tighter text-black-solid">
+              {userName || "The Collector"}
+            </h2>
+          </div>
+
+          <nav className="flex flex-col gap-6 flex-1">
+            <Link className="text-sm font-black uppercase tracking-widest py-2" to="/" onClick={() => setIsMenuOpen(false)}>Home</Link>
+            <Link className="text-sm font-black uppercase tracking-widest py-2" to="/shop/underarm" onClick={() => setIsMenuOpen(false)}>The Collection</Link>
+            <Link className="text-sm font-black uppercase tracking-widest py-2" to="/cart" onClick={() => setIsMenuOpen(false)}>Your Bag ({cartCount})</Link>
           </nav>
-          <div className="mt-auto pt-8 border-t border-black/10">
-            <p className="text-[10px] uppercase font-bold text-primary mb-4">Member: {userName || "Guest"}</p>
-            <button onClick={handleLogout} className="flex items-center gap-2 text-red-500 font-bold text-xs uppercase mb-4">
-              <span className="material-symbols-outlined text-sm">logout</span> Logout
+
+          {/* ACCESSIBLE BOTTOM SECTION (Larger Hit Areas) */}
+          <div className="mt-auto pt-6 border-t border-black/10">
+            <button 
+                onClick={handleLogout} 
+                className="w-full flex items-center gap-4 p-4 -ml-4 rounded-2xl active:bg-red-50 transition-colors group"
+            >
+              <span className="material-symbols-outlined text-red-500 group-active:scale-90 transition-transform">logout</span>
+              <span className="text-red-500 font-black text-xs uppercase tracking-widest">Sign Out</span>
             </button>
-            <button onClick={handleDeleteAccount} className="text-[9px] text-black/30 font-bold uppercase underline">Delete Account</button>
+            
+            <div className="mt-2">
+                <button 
+                    onClick={handleDeleteAccount} 
+                    className="p-4 -ml-4 text-[9px] text-black/30 font-bold uppercase underline tracking-tighter block w-full text-left"
+                >
+                    Terminate Account
+                </button>
+            </div>
           </div>
         </div>
       </div>
@@ -127,20 +151,26 @@ function Homepage() {
       <header className="fixed top-0 left-0 w-full z-50 bg-cream/80 backdrop-blur-xl border-b border-black/5">
         <div className="max-w-[1440px] mx-auto flex items-center justify-between px-8 py-6">
           <h1 className="text-2xl font-black tracking-widest">LUXE</h1>
+          
           <nav className="hidden md:flex items-center gap-12">
-            <Link className="text-[11px] font-bold uppercase tracking-[0.3em] hover:text-primary" to="/">Home</Link>
-            <Link className="text-[11px] font-bold uppercase tracking-[0.3em] hover:text-primary" to="/shop/underarm">Shop</Link>
+            <Link className="text-[11px] font-bold uppercase tracking-[0.3em] hover:text-primary transition-colors" to="/">Home</Link>
+            <Link className="text-[11px] font-bold uppercase tracking-[0.3em] hover:text-primary transition-colors" to="/shop/underarm">Shop</Link>
             <div className="h-4 w-[1px] bg-black/10 mx-2"></div>
-            <span className="text-[10px] font-black text-primary uppercase">{userName}</span>
+            <span className="text-[10px] font-black text-primary uppercase italic tracking-widest">{userName || "Guest"}</span>
             <button onClick={handleLogout} className="material-symbols-outlined text-xl hover:text-red-500 transition-colors">logout</button>
           </nav>
+
           <div className="flex items-center gap-4">
             <Link to="/cart" className="relative p-2">
-              <span className="material-symbols-outlined">shopping_bag</span>
-              {cartCount > 0 && <span className="absolute top-0 right-0 bg-primary text-white text-[9px] font-black size-4 flex items-center justify-center rounded-full">{cartCount}</span>}
+              <span className="material-symbols-outlined text-2xl">shopping_bag</span>
+              {cartCount > 0 && (
+                <span className="absolute top-0 right-0 bg-primary text-white text-[9px] font-black size-4 flex items-center justify-center rounded-full">
+                  {cartCount}
+                </span>
+              )}
             </Link>
-            <button className="md:hidden" onClick={() => setIsMenuOpen(true)}>
-              <span className="material-symbols-outlined">menu</span>
+            <button className="md:hidden p-2" onClick={() => setIsMenuOpen(true)}>
+              <span className="material-symbols-outlined text-3xl">menu</span>
             </button>
           </div>
         </div>
@@ -176,39 +206,34 @@ function Homepage() {
 
         {/* HERO */}
         <section className="py-16">
-  {/* Using items-center to keep everything vertically aligned */}
-  <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-    
-    {/* TEXT BLOCK: order-1 (first on mobile), lg:order-1 (stays left on PC) */}
-    <div className="flex flex-col gap-8 order-1 lg:order-1">
-      <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-black-solid leading-none">
-        Welcome back, <br/> 
-        <span className="text-primary italic font-serif lowercase">
-          {userName.split(' ')[0] || "Collector"}
-        </span>
-      </h1>
-      <p className="text-lg text-black/60 max-w-md">
-        Your personal luxury atelier is curated and ready.
-      </p>
-      <Link to="/shop/underarm" className="bg-primary text-white w-fit px-12 py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl hover:scale-105 transition-transform">
-        Explore Collection
-      </Link>
-    </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <div className="flex flex-col gap-8 order-1 lg:order-1">
+              <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-black-solid leading-none">
+                Welcome back, <br/> 
+                <span className="text-primary italic font-serif lowercase">
+                  {userName.split(' ')[0] || "Collector"}
+                </span>
+              </h1>
+              <p className="text-lg text-black/60 max-w-md">
+                Your personal luxury atelier is curated and ready.
+              </p>
+              <Link to="/shop/underarm" className="bg-primary text-white w-fit px-12 py-5 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl hover:scale-105 transition-transform">
+                Explore Collection
+              </Link>
+            </div>
 
-    {/* IMAGE BLOCK: order-2 (after text on mobile), lg:order-2 (on the right for PC) */}
-    <div className="aspect-[4/5] rounded-[2.5rem] overflow-hidden shadow-2xl order-2 lg:order-2">
-      <div 
-        className="w-full h-full bg-cover bg-center" 
-        style={{ backgroundImage: `url("/Images/summer3.jpg")` }}
-      ></div>
-    </div>
+            <div className="aspect-[4/5] rounded-[2.5rem] overflow-hidden shadow-2xl order-2 lg:order-2">
+              <div 
+                className="w-full h-full bg-cover bg-center" 
+                style={{ backgroundImage: `url("/Images/summer3.jpg")` }}
+              ></div>
+            </div>
+          </div>
+        </section>
 
-  </div>
-</section>
-
-        {/* FEATURED COLLECTIONS SECTION - ADDED BACK */}
+        {/* FEATURED COLLECTIONS */}
         <section className="py-20 border-t border-black/5">
-          <h2 className="text-4xl font-black uppercase mb-12 text-black-solid">Featured Collections</h2>
+          <h2 className="text-4xl font-black uppercase mb-12 text-black-solid tracking-tighter">Featured Collections</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {bagCategories.map((cat) => (
               <Link key={cat.id} to={`/shop/${cat.id}`} className="group">
@@ -224,7 +249,7 @@ function Homepage() {
           </div>
         </section>
 
-        {/* COMMUNITY SECTION - ADDED BACK */}
+        {/* COMMUNITY */}
         <section className="py-20 border-t border-black/5">
           <h3 className="text-2xl font-black uppercase tracking-widest text-center mb-12 text-black-solid">The Community</h3>
           <div className="grid grid-cols-2 md:grid-cols-6 gap-4">

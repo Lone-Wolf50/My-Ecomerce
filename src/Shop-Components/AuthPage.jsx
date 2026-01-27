@@ -131,7 +131,7 @@ const AuthPage = () => {
               </button>
             </form>
             <p className="mt-8 text-[10px] text-center text-black/40 uppercase tracking-widest">
-              Already a member? <span onClick={() => setView('login')} className="text-[#D4AF37] cursor-pointer font-black underline underline-offset-4">Sign In</span>
+              Already a member? <span onClick={() => setView('login')} className="text-[#D4AF37] cursor-pointer font-black underline underline-offset-4">Login</span>
             </p>
           </div>
 

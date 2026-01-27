@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Navbar from './Navbar.jsx';
+import Footer from './Footer.jsx';
 
 function Review() {
     const [isLoading, setIsLoading] = useState(false);
@@ -136,17 +137,8 @@ function Review() {
                 </section>
             </main>
 
-            {/* FOOTER: Placed at the very bottom of the natural flow. 
-               No absolute or fixed positioning here.
-            */}
-            <footer className="w-full py-20 border-t border-black/10 text-center bg-white/40 backdrop-blur-sm">
-                <div className="max-w-7xl mx-auto px-6">
-                    <h2 className="text-2xl font-black tracking-[0.4em] text-primary uppercase">LUXE</h2>
-                    <p className="text-[9px] uppercase tracking-[0.3em] text-black-solid/20 font-bold mt-4">
-                        © 2026 Luxury Reimagined — Handcrafted Excellence
-                    </p>
-                </div>
-            </footer>
+            <Footer />
+            
         </div>
     );
 }

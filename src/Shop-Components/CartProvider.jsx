@@ -1,21 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import CartContext from './CartContext';
+// 1. You MUST import the context and the logic functions
+import CartContext from './CartContext'; 
 import { addItemToCart, calculateTotals, updateItemQuantity } from './CartLogic';
 
 export default function CartProvider({ children }) {
-    // Initialize from LocalStorage
     const [cart, setCart] = useState(() => {
         const savedCart = localStorage.getItem('luxe_cart');
         return savedCart ? JSON.parse(savedCart) : [];
     });
     const [toast, setToast] = useState(null);
 
-    // Save to LocalStorage whenever cart changes
+    const clearCart = () => {
+        setCart([]);
+        localStorage.removeItem('luxe_cart');
+    };
+
     useEffect(() => {
         localStorage.setItem('luxe_cart', JSON.stringify(cart));
     }, [cart]);
 
     const addToCart = (product) => {
+        // These rely on the imports above
         setCart(prev => addItemToCart(prev, product));
         setToast(`${product.name} added to bag`);
     };
@@ -35,6 +40,7 @@ export default function CartProvider({ children }) {
         }
     }, [toast]);
 
+    // calculateTotals also comes from the import
     const { count, total } = calculateTotals(cart);
 
     const value = {
@@ -42,6 +48,7 @@ export default function CartProvider({ children }) {
         addToCart,
         removeFromCart,
         updateQuantity,
+        clearCart,
         toast,
         cartCount: count,
         cartTotal: total

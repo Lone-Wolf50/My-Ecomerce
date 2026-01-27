@@ -2,9 +2,9 @@ import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import useCart from './useCart';
 import Navbar from './Navbar';
+import Footer from './Footer';
 
 function Cart() {
-    // Note: ensure your useCart returns 'cart'. If it returns 'cartItems', change it here.
     const { cart, removeFromCart, updateQuantity, cartTotal } = useCart();
     const navigate = useNavigate();
 
@@ -48,10 +48,9 @@ function Cart() {
                             </div>
                         ) : (
                             cart.map((item) => (
-                                /* UNIFIED GLASS CONTAINER CARD */
                                 <div key={item.id} className="group relative flex flex-col md:flex-row gap-10 p-8 bg-white/40 backdrop-blur-xl border border-black/5 rounded-[3rem] shadow-2xl shadow-black/5 transition-all duration-500 hover:border-primary/20">
                                     
-                                    {/* Product Image Container */}
+                                    {/* Product Image */}
                                     <div className="w-full md:w-64 aspect-[4/5] bg-cream rounded-[2rem] overflow-hidden p-8 flex items-center justify-center shrink-0 border border-black/5 shadow-inner">
                                         <img 
                                             src={item.image} 
@@ -60,7 +59,7 @@ function Cart() {
                                         />
                                     </div>
 
-                                    {/* Info & Controls Box - This is the unified part you requested */}
+                                    {/* Info & Controls */}
                                     <div className="flex flex-col justify-between flex-grow py-2">
                                         <div>
                                             <div className="flex justify-between items-start">
@@ -92,15 +91,23 @@ function Cart() {
                                                 <span className="text-[8px] uppercase tracking-[0.3em] font-black text-black-solid/20">Set Quantity</span>
                                                 <div className="flex items-center bg-black-solid rounded-full px-6 py-3 gap-8 w-fit shadow-xl shadow-black/10">
                                                     <button 
-                                                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                                        className="text-white hover:text-primary transition-colors font-black"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (item.quantity > 1) updateQuantity(item.id, item.quantity - 1);
+                                                        }}
+                                                        className="text-white hover:text-primary transition-colors font-black flex items-center justify-center"
                                                     >
                                                         <span className="material-symbols-outlined text-sm">remove</span>
                                                     </button>
-                                                    <span className="text-sm font-black text-white tabular-nums min-w-[12px] text-center">{item.quantity}</span>
+                                                    <span className="text-sm font-black text-white tabular-nums min-w-[12px] text-center">
+                                                        {item.quantity}
+                                                    </span>
                                                     <button 
-                                                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                                        className="text-white hover:text-primary transition-colors font-black"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            updateQuantity(item.id, item.quantity + 1);
+                                                        }}
+                                                        className="text-white hover:text-primary transition-colors font-black flex items-center justify-center"
                                                     >
                                                         <span className="material-symbols-outlined text-sm">add</span>
                                                     </button>
@@ -146,7 +153,11 @@ function Cart() {
                                 </span>
                             </div>
 
-                            <button className="w-full bg-black-solid text-white py-6 rounded-2xl font-black text-[11px] uppercase tracking-[0.4em] hover:bg-primary transition-all duration-500 shadow-xl shadow-black/10 active:scale-95">
+                            <button 
+                                disabled={cart.length === 0}
+                                onClick={() => navigate('/checkout')} 
+                                className="w-full bg-black-solid text-white py-6 rounded-2xl font-black text-[11px] uppercase tracking-[0.4em] hover:bg-primary transition-all duration-500 shadow-xl shadow-black/10 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
                                 Checkout Securely
                             </button>
 
@@ -159,15 +170,7 @@ function Cart() {
                 </div>
             </main>
 
-            {/* Standard Block Footer */}
-            <footer className="w-full py-20 border-t border-black/10 text-center bg-white/40 backdrop-blur-sm">
-                <div className="max-w-7xl mx-auto px-6">
-                    <h2 className="text-2xl font-black tracking-[0.4em] text-primary uppercase">LUXE</h2>
-                    <p className="text-[9px] uppercase tracking-[0.3em] text-black-solid/20 font-bold mt-4">
-                        © 2026 Luxury Reimagined — Lone Wolf Collection
-                    </p>
-                </div>
-            </footer>
+            <Footer />
         </div>
     );
 }

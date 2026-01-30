@@ -1,155 +1,104 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from "../Database-Server/Superbase-client.js";
 import useCart from './useCart';
-import DetailsNavBar from './DetailsNavBar';
+import { supabase } from "../Database-Server/Superbase-client.js";
+import Swal from 'sweetalert2';
 
 const CheckoutPage = () => {
-  const { cart, cartTotal, clearCart } = useCart();
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+    const { cart, cartTotal, handleConfirmOrder, isProcessing } = useCart() || { cart: [] };
+    const navigate = useNavigate();
+    const [loggedInEmail, setLoggedInEmail] = useState("");
+    const [formData, setFormData] = useState({
+        customer_name: "",
+        customer_email: "",
+        phone_number: "",
+        delivery_method: "pickup",
+        payment_method: "cash"
+    });
 
-  const [deliveryMethod, setDeliveryMethod] = useState('Pick-Up');
-  const [paymentMethod, setPaymentMethod] = useState('Cash');
-  const [formData, setFormData] = useState({ name: '', email: '', phone: '' });
+    useEffect(() => {
+        const checkUser = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) setLoggedInEmail(user.email);
+        };
+        checkUser();
+    }, []);
 
-  const isCartEmpty = cart.length === 0;
+    const handleInput = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  const handleInputChange = (e) => {
-    setFormData({ ...formData, [e.target.id]: e.target.value });
-  };
+    const onConfirm = async () => {
+        if (!formData.customer_name || !formData.customer_email || !formData.phone_number) {
+            return Swal.fire("Required", "Please fill in all fields", "warning");
+        }
+        
+        if (formData.customer_email.trim().toLowerCase() !== loggedInEmail.toLowerCase()) {
+            return Swal.fire("Verification Failed", `Please enter your account email: ${loggedInEmail}`, "error");
+        }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (isCartEmpty) {
-      alert("Your cart is empty.");
-      return;
+        const result = await Swal.fire({
+            title: 'CONFIRM ORDER',
+            text: `Place order for $${cartTotal}?`,
+            showCancelButton: true,
+            confirmButtonColor: "#D4AF37",
+            cancelButtonColor: "#000",
+            background: "rgba(255,255,255,0.9)",
+            backdrop: `blur(10px)`
+        });
+
+        if (result.isConfirmed) {
+            const response = await handleConfirmOrder(formData);
+            if (response.success) {
+                Swal.fire("ORDER SECURED", "Your order has been placed.", "success")
+                .then(() => navigate('/order-confirmed'));
+            } else {
+                Swal.fire("TRANSACTION ERROR", response.error, "error");
+            }
+        }
+    };
+
+    if (cart.length === 0 && !isProcessing) {
+        return (
+            <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
+                <button onClick={() => navigate('/')} className="text-[#D4AF37] font-black tracking-widest border-b border-[#D4AF37] pb-2">BACK TO SHOP</button>
+            </div>
+        );
     }
 
-    setLoading(true);
-    try {
-      const finalTotal = deliveryMethod === 'Door Delivery' ? cartTotal + 25 : cartTotal;
+    return (
+        <div className="min-h-screen bg-[#FDFBF7] py-20 px-4">
+            <div className="max-w-xl mx-auto backdrop-blur-xl bg-white/40 border border-white/60 p-10 rounded-[2.5rem] shadow-2xl">
+                <h1 className="text-4xl font-serif text-[#D4AF37] mb-12 text-center uppercase tracking-widest">Checkout</h1>
+                
+                <form className="space-y-10" onSubmit={(e) => e.preventDefault()}>
+                    <div className="space-y-6">
+                        <input name="customer_name" placeholder="FULL NAME" onChange={handleInput} 
+                            className="w-full bg-transparent border-b border-gray-200 py-3 text-[11px] tracking-widest outline-none focus:border-[#D4AF37] transition-all" />
+                        
+                        <input name="customer_email" placeholder="CONFIRM ACCOUNT EMAIL" onChange={handleInput} 
+                            className="w-full bg-transparent border-b border-gray-200 py-3 text-[11px] tracking-widest outline-none focus:border-[#D4AF37] transition-all" />
+                        
+                        <input name="phone_number" placeholder="PHONE NUMBER" maxLength={10} onChange={handleInput} 
+                            className="w-full bg-transparent border-b border-gray-200 py-3 text-[11px] tracking-widest outline-none focus:border-[#D4AF37] transition-all" />
+                    </div>
 
-      // Cleaned up items for Supabase readability
-      const formattedItems = cart.map(item => ({
-        product: item.name,
-        quantity: item.quantity || 1,
-        unit_price: item.price,
-        subtotal: (item.price * (item.quantity || 1))
-      }));
-
-      const { error } = await supabase.from('orders').insert([{
-          customer_name: formData.name,
-          customer_email: formData.email,
-          phone_number: formData.phone,
-          delivery_method: deliveryMethod,
-          payment_method: paymentMethod, 
-          total_amount: finalTotal,
-          items: formattedItems, 
-          status: 'pending'
-      }]);
-
-      if (error) throw error;
-
-      clearCart();
-      navigate('/order-confirmed');
-    } catch (error) {
-      console.error("Database Error:", error.message);
-      alert(`Transaction failed: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="flex min-h-screen flex-col bg-[#FDFBF7] font-sans">
-      <DetailsNavBar />
-
-      <main className="flex-1 flex flex-col items-center pt-32 pb-20 px-6">
-        <div className="mb-12 text-center max-w-md">
-          <h2 className="text-[#D4AF37] tracking-[0.3em] text-[32px] font-bold uppercase">Checkout</h2>
-          {isCartEmpty && (
-            <p className="text-red-600 text-[11px] mt-2 font-black animate-pulse uppercase tracking-widest">
-              Action Required: Your bag is empty
-            </p>
-          )}
+                    <div className="pt-10 flex justify-between items-end">
+                        <div className="flex flex-col">
+                            <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Grand Total</span>
+                            <span className="text-3xl font-serif text-[#D4AF37]">${cartTotal}</span>
+                        </div>
+                        <button 
+                            type="button" 
+                            onClick={onConfirm} 
+                            disabled={isProcessing}
+                            className="bg-black text-white px-10 py-5 rounded-full text-[10px] font-black tracking-widest hover:bg-[#D4AF37] transition-all disabled:opacity-30"
+                        >
+                            {isProcessing ? "PROCESSING..." : "CONFIRM →"}
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
-
-        <div className="w-full max-w-[580px] space-y-6">
-          <form onSubmit={handleSubmit} className="bg-white rounded-[2rem] p-10 shadow-xl border border-black/5">
-            
-            {/* Guest Info */}
-            <div className="space-y-5">
-              <input
-                id="name" required type="text" placeholder="FULL NAME"
-                className="w-full h-14 bg-white border-2 border-black/5 rounded-lg px-6 text-[12px] font-black uppercase focus:border-[#D4AF37] outline-none text-black/80"
-                value={formData.name} onChange={handleInputChange}
-              />
-
-              <input
-                id="email" required type="email"
-                pattern=".+@gmail\.com" title="Only @gmail.com addresses are accepted"
-                placeholder="GMAIL ADDRESS (@GMAIL.COM)"
-                className="w-full h-14 bg-white border-2 border-black/5 rounded-lg px-6 text-[12px] font-black uppercase focus:border-[#D4AF37] outline-none text-black/80"
-                value={formData.email} onChange={handleInputChange}
-              />
-
-              <input
-                id="phone" required type="tel"
-                pattern="[0-9]{10}" title="Must be exactly 10 digits"
-                placeholder="PHONE NUMBER (10 DIGITS)"
-                className="w-full h-14 bg-white border-2 border-black/5 rounded-lg px-6 text-[12px] font-black uppercase focus:border-[#D4AF37] outline-none text-black/80"
-                value={formData.phone} onChange={handleInputChange}
-              />
-            </div>
-
-            {/* Delivery Method */}
-            <div className="mt-12 space-y-4">
-              <h3 className="text-[11px] font-black uppercase tracking-widest text-black/50 mb-4">Delivery</h3>
-              {[
-                { id: 'Pick-Up', label: 'Pick-Up', price: 'Free' },
-                { id: 'Door Delivery', label: 'Door Delivery', price: '$25.00' }
-              ].map((opt) => (
-                <div 
-                  key={opt.id} onClick={() => setDeliveryMethod(opt.id)}
-                  className={`flex items-center justify-between p-5 rounded-xl border-2 cursor-pointer transition-all ${deliveryMethod === opt.id ? 'border-[#D4AF37] bg-[#D4AF37]/5' : 'border-black/5'}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-4 h-4 rounded-full border-2 ${deliveryMethod === opt.id ? 'border-[#D4AF37] bg-[#D4AF37]' : 'border-black/20'}`} />
-                    <span className={`text-[12px] font-black uppercase ${deliveryMethod === opt.id ? 'text-black' : 'text-black/40'}`}>{opt.label}</span>
-                  </div>
-                  <span className="text-[10px] font-black text-[#D4AF37]">{opt.price}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Payment Method */}
-            <div className="mt-10 grid grid-cols-2 gap-4">
-              {['Cash', 'MoMo'].map((pay) => (
-                <div 
-                  key={pay} onClick={() => setPaymentMethod(pay)}
-                  className={`flex flex-col items-center p-4 rounded-xl border-2 cursor-pointer transition-all ${paymentMethod === pay ? 'border-[#D4AF37] bg-[#D4AF37]/5' : 'border-black/5'}`}
-                >
-                  <span className={`text-[12px] font-black uppercase ${paymentMethod === pay ? 'text-black' : 'text-black/40'}`}>{pay}</span>
-                  <span className="text-[9px] text-black/30 font-bold uppercase mt-1">{pay === 'Cash' ? 'Pay on arrival' : 'Mobile Money'}</span>
-                </div>
-              ))}
-            </div>
-
-            <button 
-              type="submit" 
-              disabled={loading || isCartEmpty} 
-              className={`w-full h-16 text-white rounded-xl mt-12 flex items-center justify-center gap-4 transition-all shadow-lg font-black text-[12px] uppercase tracking-[0.3em]
-                ${isCartEmpty ? 'bg-black/10 cursor-not-allowed shadow-none' : 'bg-[#D4AF37] hover:bg-[#C5A028] shadow-[#D4AF37]/30'}`}
-            >
-              {loading ? "Transmitting..." : isCartEmpty ? "Bag is Empty" : "Confirm Order"}
-              {!loading && !isCartEmpty && <span className="material-symbols-outlined font-bold">arrow_forward</span>}
-            </button>
-          </form>
-        </div>
-      </main>
-    </div>
-  );
+    );
 };
 
 export default CheckoutPage;

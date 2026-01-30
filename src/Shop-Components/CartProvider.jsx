@@ -1,106 +1,110 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import CartContext from './CartContext'; 
 import { addItemToCart, calculateTotals, updateItemQuantity } from './CartLogic';
 import { supabase } from "../Database-Server/Superbase-client.js";
 
-export default function CartProvider({ children }) {
-    const [cart, setCart] = useState([]);
-    const [toast, setToast] = useState(null);
-
-    // --- 1. THE SYNC ENGINE (Database -> UI) ---
-    const syncWithSupabase = useCallback(async (userId) => {
-        const { data, error } = await supabase
-            .from('cart_items')
-            .select(`
-                quantity,
-                product_id,
-                products (name, price, image, material)
-            `) 
-            .eq('user_id', userId);
-
-        if (!error && data) {
-            // Transform the DB join into your app's cart format
-            const cloudCart = data.map(item => ({
-                id: item.product_id,
-                quantity: item.quantity,
-                ...item.products 
-            }));
-            setCart(cloudCart);
+const CartProvider = ({ children }) => {
+    const [cart, setCart] = useState(() => {
+        try {
+            const saved = localStorage.getItem('luxe_cart');
+            return (saved && saved !== "undefined" && saved !== "null") ? JSON.parse(saved) : [];
+        } catch (err) {
+            console.error("Cart Initialization Error:", err);
+            return [];
         }
-    }, []);
+    });
 
-    // --- 2. THE AUTH WATCHER ---
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+
+    const { count, total } = useMemo(() => calculateTotals(cart), [cart]);
+
     useEffect(() => {
-        // Initial check on load
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session?.user) syncWithSupabase(session.user.id);
-        });
+        localStorage.setItem('luxe_cart', JSON.stringify(cart));
+    }, [cart]);
 
-        // Listen for Login/Logout events across devices
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const fetchCloudCart = async (userId) => {
+        try {
+            setIsSyncing(true);
+            const { data, error } = await supabase
+                .from('active_sessions_cart') 
+                .select(`quantity, product_id, image, price, name, category`)
+                .eq('user_id', userId);
+
+            if (!error && data?.length > 0) {
+                const cloudItems = data.map(item => ({
+                    id: item.product_id,
+                    quantity: item.quantity,
+                    image: item.image,
+                    price: item.price,
+                    name: item.name,
+                    category: item.category
+                }));
+                setCart(cloudItems);
+            }
+        } catch (err) {
+            console.error("Cloud Sync Error:", err.message);
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
+    useEffect(() => {
+        const handleInitialAuth = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) await fetchCloudCart(session.user.id);
+        };
+        handleInitialAuth();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'SIGNED_IN' && session?.user) {
-                syncWithSupabase(session.user.id);
-            } else if (event === 'SIGNED_OUT') {
-                setCart([]); 
+                await fetchCloudCart(session.user.id);
+            }
+            if (event === 'SIGNED_OUT') {
+                setCart([]);
                 localStorage.removeItem('luxe_cart');
             }
         });
 
-        return () => subscription.unsubscribe();
-    }, [syncWithSupabase]);
-
-    // --- 3. LOCAL STORAGE (For Guests) ---
-    useEffect(() => {
-        // Only save to localStorage if not logged in (to prevent overwriting DB logic)
-        const checkSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-                localStorage.setItem('luxe_cart', JSON.stringify(cart));
-            }
-        };
-        checkSession();
-    }, [cart]);
-
-    // --- 4. PERSISTENT ACTIONS ---
+        return () => subscription?.unsubscribe();
+    }, []);
 
     const addToCart = async (product) => {
-        setCart(prev => addItemToCart(prev, product));
-        setToast(`${product.name} added to bag`);
-
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-            await supabase.from('cart_items').upsert({
-                user_id: user.id,
+        const newCart = addItemToCart(cart, product);
+        setCart(newCart);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+            await supabase.from('active_sessions_cart').upsert({
+                user_id: session.user.id,
                 product_id: product.id,
                 quantity: 1, 
+                image: product.image,
+                price: product.price,
+                name: product.name,
+                category: product.category
             }, { onConflict: 'user_id, product_id' });
         }
     };
 
     const removeFromCart = async (id) => {
-        setCart(prev => prev.filter(item => String(item.id) !== String(id)));
-        
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-            await supabase.from('cart_items')
-                .delete()
-                .eq('user_id', user.id)
-                .eq('product_id', id);
+        const newCart = cart.filter(item => item.id !== id);
+        setCart(newCart);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+            await supabase.from('active_sessions_cart').delete().eq('user_id', session.user.id).eq('product_id', id);
         }
     };
 
     const updateQuantity = async (id, delta) => {
-        const updatedCart = updateItemQuantity(cart, id, delta);
-        setCart(updatedCart);
-
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-            const item = updatedCart.find(i => String(i.id) === String(id));
+        const newCart = updateItemQuantity(cart, id, delta);
+        setCart(newCart);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+            const item = newCart.find(i => i.id === id);
             if (item) {
-                await supabase.from('cart_items')
-                    .update({ quantity: item.quantity })
-                    .eq('user_id', user.id)
-                    .eq('product_id', id);
+                await supabase.from('active_sessions_cart').update({ quantity: item.quantity }).eq('user_id', session.user.id).eq('product_id', id);
+            } else {
+                await removeFromCart(id);
             }
         }
     };
@@ -108,37 +112,55 @@ export default function CartProvider({ children }) {
     const clearCart = async () => {
         setCart([]);
         localStorage.removeItem('luxe_cart');
-
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-            await supabase.from('cart_items')
-                .delete()
-                .eq('user_id', user.id);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+            await supabase.from('active_sessions_cart').delete().eq('user_id', session.user.id);
         }
     };
+const handleConfirmOrder = async (formData) => {
+    try {
+        setIsProcessing(true); // Start the loading state
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session?.user) throw new Error("Session expired.");
 
-    // Auto-dismiss toast
-    useEffect(() => {
-        if (toast) {
-            const timer = setTimeout(() => setToast(null), 3000);
-            return () => clearTimeout(timer);
-        }
-    }, [toast]);
+        const { error } = await supabase
+            .from('orders')
+            .insert([{
+                user_id: session.user.id,
+                customer_name: formData.customer_name,
+                customer_email: formData.customer_email,
+                phone_number: formData.phone_number,
+                delivery_method: formData.delivery_method,
+                payment_method: formData.payment_method,
+                total_amount: total,
+                items: cart,
+                status: 'pending'
+            }]);
 
-    const { count, total } = calculateTotals(cart);
+        if (error) throw error;
 
+        // Clear the cart locally and in Supabase before finishing
+        await clearCart(); 
+        
+        setIsProcessing(false); // Stop loading BEFORE returning
+        return { success: true };
+
+    } catch (err) {
+        setIsProcessing(false); // Stop loading on error too
+        console.error("Checkout Error:", err.message);
+        return { success: false, error: err.message };
+    }
+};
     return (
         <CartContext.Provider value={{ 
-            cart, 
-            addToCart, 
-            removeFromCart, 
-            updateQuantity, 
-            clearCart, 
-            toast, 
-            cartCount: count, 
-            cartTotal: total 
+            cart, addToCart, removeFromCart, updateQuantity, clearCart,
+            isSyncing, isProcessing, handleConfirmOrder,
+            cartCount: count, cartTotal: total 
         }}>
             {children}
         </CartContext.Provider>
     );
-}
+};
+
+export default CartProvider;

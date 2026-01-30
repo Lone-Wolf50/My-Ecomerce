@@ -73,7 +73,7 @@ function Cart() {
                                                 </div>
                                                 <button 
                                                     onClick={() => removeFromCart(item.id)}
-                                                    className="size-10 flex items-center justify-center rounded-full bg-black-solid/5 text-black-solid/20 hover:bg-red-500 hover:text-white transition-all"
+                                                    className="size-10 flex items-center justify-center rounded-full bg-black-solid/5 text-black-solid/60 hover:bg-red-500 hover:text-white transition-all"
                                                 >
                                                     <span className="material-symbols-outlined text-xl">close</span>
                                                 </button>

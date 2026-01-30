@@ -2,157 +2,165 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-	font-family: "Plus Jakarta Sans", "Montserrat",sans-serif;
-	background-color: #000000;
-	color: #f5f5f5;
-	-webkit-font-smoothing: antialiased;
-	-moz-osx-font-smoothing: grayscale;
-	
-            background-color: #FDFBF7;
-}
-.material-symbols-outlined {
-	font-variation-settings:
-		"FILL" 0,
-		"wght" 200,
-		"GRAD" 0,
-		"opsz" 24;
-}
-#mobile-menu-toggle:checked ~ #mobile-menu-overlay {
-	display: flex;
-}
-@layer utilities {
-	.no-scrollbar::-webkit-scrollbar {
-		display: none;
-	}
-	.no-scrollbar {
-		-ms-overflow-style: none;
-		scrollbar-width: none;
-	}
-}
-.fill-icon {
-	font-variation-settings: "FILL" 1;
-}
+
+
 :root {
-	--primary-gold: #d4af37;
-	--accent-gold: #c5a028;
-	--off-white: #f5f5f5;
-}
-.hide-scrollbar::-webkit-scrollbar {
-	display: none;
-}
-.hide-scrollbar {
-	-ms-overflow-style: none;
-	scrollbar-width: none;
+  --bg-main: #FDFBF7;
+  --text-main: #000000;
+  --accent: #d4af37;
 }
 
-/* Apply this to your main content wrapper */
-main {
-	height: 100vh;
-	overflow-y: auto;
+.dark {
+  /* Match the Image: Deep Black & Vibrant Gold */
+  --bg-main: #000000; 
+  --text-main: #ffffff;
+  --accent: #EAB308; /* Brighter gold for dark mode visibility */
 }
-        :root {
-            --glass-bg: rgba(255, 255, 255, 0.5);
-            --glass-border: rgba(255, 255, 255, 0.7);
-            --input-border: rgba(212, 175, 55, 0.3);
-            --input-border-focus: rgba(212, 175, 55, 0.8);
-        }
-       
-        .serif-title {
-            font-family: "Cormorant Garamond", serif;
-        }
-        .glass-container {
-            background: var(--glass-bg);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--glass-border);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.05);
-        }
-        .glass-input-container {
-            position: relative;
-        }
-        .glass-input {
-            background: rgba(255, 255, 255, 0.4);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            border: 1.5px solid var(--input-border);
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .glass-input:focus {
-            background: rgba(255, 255, 255, 0.8);
-            border-color: var(--input-border-focus);
-            box-shadow: 0 0 0 1px var(--input-border-focus);
-            outline: none;
-        }
-        .floating-label {
-            position: absolute;
-            left: 1rem;
-            top: 50%;
-            transform: translateY(-50%);
-            transition: all 0.3s ease;
-            pointer-events: none;
-            color: rgba(0,0,0,0.4);
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            letter-spacing: 0.15em;
-            font-weight: 500;
-        }
-        .glass-input:focus ~ .floating-label,
-        .glass-input:not(:placeholder-shown) ~ .floating-label {
-            top: -0.6rem;
-            left: 0.75rem;
-            font-size: 9px;
-            color: #D4AF37;
-            background: #FDFBF7;
-            padding: 0 8px;
-            font-weight: 600;
-        }
-        .shipping-card {
-            background: rgba(255, 255, 255, 0.3);
-            backdrop-filter: blur(4px);
-            border: 1.5px solid rgba(0, 0, 0, 0.05);
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .shipping-card.selected {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(20px);
-            border-color: #D4AF37;
-            box-shadow: 0 10px 20px rgba(212, 175, 55, 0.1);
-        }
-        .nav-link {
-            position: relative;
-            transition: color 0.4s;
-        }
-        .nav-link::after {
-            content: '';
-            position: absolute;
-            width: 0;
-            height: 1px;
-            bottom: -4px;
-            left: 0;
-            background-color: #D4AF37;
-            transition: width 0.3s;
-        }
-        .nav-link:hover::after {
-            width: 100%;
-        }
-        .glossy-button {
-            background: linear-gradient(135deg, #D4AF37 0%, #C5A028 100%);
-            box-shadow: 0 10px 25px rgba(212, 175, 55, 0.25);
-            position: relative;
-            overflow: hidden;
-        }
-        .glossy-button::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-            transition: 0.6s;
-        }
-        .glossy-button:hover::before {
-            left: 100%;
-        }
-    
+
+body {
+  font-family: "Plus Jakarta Sans", sans-serif;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  transition: background-color 0.4s ease;
+}
+
+/* Sharp dark mode containers (no more blurry gray) */
+.dark .featured-card {
+  background: #111111;
+  border: 1px solid #222222;
+}
+
+.dark .glass-nav {
+  background: rgba(0, 0, 0, 0.9);
+  border-bottom: 1px solid #1a1a1a;
+}
+/* 2. BASE STYLES */
+body {
+    font-family: "Plus Jakarta Sans", "Montserrat", sans-serif;
+    background-color: var(--body-bg);
+    color: var(--text-main);
+    transition: background-color 0.5s ease, color 0.5s ease;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.material-symbols-outlined {
+    font-variation-settings: "FILL" 0, "wght" 200, "GRAD" 0, "opsz" 24;
+}
+
+.fill-icon {
+    font-variation-settings: "FILL" 1;
+}
+
+/* 3. GLASSMORPHISM ENGINE */
+.glass-container {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.05);
+    transition: all 0.5s ease;
+}
+
+.glass-input {
+    background: var(--input-bg);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1.5px solid rgba(212, 175, 55, 0.3);
+    color: var(--text-main);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-input:focus {
+    background: var(--glass-bg);
+    border-color: var(--primary-gold);
+    box-shadow: 0 0 0 1px var(--primary-gold);
+    outline: none;
+}
+
+/* 4. FLOATING LABELS (THEME AWARE) */
+.floating-label {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: all 0.3s ease;
+    pointer-events: none;
+    color: rgba(128, 128, 128, 0.6);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    font-weight: 500;
+}
+
+.glass-input:focus ~ .floating-label,
+.glass-input:not(:placeholder-shown) ~ .floating-label {
+    top: -0.6rem;
+    left: 0.75rem;
+    font-size: 9px;
+    color: var(--primary-gold);
+    background: var(--body-bg); /* Matches theme background */
+    padding: 0 8px;
+    font-weight: 600;
+}
+
+/* 5. INTERACTIVE ELEMENTS */
+.nav-link {
+    position: relative;
+    transition: color 0.4s;
+}
+
+.nav-link::after {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 1px;
+    bottom: -4px;
+    left: 0;
+    background-color: var(--primary-gold);
+    transition: width 0.3s;
+}
+
+.nav-link:hover::after {
+    width: 100%;
+}
+
+.glossy-button {
+    background: linear-gradient(135deg, var(--primary-gold) 0%, var(--accent-gold) 100%);
+    box-shadow: 0 10px 25px rgba(212, 175, 55, 0.25);
+    position: relative;
+    overflow: hidden;
+    color: #000; /* Usually looks best with black text on gold */
+}
+
+/* 6. UTILITIES */
+@layer utilities {
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+    .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+    .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+    .hide-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+}
+
+/* Mobile Menu Logic */
+#mobile-menu-toggle:checked ~ #mobile-menu-overlay {
+    display: flex;
+}
+
+main {
+    height: 100vh;
+    overflow-y: auto;
+}
+
+.serif-title {
+    font-family: "Cormorant Garamond", serif;
+}

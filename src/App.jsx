@@ -1,11 +1,11 @@
-import Holder from "./Shop-Components/Holder.jsx";
+import RoutePages from "./Shop-Components/RoutePages.jsx";
 
 function App() {
   
 
   return (
     <>
-      <Holder />
+      <RoutePages/>
     </>
   )
 }

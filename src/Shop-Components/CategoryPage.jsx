@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../Database-Server/Superbase-client.js";
-import Footer from "./Footer.jsx";
+
 import ProductCard from "./ProductCard";
 import Navbar from "./Navbar";
 
@@ -88,7 +88,7 @@ const CategoryPage = () => {
 			</section>
 
 			{/* FOOTER */}
-			<Footer />
+			
 		</main>
 	);
 };

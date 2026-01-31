@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import useCart from './useCart';
 import { supabase } from "../Database-Server/Superbase-client.js";
 import Swal from 'sweetalert2';
+import DetailsNavBar from './DetailsNavBar.jsx';
 
 const CheckoutPage = () => {
     const { cart, cartTotal, handleConfirmOrder, isProcessing } = useCart() || { cart: [] };
@@ -66,7 +67,9 @@ const CheckoutPage = () => {
 
     return (
         <div className="min-h-screen bg-[#FDFBF7] py-20 px-4">
+             <DetailsNavBar  />
             <div className="max-w-xl mx-auto backdrop-blur-xl bg-white/40 border border-white/60 p-10 rounded-[2.5rem] shadow-2xl">
+           
                 <h1 className="text-4xl font-serif text-[#D4AF37] mb-12 text-center uppercase tracking-widest">Checkout</h1>
                 
                 <form className="space-y-10" onSubmit={(e) => e.preventDefault()}>

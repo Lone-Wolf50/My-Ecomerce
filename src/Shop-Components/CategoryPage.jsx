@@ -44,7 +44,7 @@ const CategoryPage = () => {
 			<Navbar />
 
 			{/* Header Section */}
-			<div className="flex flex-col items-center gap-4 pt-40 mb-12 md:mb-20 relative px-8">
+			<div className="flex flex-col items-center gap-4 pt-20 mb-12 md:mb-20 relative px-8">
 				<h1 className="text-4xl md:text-7xl font-black tracking-tighter text-black-solid uppercase text-center italic leading-none">
 					{categoryName}
 				</h1>

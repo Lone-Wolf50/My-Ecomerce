@@ -164,7 +164,7 @@ function Orders() {
                   {/* Footer & Conditional Cancellation Button */}
                   <div className="flex flex-col md:flex-row justify-between items-center gap-6 pt-6">
                     <div className="w-full md:w-auto text-center md:text-left">
-                      <p className="text-[9px] font-bold uppercase opacity-30 leading-none">Total Investment</p>
+                      <p className="text-[9px] font-bold uppercase opacity-30 leading-none">Total Amount</p>
                       <p className="text-2xl font-serif italic">${order.total_amount}</p>
                     </div>
 
@@ -183,7 +183,7 @@ function Orders() {
                             </button>
                             {!isPastCancellationWindow && (
                                 <p className="text-[7px] font-bold tracking-widest text-red-400/50 uppercase">
-                                    Window expires in {Math.max(0, (5 - diffInDays).toFixed(1))} days
+                                     expires in {Math.max(0, (5 - diffInDays).toFixed(1))} days
                                 </p>
                             )}
                         </div>

@@ -96,7 +96,7 @@ function Homepage() {
     setIsDropdownOpen(false); // Close dropdown first
     Swal.fire({
       title: 'TERMINATE ACCOUNT?',
-      text: "Lone Wolf, this action is permanent. Your membership and history will be erased from the atelier.",
+      text: " This action is permanent. Your membership and history will be erased from the atelier.",
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#d33',
@@ -210,7 +210,7 @@ function Homepage() {
             
             {!user && (
               <Link className="flex items-center gap-4 text-[10px] font-black uppercase text-[#D4AF37] tracking-[0.2em] p-4 mt-4 border border-[#D4AF37]/20 rounded-2xl" to="/login" onClick={() => setIsMenuOpen(false)}>
-                <span className="material-symbols-outlined">login</span> Member Access
+                <span className="material-symbols-outlined">login</span> Sign In
               </Link>
             )}
           </nav>

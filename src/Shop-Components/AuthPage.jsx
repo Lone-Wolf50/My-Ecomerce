@@ -155,7 +155,7 @@ const AuthPage = () => {
         </div>
 
         <div className="w-full md:w-1/2 flex flex-col justify-center px-12 md:px-20 py-10">
-          <p className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.4em] mb-2">{view === 'otp' ? 'Verification' : 'Protocol'}</p>
+          <p className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.4em] mb-2">{view === 'otp' ? 'Verification' : ''}</p>
           <h1 className="text-[42px] italic font-serif mb-8 leading-none uppercase">{view}</h1>
           
           <form onSubmit={handleAuth} className="space-y-5">
@@ -186,7 +186,7 @@ const AuthPage = () => {
               </div>
             )}
             <button type="submit" disabled={loading} className="w-full h-14 bg-black text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.4em] mt-8 hover:bg-[#D4AF37] transition-all disabled:opacity-50">
-              {loading ? 'Executing...' : 'Proceed'}
+              {loading ? 'Executing...' : 'Login'}
             </button>
           </form>
 
@@ -195,7 +195,7 @@ const AuthPage = () => {
               {view === 'login' ? 'Create Account' : 'Back to Login'}
             </button>
             {view === 'login' && (
-              <button type="button" onClick={() => setView('forgot')} className="text-[9px] uppercase font-black text-[#D4AF37] tracking-widest hover:underline">Lost Access?</button>
+              <button type="button" onClick={() => setView('forgot')} className="text-[9px] uppercase font-black text-[#D4AF37] tracking-widest hover:underline">FORGOT PASSWORD?</button>
             )}
           </div>
         </div>

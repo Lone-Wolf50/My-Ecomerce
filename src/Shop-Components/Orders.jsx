@@ -179,7 +179,7 @@ function Orders() {
                                         : 'border-red-400 text-red-500 hover:bg-red-500 hover:text-white active:scale-95'
                                     }`}
                             >
-                                {isPastCancellationWindow ? "🔒 VOID WINDOW EXPIRED" : "REQUEST VOID"}
+                                {isPastCancellationWindow ? "🔒 VOID WINDOW EXPIRED" : "CANCEL ORDER"}
                             </button>
                             {!isPastCancellationWindow && (
                                 <p className="text-[7px] font-bold tracking-widest text-red-400/50 uppercase">

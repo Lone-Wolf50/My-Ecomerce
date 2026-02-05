@@ -19,7 +19,7 @@ app.use(express.json());
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:5173",
-  "https://my-ecommerce-production.up.railway.app"
+  "https://my-ecomerce-gygn.vercel.app"
 ];
 
 app.use(cors({

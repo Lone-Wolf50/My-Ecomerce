@@ -7,7 +7,11 @@ import { fileURLToPath } from "url";
 
 // Fix for .env being outside the server folder
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// This works if .env is one level up locally, 
+// but won't crash Render if the file is missing there.
 dotenv.config({ path: path.join(__dirname, "../.env") });
+dotenv.config();
 
 const app = express();
 app.use(express.json());
@@ -85,7 +89,7 @@ app.post("/verify-otp", (req, res) => {
   }
 });
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`🚀 Secure Server active on http://localhost:${PORT}`);
 });

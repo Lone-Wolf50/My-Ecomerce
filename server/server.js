@@ -18,6 +18,7 @@ app.use(express.json());
 // ✅ Updated CORS setup
 const allowedOrigins = [
   "http://localhost:3000",
+  "http://localhost:5173",
   "https://my-ecommerce-production.up.railway.app"
 ];
 

@@ -25,13 +25,18 @@ console.log("GMAIL_PASS:", process.env.GMAIL_PASS ? "✅ LOADED" : "❌ MISSING"
 console.log("--------------------");
 
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true, // Use SSL for port 465
   auth: {
     user: process.env.GMAIL_USER,
     pass: process.env.GMAIL_PASS
-  }
+  },
+  // Add these timeout settings to prevent the "stuck" state
+  connectionTimeout: 10000, 
+  greetingTimeout: 10000,
+  socketTimeout: 10000
 });
-
 // Verify SMTP connection on startup
 transporter.verify((error, success) => {
   if (error) {

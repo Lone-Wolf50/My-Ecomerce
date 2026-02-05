@@ -7,7 +7,7 @@ import Swal from 'sweetalert2';
 
 function Homepage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false); // Dropdown state
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false); 
   const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState([]);
   const [user, setUser] = useState(null); 
@@ -15,10 +15,9 @@ function Homepage() {
   const [loading, setLoading] = useState(true);
   const { cartCount } = useCart();
   const searchRef = useRef(null);
-  const dropdownRef = useRef(null); // Ref for PC dropdown
+  const dropdownRef = useRef(null); 
   const navigate = useNavigate();
 
-  // --- LUXURY ALERT HELPER ---
   const luxeAlert = (title, text, icon = 'error') => {
     Swal.fire({
       title: title.toUpperCase(),
@@ -34,7 +33,6 @@ function Homepage() {
     });
   };
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -44,56 +42,66 @@ function Homepage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+useEffect(() => {
+  const initializePage = async () => {
+    try {
+      setLoading(true);
+      const storedEmail = sessionStorage.getItem('userEmail');
+      
+      if (storedEmail) {
+        // CHANGED: Query the 'profiles' table instead of 'registry'
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles') 
+          .select('id, full_name') // Using 'full_name' to match your schema image
+          .eq('email', storedEmail)
+          .maybeSingle();
 
-  useEffect(() => {
-    const initializePage = async () => {
-      try {
-        setLoading(true);
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session?.user) {
-          setUser(session.user);
-          const nameFromMeta = session.user.user_metadata?.full_name || session.user.user_metadata?.fullName;
+        if (profileError) {
+          console.error("DATABASE ERROR:", profileError.message);
+        } else if (profile) {
+          console.log("DATABASE SUCCESS: Profile found:", profile);
           
-          if (nameFromMeta) {
-            setUserName(nameFromMeta);
-          } else {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('full_name')
-              .eq('id', session.user.id)
-              .single();
-            if (profile) setUserName(profile.full_name);
-          }
-        }
+          setUser({ email: storedEmail, id: profile.id });
+          sessionStorage.setItem('userUuid', profile.id);
 
-        const { data, error } = await supabase.from("products").select("*");
-        if (error) throw error;
-        setProducts(data || []);
-      } catch (error) {
-        console.error("Initialization Error:", error.message);
-      } finally {
-        setLoading(false);
+          // Use full_name from your profiles table, fallback to "The Collector"
+          const actualName = profile.full_name || "The Collector";
+          setUserName(actualName); 
+        }
+      }
+
+      const { data: productData } = await supabase.from("products").select("*");
+      setProducts(productData || []);
+      
+    } catch (error) {
+      console.error("CRITICAL SCRIPT ERROR:", error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  initializePage();    const syncAuth = () => {
+      if (!sessionStorage.getItem('userEmail')) {
+        setUser(null);
+        setUserName("");
+        sessionStorage.removeItem('userUuid');
       }
     };
-    initializePage();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
-      if (!session) setUserName("");
-    });
-
-    return () => subscription.unsubscribe();
+    window.addEventListener('storage', syncAuth);
+    return () => window.removeEventListener('storage', syncAuth);
   }, []);
-
   const handleLogout = async () => {
-    window.sessionStorage.clear();
+    sessionStorage.clear(); 
+    setUser(null);
+    setUserName("");
     await supabase.auth.signOut();
     navigate('/'); 
   };
+  // --- END OF FIXED LOGIC ---
 
   const handleDeleteAccount = async () => {
-    setIsDropdownOpen(false); // Close dropdown first
+    setIsDropdownOpen(false); 
     Swal.fire({
       title: 'TERMINATE ACCOUNT?',
       text: " This action is permanent. Your membership and history will be erased from the atelier.",
@@ -152,14 +160,13 @@ function Homepage() {
 
   const communityImages = [
     { id: 0, url: "https://lh3.googleusercontent.com/aida-public/AB6AXuCaO_LALs2EBDmGdlSVgY5zgAkBgK-_UdMJCsbL4rRDxcNo6b2-x-JpTyIzx9fxGhwLYik_Hlc9-3ev3lpKNfcbVtkp8rce1Xuk3lrDNpHH1oIgSx7daCpPKVC5Y_YvtzLhn6FfFwJhv1z9hn87F-WmbNv824ktlhzpzYX7BwH8NWsHRzjYp59ASmc1Q5ZI_NhZfdXrscoOAvX68beROynof5d2sXZ-T-J7J5oiEFFndReSy2GrDRtpv8wdMitzv3RDaiQoyRofQNRB" },
-   { id: 2, url: "https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=300&q=80" },
+    { id: 1, url: "https://images.unsplash.com/photo-1594223274512-ad4803739b7c?auto=format&fit=crop&w=300&q=80" },
     { id: 2, url: "https://lh3.googleusercontent.com/aida-public/AB6AXuBNED0C7MdztWGjxuuoAXZqoJt9lpF7ktn-Wq9aC-CTZfkja91zoZu75mR3wW6ryZAvgi8TkVgDYe4I2Aid35BQ3oB9uzUkfi0gylLvRrGtETPfDxU3L3Z-aDrXM3Tr0fuwzrCu2HFfe1nEs4dAlMIukE97yGCZzaffMM8_UxVZE_S1Z5Zenpm2RyqJjrmMijwRg-wB2qWINsdaKs9OD_3OHng8zRajYxB7uZhCFCSmeQpa7bdQu2r1bSVQco5Dti3IHs8wU8QwIrkr" },
     { id: 3, url: "https://lh3.googleusercontent.com/aida-public/AB6AXuAa1S9Um7rKrxmYtsz21zrkWZgzdC5dEdHu7knBkemhqVYr_WR2q3_ANmyeuv_j-Q31IeJTn0J3_LPF8gZyVdZvCjsGCk8w1nIy_QDF-8qBKNKxCaChNGqXRSg_ae_c8CbYYsoBLNZl1aTPC3gyurgAEA_q_ARsPT1AGw_B7zXtBXFJ8Z6PFBr5-60V0qWop168Aw89MnAVAmif8m_BILOa32UUWzeOv-OPL85Be6a0vL_3YhDDJtc2GHhvCY3DWzPKTnO74g4K1nNA" },
     { id: 4, url: "https://lh3.googleusercontent.com/aida-public/AB6AXuCU_QFPGUmN26qDIuE7hxad3VCnfvA_iBqBEPIshFBMhq9iyobQO6FFvdgclPaWM1f20GXnJ7p3p5llBV8L7o4FxB2Z7p3pQgVyZW99EME01n6WyZUtVJT-jtJ5dBvocDsRQwyMkqZOfOS2kkKyv_HaeeEZuY_JFBP9P3uCkLa0_eHFYEoCBeMY23cCnDPeSMbMQFXW6nKTL8iv5KWDdZGdfXZ1s3oYgCdUSo07E-I93YL0Jm2RzHUczVz_zwEs5ewqQj7lTYZnUfNn" },
     { id: 5, url: "https://lh3.googleusercontent.com/aida-public/AB6AXuDnmzwGNV5VBmlE-NXOhdeBNLTYezQ5sl6tVIkI-7Re_kfE380_Hrnvzb88CsroL79Xn7piTqRgBTfqoaemOKjSfflv-AQ7We8BKHigU4NSCB4OdryAMy3NR38KbvSIuJitPxkW05D43PmdhH7stMsym5uxAG_QwTgxrNcISfUlbzUwGQcL6Pk31mbHTXCsHzz8v1BJSdrdy9FtYAjc4pHdOXskW2IVihc3hSsM-sNsaPewva-A0hnxhBhhyQcoqlcMeGPw4MdFK_Vy" },
   ];
 
-  
   if (loading) {
     return (
       <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
@@ -171,7 +178,7 @@ function Homepage() {
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-black overflow-x-hidden">
       
-      {/* MOBILE SLIDER MENU (GLASSMORPHISM) */}
+      {/* MOBILE SLIDER MENU */}
       <div className={`fixed inset-0 z-[100] transition-all duration-300 ${isMenuOpen ? "visible" : "invisible"}`}>
         <div className={`absolute inset-0 bg-black/10 backdrop-blur-md transition-opacity duration-300 ${isMenuOpen ? "opacity-100" : "opacity-0"}`} onClick={() => setIsMenuOpen(false)}></div>
         
@@ -215,21 +222,28 @@ function Homepage() {
             )}
           </nav>
 
-          {user && (
-            <div className="mt-auto pt-6 border-t border-black/10">
-              {/* UPDATED LOGOUT BUTTON FOR MOBILE RESPONSIVENESS */}
-              <button 
-                onPointerDown={handleLogout} 
-                className="w-full flex items-center gap-4 p-4 rounded-2xl active:bg-red-50 active:scale-[0.98] transition-all group touch-manipulation"
-              >
-                <span className="material-symbols-outlined text-red-500">logout</span>
-                <span className="text-red-500 font-black text-[10px] uppercase tracking-widest">LOGOUT</span>
-              </button>
-              <button onClick={handleDeleteAccount} className="w-full p-4 text-[9px] text-black/30 font-bold uppercase underline tracking-tighter text-left">
-                  DELETE ACCOUNT
-              </button>
-            </div>
-          )}
+          {/* MOBILE SLIDER MENU BOTTOM SECTION */}
+{user && (
+  <div className="mt-auto pt-6 border-t border-black/10">
+    {/* Logout Button */}
+    <button 
+      onPointerDown={handleLogout} 
+      className="w-full flex items-center gap-4 p-4 rounded-2xl active:bg-red-50 active:scale-[0.98] transition-all group touch-manipulation"
+    >
+      <span className="material-symbols-outlined text-red-500">logout</span>
+      <span className="text-red-500 font-black text-[10px] uppercase tracking-widest">LOGOUT</span>
+    </button>
+
+    {/* Delete Account Button - Now visible on mobile */}
+    <button 
+      onClick={handleDeleteAccount} 
+      className="w-full p-4 text-[9px] text-black/30 font-bold uppercase underline tracking-tighter text-left hover:text-red-500 transition-colors"
+    >
+      DELETE ACCOUNT
+    </button>
+  </div>
+)}
+          
         </div>
       </div>
 
@@ -247,7 +261,6 @@ function Homepage() {
               <div className="relative flex items-center gap-6" ref={dropdownRef}>
                 <Link className="text-[10px] font-bold uppercase tracking-[0.3em] hover:text-[#D4AF37] transition-colors" to="/orders">Orders</Link>
                 
-                {/* PC DROPDOWN TRIGGER */}
                 <div className="relative">
                   <button 
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -261,7 +274,6 @@ function Homepage() {
                     </span>
                   </button>
 
-                  {/* PC DROPDOWN MENU */}
                   {isDropdownOpen && (
                     <div className="absolute top-full right-0 mt-4 w-48 bg-white/90 backdrop-blur-xl border border-black/5 shadow-2xl rounded-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
                       <button onClick={handleLogout} className="w-full flex items-center gap-3 px-6 py-4 text-[10px] font-black uppercase tracking-widest hover:bg-black/5 transition-colors">
@@ -298,7 +310,6 @@ function Homepage() {
       </header>
 
       <main className="max-w-[1440px] mx-auto px-8 pt-32">
-        {/* SEARCH SECTION */}
         <section className="mt-8 mb-12 flex justify-center relative z-[40]" ref={searchRef}>
           <div className="relative w-full max-w-2xl group">
             <input
@@ -325,16 +336,15 @@ function Homepage() {
           </div>
         </section>
 
-        {/* HERO SECTION */}
         <section className="py-16">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div className="flex flex-col gap-8">
-              <h1 className="text-6xl md:text-8xl font-black tracking-tighter text-black leading-none">
-                {user ? "Welcome back," : "Luxury defined,"} <br/> 
-                <span className="text-[#D4AF37] italic font-serif lowercase">
-                  {userName ? userName.split(' ')[0] : "the collection"}
-                </span>
-              </h1>
+             <h1 className="text-6xl md:text-8xl font-black tracking-tighter leading-none">
+              {user ? "Welcome back," : "Luxury defined,"} <br/> 
+              <span className="text-[#D4AF37] italic font-serif lowercase">
+                {(userName && userName !== "The Collector") ? userName.split(' ')[0] : "the collection"}
+              </span>
+            </h1>
               <p className="text-lg text-black/60 max-w-md">
                 {user 
                   ? "Your personal luxury atelier is curated and ready." 
@@ -354,7 +364,6 @@ function Homepage() {
           </div>
         </section>
 
-        {/* FEATURED COLLECTIONS SECTION */}
         <section className="py-20 border-t border-black/5">
           <h2 className="text-4xl font-black uppercase mb-12 text-black tracking-tighter">Featured Collections</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -372,7 +381,6 @@ function Homepage() {
           </div>
         </section>
 
-        {/* COMMUNITY SECTION */}
         <section className="py-20 border-t border-black/5">
           <h3 className="text-2xl font-black uppercase tracking-widest text-center mb-12 text-black">The Community</h3>
           <div className="grid grid-cols-2 md:grid-cols-6 gap-4">

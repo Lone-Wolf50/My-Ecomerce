@@ -102,15 +102,29 @@ export function CartProvider({ children }) {
   };
 
   // 4. CONFIRM ORDER: Wipe DB and Local
+  // 4. CONFIRM ORDER: Insert to DB, then Wipe DB and Local
   const handleConfirmOrder = async (formData) => {
     setIsProcessing(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
-      // Place your Order Table insert logic here...
-      console.log("Processing Order for:", formData.customer_email);
+      // A. THE INSERT LOGIC: This sends the data to your 'orders' table
+      const { error: orderError } = await supabase
+        .from('orders')
+        .insert([{
+          user_id: formData.user_id, // The critical Auth UUID
+          customer_name: formData.customer_name,
+          customer_email: formData.customer_email,
+          phone_number: formData.phone_number,
+          total_amount: parseFloat(cartTotal),
+          delivery_method: formData.delivery_method,
+          payment_method: formData.payment_method,
+          items: cart // Saving the cart snapshot
+        }]);
 
-      // Success! Clear everything
+      if (orderError) throw orderError;
+
+      // B. Success! Clear everything
       if (session?.user) {
         await supabase.from('cart_items').delete().eq('user_id', session.user.id);
       }
@@ -121,6 +135,7 @@ export function CartProvider({ children }) {
       
       return { success: true };
     } catch (error) {
+      console.error("ORDER DATABASE ERROR:", error.message);
       return { success: false, error: error.message };
     } finally {
       setIsProcessing(false);

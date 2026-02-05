@@ -2,30 +2,45 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../Database-Server/Superbase-client.js";
 import Navbar from "./Navbar.jsx";
+import useCart from "./useCart"; 
 import Swal from 'sweetalert2';
 
 function Orders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("ongoing"); 
   const navigate = useNavigate();
+  const { addToCart } = useCart();
 
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { navigate("/login"); return; }
+      const storedUuid = sessionStorage.getItem('userUuid');
+      if (!storedUuid) {
+        navigate("/login");
+        return;
+      }
 
-      // Fetching all columns including the JSONB 'items' column
       const { data, error } = await supabase
         .from("orders")
-        .select('*') 
-        .eq("user_id", user.id) 
+        .select(`
+          *,
+          order_items (
+            product_id,
+            quantity,
+            price,
+            products (*) 
+          )
+        `) 
+        .eq("user_id", storedUuid)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
+      
+      console.log("✅ Orders Fetched Successfully:", data);
       setOrders(data || []);
     } catch (err) {
-      console.error("Fetch error:", err.message);
+      console.error("❌ Fetch error:", err.message);
     } finally {
       setLoading(false);
     }
@@ -33,161 +48,166 @@ function Orders() {
 
   useEffect(() => {
     fetchOrders();
-    const orderSubscription = supabase
-      .channel('order-status-updates')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, 
-        (payload) => {
-          setOrders((prev) => prev.map((order) => order.id === payload.new.id ? { ...order, ...payload.new } : order));
-        }
-      ).subscribe();
-    return () => supabase.removeChannel(orderSubscription);
   }, [fetchOrders]);
 
+  // --- UPDATED: CANCEL LOGIC (Moves to History instead of Deleting) ---
   const handleCancelOrder = async (orderId) => {
-    Swal.fire({
+    const result = await Swal.fire({
       title: 'CANCEL ORDER?',
-      text: "Are you sure you want to terminate this order request?",
+      text: "This will move the order to your cancelled history.",
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#ef4444',
-      cancelButtonColor: '#000',
-      confirmButtonText: 'YES, CANCEL ORDER',
+      confirmButtonColor: '#000',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'CONFIRM CANCEL',
       background: "#FDFBF7",
-      customClass: {
-        popup: 'rounded-[2rem]',
-        confirmButton: 'rounded-full px-6 py-3 text-[10px] font-black uppercase tracking-widest',
-        cancelButton: 'rounded-full px-6 py-3 text-[10px] font-black uppercase tracking-widest'
-      }
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          const { error } = await supabase.from('orders').update({ status: 'cancelled' }).eq('id', orderId);
-          if (error) throw error;
-          
-          setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'cancelled' } : o));
-          
-          Swal.fire({
-            title: 'CANCELLED',
-            text: 'Your order has been successfully cancelled.',
-            icon: 'success',
-            confirmButtonColor: "#D4AF37"
-          });
-        } catch (err) {
-          Swal.fire('Error', err.message, 'error');
-        }
-      }
     });
+
+    if (result.isConfirmed) {
+      try {
+        // We use UPDATE so it stays in the DB but changes status
+        const { error } = await supabase
+          .from('orders')
+          .update({ status: 'cancelled' })
+          .eq('id', orderId);
+
+        if (error) throw error;
+
+        console.log(` Order ${orderId} status updated to: cancelled`);
+        
+        // Update local state so the UI moves the card immediately
+        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'cancelled' } : o));
+        
+        Swal.fire('Cancelled', 'Order moved to history.', 'success');
+      } catch (err) {
+        console.error("❌ Error cancelling order:", err.message);
+        Swal.fire('Error', err.message, 'error');
+      }
+    }
   };
+
+  const handleReorder = (items) => {
+    items.forEach(item => { if (item.products) addToCart(item.products); });
+    Swal.fire({ title: 'Added to Bag', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+  };
+
+  // --- FILTER LOGIC WITH LOGGING ---
+  const filteredOrders = orders.filter(order => {
+    const status = order.status?.toLowerCase();
+    if (activeTab === "ongoing") {
+      return status === "pending" || status === "processing" || status === "shipped";
+    }
+    // 'history' tab shows everything else
+    return status === "delivered" || status === "cancelled" || status === "returned";
+  });
+
+  console.log(` Current Tab: ${activeTab} | Items showing: ${filteredOrders.length}`);
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-[#FDFBF7]">
-      <p className="text-[10px] font-black uppercase tracking-[0.5em] text-[#D4AF37] animate-pulse">ARCHIVE_SYNC...</p>
+      <p className="text-[10px] font-black uppercase tracking-[0.5em] text-[#D4AF37] animate-pulse">SYNCING_ARCHIVES...</p>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] py-12 px-4 md:px-20 font-sans text-black">
+    <div className="min-h-screen bg-[#FDFBF7] py-12 px-4 md:px-20 font-sans text-black relative overflow-hidden">
       <Navbar />
-      <div className="max-w-4xl mx-auto mt-20">
-        <header className="mb-12 md:mb-20 text-center md:text-left">
-          <h1 className="text-4xl md:text-5xl font-serif italic text-black/80">Order Details</h1>
-          <div className="h-[1px] w-16 bg-[#D4AF37] mt-4 mx-auto md:mx-0"></div>
+      
+      <div className="max-w-3xl mx-auto mt-20 relative z-10">
+        <header className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-serif italic text-black/80">Order History</h1>
+            <div className="h-[1px] w-12 bg-[#D4AF37] mt-2"></div>
+          </div>
+
+          <div className="flex bg-black/5 p-1 rounded-full border border-black/10 backdrop-blur-sm shadow-inner">
+            <button 
+              onClick={() => setActiveTab("ongoing")}
+              className={`px-6 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === 'ongoing' ? 'bg-white text-black shadow-sm' : 'text-black/40'}`}
+            >
+              Ongoing
+            </button>
+            <button 
+              onClick={() => setActiveTab("history")}
+              className={`px-6 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === 'history' ? 'bg-white text-black shadow-sm' : 'text-black/40'}`}
+            >
+              History
+            </button>
+          </div>
         </header>
         
-        <div className="space-y-16">
-          {orders.length === 0 ? (
-            <div className="text-center py-20">
-              <p className="text-[10px] font-black uppercase tracking-widest opacity-30 italic">No historical records found.</p>
-              <button onClick={() => navigate('/')} className="mt-6 text-[10px] underline tracking-widest font-bold text-[#D4AF37]">RETURN TO HOME</button>
+        <div className="flex flex-col gap-5">
+          {filteredOrders.length === 0 ? (
+            <div className="text-center py-20 bg-white/20 rounded-[2rem] border border-dashed border-black/10">
+              <p className="text-[10px] font-black uppercase tracking-widest opacity-30 italic">No {activeTab} records found.</p>
             </div>
           ) : (
-            orders.map((order) => {
+            filteredOrders.map((order) => {
               const status = order.status?.toLowerCase();
-              const isCancelled = status === 'cancelled';
-              const isDelivered = status === 'delivered';
-              
-              // Reading directly from your JSONB column
-              const items = order.items || []; 
-
-              // Logic for 5-day cancellation window
+              const items = order.order_items || []; 
               const orderDate = new Date(order.created_at);
-              const currentDate = new Date();
-              const diffInTime = currentDate.getTime() - orderDate.getTime();
-              const diffInDays = diffInTime / (1000 * 3600 * 24);
-              const isPastCancellationWindow = diffInDays > 5;
 
               return (
-                <div key={order.id} className="group border-b border-black/10 pb-12 last:border-0">
-                  {/* Header */}
-                  <div className="flex flex-col md:flex-row justify-between items-baseline mb-8 gap-4">
+                <div 
+                  key={order.id} 
+                  className="relative p-6 rounded-[2rem] bg-white/60 backdrop-blur-xl border-t border-l border-white/90 border-r border-b border-black/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)]"
+                >
+                  <div className="flex justify-between items-start mb-6">
                     <div>
-                      <span className="text-[9px] font-black uppercase tracking-[0.3em] text-[#D4AF37]">Order Ref. {order.id.slice(0, 8)}</span>
-                      <h2 className="text-xl md:text-2xl font-bold block mt-1">
-                        {new Date(order.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      <span className="text-[8px] font-black uppercase tracking-[0.3em] text-[#D4AF37] opacity-70">REF: {order.id.slice(0, 8)}</span>
+                      <h2 className="text-lg font-bold block leading-tight">
+                        {orderDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </h2>
                     </div>
                     
-                    <div className="flex items-center gap-3">
-                        {!isCancelled && !isDelivered && (
-                            <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                            </span>
-                        )}
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${isCancelled ? 'text-red-500' : isDelivered ? 'text-blue-500' : 'text-green-600'}`}>
+                    <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-black/5">
+                      <span className={`h-1.5 w-1.5 rounded-full ${status === 'cancelled' || status === 'returned' ? 'bg-red-500' : 'bg-green-500'}`}></span>
+                      <span className={`text-[9px] font-black uppercase tracking-widest ${status === 'cancelled' || status === 'returned' ? 'text-red-500' : 'text-green-600'}`}>
                         {order.status}
-                        </span>
+                      </span>
                     </div>
                   </div>
 
-                  {/* Items list from JSONB */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
                     {items.map((item, idx) => (
-                      <div key={idx} className="flex gap-4 items-center bg-white p-4 rounded-2xl shadow-sm border border-black/5">
-                        <img 
-                          src={item.image} 
-                          alt="" 
-                          className="w-20 h-20 object-cover rounded-xl bg-[#F9F6F0]"
-                          onError={(e) => { e.target.src = "https://placehold.co/200x200?text=Luxe"; }}
-                        />
-                        <div className="flex-1">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-black/70">{item.name}</p>
-                          <div className="flex items-center gap-3 mt-1">
-                            <p className="text-[10px] font-bold opacity-40">QTY: {item.quantity}</p>
-                            <p className="text-xs font-serif italic text-[#D4AF37]">${item.price}</p>
-                          </div>
+                      <div key={idx} className="flex gap-3 items-center bg-white/40 p-2.5 rounded-2xl border border-white/60">
+                        <div className="w-10 h-10 bg-white rounded-lg overflow-hidden border border-black/5 flex items-center justify-center shrink-0">
+                          {item.products?.image ? (
+                            <img src={item.products.image} alt="Item" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="text-[7px] font-black text-gray-400">N/A</div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[9px] font-black uppercase tracking-wider text-black/80 truncate">{item.products?.name || "Product"}</p>
+                          <p className="text-[9px] font-bold opacity-40">QTY: {item.quantity} — ${item.price}</p>
                         </div>
                       </div>
                     ))}
                   </div>
 
-                  {/* Footer & Conditional Cancellation Button */}
-                  <div className="flex flex-col md:flex-row justify-between items-center gap-6 pt-6">
-                    <div className="w-full md:w-auto text-center md:text-left">
-                      <p className="text-[9px] font-bold uppercase opacity-30 leading-none">Total Amount</p>
-                      <p className="text-2xl font-serif italic">${order.total_amount}</p>
+                  <div className="flex justify-between items-center pt-5 border-t border-black/5">
+                    <div>
+                      <p className="text-[8px] font-bold uppercase opacity-30 leading-none mb-1">Total</p>
+                      <p className="text-xl font-serif italic text-black/90">${order.total_amount}</p>
                     </div>
 
-                    {status === 'pending' && (
-                        <div className="flex flex-col items-center md:items-end gap-2">
-                             <button 
-                                onClick={() => !isPastCancellationWindow && handleCancelOrder(order.id)}
-                                disabled={isPastCancellationWindow}
-                                className={`w-full md:w-auto px-10 py-3 rounded-full border transition-all text-[10px] font-black uppercase tracking-[0.2em] 
-                                    ${isPastCancellationWindow 
-                                        ? 'border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50' 
-                                        : 'border-red-400 text-red-500 hover:bg-red-500 hover:text-white active:scale-95'
-                                    }`}
-                            >
-                                {isPastCancellationWindow ? "🔒 VOID WINDOW EXPIRED" : "CANCEL ORDER"}
-                            </button>
-                            {!isPastCancellationWindow && (
-                                <p className="text-[7px] font-bold tracking-widest text-red-400/50 uppercase">
-                                     expires in {Math.max(0, (5 - diffInDays).toFixed(1))} days
-                                </p>
-                            )}
-                        </div>
-                    )}
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => handleReorder(items)}
+                        className="px-5 py-2 rounded-full bg-black text-white text-[9px] font-black uppercase tracking-widest hover:bg-[#D4AF37] transition-all"
+                      >
+                        Reorder
+                      </button>
+                      {activeTab === "ongoing" && (
+                        <button 
+                          onClick={() => handleCancelOrder(order.id)}
+                          className="px-5 py-2 rounded-full border border-red-100 text-red-400 text-[9px] font-black uppercase tracking-widest hover:bg-red-50 transition-all"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );

@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.91.1",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^17.2.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router": "^7.12.0",

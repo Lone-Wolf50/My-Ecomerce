@@ -1,207 +1,679 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from "../Database-Server/Superbase-client.js";
-import Swal from 'sweetalert2';
+import React, { useState, useEffect, useRef } from "react";
+import Swal from "sweetalert2";
+import { createClient } from "@supabase/supabase-js";
+import bcrypt from "bcryptjs";
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Use your backend URL from .env (e.g., http://localhost:3001)
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 const AuthPage = () => {
-  const [view, setView] = useState('login'); 
-  const [loading, setLoading] = useState(false);
-  const [showPass, setShowPass] = useState(false); 
-  const [otpInput, setOtpInput] = useState('');
-  const [generatedOtp, setGeneratedOtp] = useState(null);
-  const [timer, setTimer] = useState(0);
-  const [pendingUserId, setPendingUserId] = useState(null);
-  const navigate = useNavigate();
+	const [view, setView] = useState(
+		() => sessionStorage.getItem("authView") || "login",
+	);
+	const [loading, setLoading] = useState(false);
+	const [showPass, setShowPass] = useState(false);
+	const [resetEmail, setResetEmail] = useState(
+		() => sessionStorage.getItem("resetEmail") || "",
+	);
+	const [resendCount, setResendCount] = useState(0);
+	const [otp, setOtp] = useState(new Array(6).fill(""));
+	const inputRefs = useRef([]);
+	const [isOtpPending, setIsOtpPending] = useState(false);
+	const [timer, setTimer] = useState(0);
+
+	const [formData, setFormData] = useState({
+		email: "",
+		password: "",
+		confirmPassword: "",
+		fullName: "",
+	});
+
+	const calculateStrength = (pass) => {
+		if (!pass) return 0;
+		let score = 0;
+		if (pass.length >= 8) score += 25;
+		if (/[0-9]/.test(pass)) score += 25;
+		if (/[A-Z]/.test(pass)) score += 25;
+		if (/[^A-Za-z0-9]/.test(pass)) score += 25;
+		return score;
+	};
+
+	const getStrengthColor = (score) => {
+		if (score <= 25) return "bg-red-500";
+		if (score <= 50) return "bg-orange-500";
+		if (score <= 75) return "bg-yellow-500";
+		return "bg-green-500";
+	};
+
+	const navigateTo = (newView) => {
+		console.log(`Navigation: Moving from ${view} to ${newView}`);
+
+		setResendCount(0); // Reset attempts
+		setTimer(0);
+		setIsOtpPending(false);
+		setTimer(0);
+		setOtp(new Array(6).fill(""));
+		setFormData({ email: "", password: "", confirmPassword: "", fullName: "" });
+		setView(newView);
+	};
+
+	useEffect(() => {
+		sessionStorage.setItem("authView", view);
+		sessionStorage.setItem("resetEmail", resetEmail);
+	}, [view, resetEmail]);
+
+	const handleOtpChange = (element, index) => {
+		if (isNaN(element.value)) return false;
+		const newOtp = [...otp];
+		newOtp[index] = element.value;
+		setOtp(newOtp);
+		if (element.value !== "" && index < 5) inputRefs.current[index + 1].focus();
+	};
+
+	const handleKeyDown = (e, index) => {
+		if (e.key === "Backspace" && !otp[index] && index > 0)
+			inputRefs.current[index - 1].focus();
+	};
+
+	useEffect(() => {
+		if (otp.join("").length === 6 && view === "otp") {
+			console.log("OTP: 6 digits entered. Auto-submitting for verification...");
+			handleAuth();
+		}
+	}, [otp]);
+
+	useEffect(() => {
+		let interval;
+		if (timer > 0) {
+			interval = setInterval(() => setTimer((prev) => prev - 1), 1000);
+		} else if (timer === 0 && isOtpPending) {
+			// Timer hit zero
+			if (resendCount >= 2) {
+				// ONLY redirect if they are out of retries
+				setIsOtpPending(false);
+				luxeAlert(
+					"EXPIRED",
+					"Protocol timed out. Max attempts reached.",
+					"error",
+				);
+				navigateTo("login");
+			} else {
+				// Stay on page, the UI will now show the "Resend" button automatically
+				console.log("Timer expired, awaiting resend choice...");
+			}
+		}
+		return () => clearInterval(interval);
+	}, [timer, isOtpPending, resendCount, view]);
+
+	// The Fixed Formatter
+	const formatTime = (s) => {
+		const m = Math.floor(s / 60);
+		const rs = s % 60;
+		return `${m.toString().padStart(2, "0")}:${rs.toString().padStart(2, "0")}`;
+	};
+
+	const luxeAlert = (title, text, icon = "success") => {
+		Swal.fire({
+			title: title.toUpperCase(),
+			text,
+			icon,
+			confirmButtonColor: "#D4AF37",
+			background: "#FDFBF7",
+			color: "#000",
+			customClass: {
+				popup: "rounded-[3rem] border border-black/5 shadow-2xl",
+				confirmButton:
+					"rounded-full px-10 py-3 uppercase text-[10px] font-black",
+			},
+		});
+	};
+
+	// Replace your handleAuth 'signup' and 'otp' logic with this:
+const handleAuth = async (e) => {
+  if (e) e.preventDefault();
+  setLoading(true);
   
-  const [formData, setFormData] = useState({
-    email: '', password: '', confirmPassword: '', fullName: '',
-    newPassword: '', confirmNewPassword: ''
-  });
-
-  // --- OTP TIMER ---
-  useEffect(() => {
-    let interval;
-    if (timer > 0) {
-      interval = setInterval(() => setTimer((prev) => prev - 1), 1000);
-    } else if (timer === 0 && generatedOtp) {
-      setGeneratedOtp(null);
-      if (view === 'otp') {
-        luxeAlert("EXPIRED", "Security code timed out.", "error");
-        setView('login');
+  const emailVal = formData.email.trim().toLowerCase();
+  const passVal = formData.password.trim();
+  const nameVal = formData.fullName?.trim() || "";
+  
+  console.log("--- AUTH DEBUG START ---");
+  console.log("Target Email:", emailVal);
+  console.log("Current View:", view);
+  
+  try {
+    if (view === "login") {
+      console.log("STEP 1: Verifying credentials...");
+      
+      // Fetch user with hashed password
+      const { data: user, error: userError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("email", emailVal)
+        .single();
+      
+      if (userError || !user) {
+        console.warn("STEP 1 FAIL: User not found.");
+        throw new Error("Invalid credentials. Access denied.");
       }
+      
+	  // Compare plain text password with hashed password
+	  const passwordMatch = await bcrypt.compare(passVal, user.password);
+      
+      if (!passwordMatch) {
+        console.warn("STEP 2 FAIL: Password mismatch.");
+        throw new Error("Invalid credentials. Access denied.");
+      }
+      
+      console.log("STEP 2: Success! Storing session for:", user.email);
+      sessionStorage.setItem("userEmail", user.email);
+      sessionStorage.setItem("isAuthenticated", "true");
+      luxeAlert("SUCCESS", `Welcome back, ${user.full_name || "User"}`);
+      setTimeout(() => window.location.assign("/"), 1000);
+      
+    } else if (view === "signup") {
+      console.log("STEP 1: Requesting OTP from Node server...");
+      
+      const response = await fetch(`${API_URL}/send-otp`, { // ✅ Fixed
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailVal }),
+      });
+      
+      const data = await response.json();
+      if (!data.success) {
+        console.error("STEP 1 ERROR: Node server rejected OTP request.", data.error);
+        throw new Error(data.error || "Communication failure.");
+      }
+      
+      console.log("STEP 2: OTP Sent. Switching to OTP view.");
+      setTimer(120);
+      setIsOtpPending(true);
+      setView("otp");
+      luxeAlert("SENT", "Sequence dispatched to inbox.");
+      
+    } else if (view === "otp") {
+      const enteredOtp = otp.join("");
+      console.log("STEP 1: Verifying OTP sequence:", enteredOtp);
+      
+      const verifyRes = await fetch(`${API_URL}/verify-otp`, { // ✅ Fixed
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailVal, otp: enteredOtp }),
+      });
+      
+      const verifyData = await verifyRes.json();
+      if (!verifyData.success) {
+        console.warn("STEP 1 FAIL: OTP verification failed.");
+        throw new Error("Invalid sequence code.");
+      }
+      
+      console.log("STEP 2: OTP Valid. Hashing password and inserting user...");
+      
+	  // Hash password before storing
+	  const hashedPassword = await bcrypt.hash(passVal, 10);
+      
+      const { error: insertError } = await supabase
+        .from("profiles")
+        .insert({
+          email: emailVal,
+          password: hashedPassword, // ✅ Store hashed password
+          full_name: nameVal,
+          otp_code: enteredOtp, // ✅ Store the OTP code
+        });
+      
+      if (insertError) {
+        console.error("STEP 2 ERROR: Profile insertion failed.", insertError);
+        throw insertError;
+      }
+      
+      console.log("STEP 3: Registration successful.");
+      sessionStorage.setItem("userEmail", emailVal);
+      sessionStorage.setItem("isAuthenticated", "true");
+      luxeAlert("WELCOME", "Identity archived successfully.");
+      setTimeout(() => window.location.assign("/"), 1000);
     }
-    return () => clearInterval(interval);
-  }, [timer, generatedOtp, view]);
+  } catch (err) {
+    console.error("CRITICAL AUTH ERROR:", err.message);
+    luxeAlert("ERROR", err.message, "error");
+  } finally {
+    setLoading(false);
+    console.log("--- AUTH DEBUG END ---");
+  }
+};
+const handleForgotCheck = async (e) => {
+  if (e) e.preventDefault();
+  console.log("Forgot Password: Checking registry for:", formData.email);
+  setLoading(true);
+  
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("email", formData.email)
+      .maybeSingle();
 
-  const luxeAlert = (title, text, icon = 'error') => {
-    Swal.fire({
-      title: title.toUpperCase(), text, icon,
-      confirmButtonColor: "#D4AF37", background: "#FDFBF7", color: "#000",
-      customClass: { popup: 'rounded-[3rem] border border-black/5 shadow-2xl', confirmButton: 'rounded-full px-10 py-3 uppercase text-[10px] font-black' }
-    });
-  };
+    if (error) throw error;
 
-  const handleInput = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (data) {
+      console.log("Forgot Pass: Identity confirmed.");
+      // UX FIX: Clear the password state before moving to override screen
+      setFormData((prev) => ({ ...prev, password: "", confirmPassword: "" }));
+      setResetEmail(formData.email);
+      setView("new_password");
+      luxeAlert(
+        "IDENTITY VERIFIED",
+        "Log found. Proceed with override.",
+        "success",
+      );
+    } else {
+      throw new Error("Identity not found in logs.");
+    }
+  } catch (err) {
+    luxeAlert("DENIED", err.message, "error");
+  } finally {
+    setLoading(false);
+  }
+};
+const handleOverride = async (e) => {
+  if (e) e.preventDefault();
 
-  // --- CORE OTP LOGIC ---
-  const launchOTP = async (userId) => {
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 60 * 1000).toISOString();
-    const hashedOtp = btoa(code); // Simple hash as requested
-    
-    const { error } = await supabase
-      .from('profiles')
-      .update({ otp_code: hashedOtp, otp_expires_at: expiresAt })
-      .eq('id', userId);
+  // 1. Validation Logic
+  const newPass = formData.password.trim();
+  const confirmPass = formData.confirmPassword.trim();
+
+  if (newPass.length < 8 || newPass.length > 15) {
+    return luxeAlert("ERROR", "Password must be 8-15 characters.", "error");
+  }
+  if (newPass !== confirmPass) {
+    return luxeAlert("ERROR", "Passwords do not match.", "error");
+  }
+
+  setLoading(true);
+ 
+  try {
+    // 2. Hash the new password
+    const hashedPassword = await bcrypt.hash(newPass, 10);
+  
+    // 3. Update the password in the database
+    const { data: updateData, error } = await supabase
+      .from("profiles")
+      .update({ password: hashedPassword })
+      .eq("email", resetEmail)
+      .select(); // ✅ Add .select() to confirm update
+
+    console.log("📝 Update result:", updateData); // DEBUG
     
     if (error) throw error;
-    
-    setGeneratedOtp(code);
-    setTimer(60);
-    setView('otp');
-  };
 
-  const handleAuth = async (e) => {
-    if (e) e.preventDefault();
-    setLoading(true);
+    // 4. Success & Cleanup
+    console.log("Override: Success. Password hashed and saved.");
+    sessionStorage.removeItem("resetEmail");
+    setResetEmail("");
 
-    try {
-      if (view === 'login') {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
-        });
-        if (error) throw error;
-        
-        const newSessionId = crypto.randomUUID(); 
-        window.sessionStorage.setItem("current_device_session", newSessionId);
-        await supabase.from('profiles').update({ last_session_id: newSessionId }).eq('id', data.user.id);
-        navigate('/');
+    // Clear form state
+    setFormData((prev) => ({ ...prev, password: "", confirmPassword: "" }));
 
-      } else if (view === 'signup') {
-        if (formData.password !== formData.confirmPassword) throw new Error("Passwords mismatch.");
-        
-        const { data, error } = await supabase.auth.signUp({
-          email: formData.email, password: formData.password,
-          options: { data: { full_name: formData.fullName } }
-        });
-        if (error) throw error;
+    luxeAlert(
+      "SUCCESS",
+      "Vault updated. Use your new password to sign in.",
+      "success",
+    );
+    navigateTo("login");
+  } catch (err) {
+    console.error("Override Update Error:", err.message);
+    luxeAlert("ERROR", "Update failed: " + err.message, "error");
+  } finally {
+    setLoading(false);
+  }
+};
+	const StrengthMeter = ({ pass }) => {
+		if (!pass) return null;
+		const score = calculateStrength(pass);
+		return (
+			<div className="w-full mt-2">
+				<div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
+					<div
+						className={`h-full transition-all duration-500 ${getStrengthColor(score)}`}
+						style={{ width: `${score}%` }}
+					></div>
+				</div>
+				<p className="text-[7px] font-black text-right mt-1 opacity-50 uppercase tracking-widest">
+					Strength: {score}%
+				</p>
+			</div>
+		);
+	};
+	const handleResendOtp = async () => {
+		if (resendCount >= 2) {
+			luxeAlert(
+				"LIMIT REACHED",
+				"Max attempts exhausted. Restart the process.",
+				"error",
+			);
+			navigateTo("login");
+			return;
+		}
 
-        setPendingUserId(data.user.id);
-        await launchOTP(data.user.id);
+		setLoading(true);
+		try {
+			const response = await fetch(`${API_URL}/send-otp`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ email: formData.email }),
+			});
 
-      } else if (view === 'otp') {
-        const hashedInput = btoa(otpInput);
-        const userId = pendingUserId || (await supabase.from('profiles').select('id').ilike('email', formData.email).maybeSingle()).data?.id;
+			const data = await response.json();
+			if (!data.success) throw new Error("Failed to resend code.");
 
-        if (!userId) throw new Error("Session lost.");
+			setResendCount((prev) => prev + 1);
+			setTimer(120); // Reset to 2 minutes
+			setOtp(new Array(6).fill("")); // Clear the old inputs
+			luxeAlert(
+				"RESENT",
+				`New code sent. (${2 - (resendCount + 1)} attempts remaining)`,
+			);
+		} catch (err) {
+			luxeAlert("ERROR", err.message, "error");
+		} finally {
+			setLoading(false);
+		}
+	};
 
-        const { data: profile } = await supabase.from('profiles').select('otp_code, otp_expires_at').eq('id', userId).single();
+	return (
+		<div className="min-h-[100dvh] w-full bg-[#FDFBF7] flex items-center justify-center p-4 font-sans text-black overflow-y-auto relative">
+			<div
+				className={`fixed top-4 right-4 w-40 bg-black text-white p-4 rounded-2xl shadow-2xl border border-[#D4AF37]/30 z-50 transition-all duration-500 ${isOtpPending ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+			>
+				<p className="text-[7px] font-black tracking-widest text-[#D4AF37] uppercase mb-1 text-center">
+					Session Active
+				</p>
+				<h2 className="text-xl font-mono font-bold text-center tracking-widest">
+					AWAITING
+				</h2>
+			</div>
 
-        if (profile?.otp_code === hashedInput && new Date(profile.otp_expires_at) > new Date()) {
-          // Clear OTP
-          await supabase.from('profiles').update({ otp_code: null, otp_expires_at: null }).eq('id', userId);
-          
-          if (view === 'otp' && formData.email && !pendingUserId) {
-            setView('reset');
-          } else {
-            luxeAlert("Verified", "Access granted.", "success");
-            navigate('/');
-          }
-        } else {
-          throw new Error("Invalid or expired code.");
-        }
+			<div className="w-full flex justify-center">
+				{view === "otp" && (
+					<div className="w-full max-w-[400px] bg-white/40 backdrop-blur-3xl border border-white/20 p-10 rounded-[3rem] shadow-2xl text-center animate-in zoom-in duration-300">
+						<h1 className="text-2xl font-serif italic mb-2 uppercase">
+							Verify
+						</h1>
+						<p className="text-[9px] font-black tracking-[0.3em] uppercase opacity-40 mb-10 text-[#D4AF37]">
+							Enter OTP Sequence
+						</p>
 
-      } else if (view === 'forgot') {
-        const { data: profile } = await supabase.from('profiles').select('id').ilike('email', formData.email.trim()).maybeSingle();
-        if (!profile) throw new Error("Email not registered.");
-        await launchOTP(profile.id);
+						<div className="flex justify-between gap-2 mb-6">
+							{otp.map((data, index) => (
+								<input
+									key={index}
+									type="text"
+									maxLength="1"
+									ref={(el) => (inputRefs.current[index] = el)}
+									value={data}
+									onChange={(e) => handleOtpChange(e.target, index)}
+									onKeyDown={(e) => handleKeyDown(e, index)}
+									className="w-full h-14 text-center text-2xl font-mono font-bold bg-white/60 border border-black/10 rounded-xl focus:border-[#D4AF37] outline-none shadow-inner"
+								/>
+							))}
+						</div>
 
-      } else if (view === 'reset') {
-        if (formData.newPassword !== formData.confirmNewPassword) throw new Error("Passwords mismatch.");
-        
-        // Calling your Step 5 SQL Function
-        const { data, error } = await supabase.rpc('manual_reset_password', {
-          target_email: formData.email,
-          new_password: formData.newPassword
-        });
-        if (error || !data.success) throw new Error(data?.message || "Reset failed");
+						{/* Timer / Resend Logic */}
+						{/* Inside your OTP View JSX */}
+						<div className="mb-6">
+							{timer > 0 ? (
+								/* Show the countdown if time is remaining */
+								<div className="text-[11px] font-mono font-black text-[#D4AF37]">
+									{formatTime(timer)}
+								</div>
+							) : /* Timer is 0 - Show Resend or Limit Reached */
+							resendCount < 2 ? (
+								<button
+									type="button"
+									onClick={handleResendOtp}
+									className="text-[10px] font-black uppercase text-[#D4AF37] hover:underline tracking-widest animate-pulse"
+								>
+									Resend Code ({2 - resendCount} left)
+								</button>
+							) : (
+								<div className="text-[10px] font-black uppercase text-red-500 tracking-widest">
+									Attempt Limit Exceeded
+								</div>
+							)}
+						</div>
 
-        luxeAlert("Success", "Password updated.", "success");
-        setView('login');
-      }
-    } catch (err) {
-      luxeAlert("Error", err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+						<button
+							onClick={() => navigateTo("login")}
+							className="text-[10px] font-black uppercase tracking-widest opacity-60 hover:opacity-100 transition-opacity"
+						>
+							Abort Session
+						</button>
+					</div>
+				)}
+				{view === "forgot" && (
+					<div className="w-full max-w-[400px] bg-white/40 backdrop-blur-3xl border border-white/20 p-10 rounded-[3rem] shadow-2xl text-center animate-in zoom-in duration-300">
+						<h1 className="text-2xl font-serif italic mb-2 uppercase">
+							Recovery
+						</h1>
+						<p className="text-[9px] font-black tracking-[0.3em] uppercase opacity-40 mb-10 text-[#D4AF37]">
+							Enter Identity Email
+						</p>
+						<form onSubmit={handleForgotCheck} className="space-y-6">
+							<input
+								type="email"
+								placeholder="EMAIL ADDRESS"
+								autoComplete="off"
+								value={formData.email}
+								className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[10px] font-black bg-transparent text-center"
+								onChange={(e) =>
+									setFormData({ ...formData, email: e.target.value })
+								}
+								required
+							/>
+							<button
+								type="submit"
+								className="w-full h-12 bg-black text-white rounded-2xl text-[9px] font-black uppercase tracking-[0.4em] hover:bg-[#D4AF37] transition-all"
+							>
+								Verify Email
+							</button>
+							<button
+								type="button"
+								onClick={() => navigateTo("login")}
+								className="text-[10px] font-black uppercase opacity-60 hover:opacity-100 transition-opacity"
+							>
+								Back to Login
+							</button>
+						</form>
+					</div>
+				)}
 
-  return (
-    <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center p-6 font-sans text-black relative">
-      {generatedOtp && (
-        <div className="absolute top-10 right-10 w-64 bg-black text-white p-6 rounded-3xl shadow-2xl border border-[#D4AF37]/30 z-50">
-          <p className="text-[10px] font-black tracking-[0.3em] text-[#D4AF37] mb-2 uppercase">HUD SECURE CODE</p>
-          <h2 className="text-4xl font-mono font-bold tracking-widest">{generatedOtp}</h2>
-          <div className="mt-4 w-full bg-white/10 h-[4px] rounded-full overflow-hidden">
-            <div className="bg-[#D4AF37] h-full transition-all duration-1000 linear" style={{ width: `${(timer / 60) * 100}%` }}></div>
-          </div>
-        </div>
-      )}
+				{view === "new_password" && (
+					<div className="w-full max-w-[400px] bg-white/40 backdrop-blur-3xl border border-white/20 p-10 rounded-[3rem] shadow-2xl text-center animate-in zoom-in duration-300">
+						<h1 className="text-2xl font-serif italic mb-2 uppercase">
+							Reset
+						</h1>
+						<p className="text-[9px] font-black tracking-[0.3em] uppercase opacity-40 mb-10 text-[#D4AF37]">
+							Updating: {resetEmail}
+						</p>
+						<form onSubmit={handleOverride} className="space-y-6">
+							<div className="relative">
+								<input
+									type={showPass ? "text" : "password"}
+									maxLength={15}
+									autoComplete="new password"
+									placeholder="NEW PASSWORD"
+									value={formData.password}
+									className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[10px] font-black uppercase bg-transparent"
+									onChange={(e) =>
+										setFormData({ ...formData, password: e.target.value })
+									}
+									required
+								/>
+								<button
+									type="button"
+									onClick={() => setShowPass(!showPass)}
+									className="absolute right-0 top-1 text-2xl"
+								>
+									{showPass ? "🐵" : "🙈"}
+								</button>
+								<StrengthMeter pass={formData.password} />
+							</div>
+							<input
+								type={showPass ? "text" : "password"}
+								maxLength={15}
+								placeholder="CONFIRM NEW PASSWORD"
+								value={formData.confirmPassword}
+								className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[10px] font-black uppercase bg-transparent"
+								onChange={(e) =>
+									setFormData({ ...formData, confirmPassword: e.target.value })
+								}
+								required
+							/>
+							<button
+								type="submit"
+								className="w-full h-12 bg-black text-white rounded-2xl text-[9px] font-black uppercase tracking-[0.4em] hover:bg-[#D4AF37] transition-all"
+							>
+								Confirm 
+							</button>
+							<button
+								type="button"
+								onClick={() => navigateTo("login")}
+								className="text-[10px] font-black uppercase opacity-60 hover:opacity-100 transition-opacity"
+							>
+								Cancel
+							</button>
+						</form>
+					</div>
+				)}
 
-      <div className="w-full max-w-[960px] min-h-[640px] bg-white rounded-[3rem] shadow-2xl flex overflow-hidden border border-black/[0.05]">
-        <div className="hidden md:flex w-1/2 bg-[#F7F7F7] items-center justify-center p-12">
-          <img src="/Images/summer3.jpg" className="w-full h-full object-contain mix-blend-multiply opacity-80" alt="brand" />
-        </div>
+				{(view === "login" || view === "signup") && (
+					<div className="w-full max-w-[900px] bg-white rounded-[3rem] shadow-2xl flex overflow-hidden border border-black/[0.05] min-h-[550px] animate-in fade-in duration-500">
+						<div className="hidden md:flex w-1/2 bg-[#F7F7F7] items-center justify-center p-12 border-r border-black/5">
+							<img
+								src="/Images/summer3.jpg"
+								className="w-full h-full object-contain mix-blend-multiply opacity-80"
+								alt="brand"
+							/>
+						</div>
+						<div className="w-full md:w-1/2 flex flex-col justify-center px-8 md:px-16 py-10">
+							<h1 className="text-[38px] italic font-serif mb-6 leading-none uppercase tracking-tighter">
+								{view}
+							</h1>
+							<form onSubmit={handleAuth} className="space-y-4">
+								{view === "signup" && (
+									<input
+										name="fullName"
+										placeholder="FULL NAME"
+										autoComplete="off"
+										value={formData.fullName}
+										className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[10px] font-black uppercase"
+										onChange={(e) =>
+											setFormData({ ...formData, fullName: e.target.value })
+										}
+										required
+									/>
+								)}
 
-        <div className="w-full md:w-1/2 flex flex-col justify-center px-12 md:px-20 py-10">
-          <p className="text-[10px] font-black text-[#D4AF37] uppercase tracking-[0.4em] mb-2">{view === 'otp' ? 'Verification' : ''}</p>
-          <h1 className="text-[42px] italic font-serif mb-8 leading-none uppercase">{view}</h1>
-          
-          <form onSubmit={handleAuth} className="space-y-5">
-            {view === 'signup' && (
-              <input name="fullName" placeholder="FULL NAME" className="w-full h-12 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[11px] font-bold tracking-widest" onChange={handleInput} required />
-            )}
-            {(view !== 'otp' && view !== 'reset') && (
-              <input name="email" type="email" placeholder="EMAIL ADDRESS" className="w-full h-12 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[11px] font-bold tracking-widest" onChange={handleInput} required />
-            )}
-            {(view === 'login' || view === 'signup') && (
-              <div className="relative">
-                <input name="password" type={showPass ? "text" : "password"} placeholder="PASSWORD" className="w-full h-12 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[11px] font-bold tracking-widest" onChange={handleInput} required />
-                <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-0 top-3 opacity-30 hover:opacity-100 transition-opacity">
-                  <span className="material-symbols-outlined text-[18px]">{showPass ? "visibility" : "visibility_off"}</span>
-                </button>
-              </div>
-            )}
-            {view === 'signup' && (
-              <input name="confirmPassword" type={showPass ? "text" : "password"} placeholder="CONFIRM PASSWORD" className="w-full h-12 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[11px] font-bold tracking-widest" onChange={handleInput} required />
-            )}
-            {view === 'otp' && (
-              <input type="text" maxLength={6} className="w-full h-20 text-center text-4xl font-mono tracking-[0.5em] border-2 border-black rounded-2xl focus:border-[#D4AF37] outline-none" onChange={(e) => setOtpInput(e.target.value)} autoFocus required />
-            )}
-            {view === 'reset' && (
-              <div className="space-y-4">
-                <input name="newPassword" type="password" placeholder="NEW PASSWORD" className="w-full h-12 border-b border-black/10 outline-none focus:border-[#D4AF37]" onChange={handleInput} required />
-                <input name="confirmNewPassword" type="password" placeholder="CONFIRM NEW" className="w-full h-12 border-b border-black/10 outline-none focus:border-[#D4AF37]" onChange={handleInput} required />
-              </div>
-            )}
-            <button type="submit" disabled={loading} className="w-full h-14 bg-black text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.4em] mt-8 hover:bg-[#D4AF37] transition-all disabled:opacity-50">
-              {loading ? 'Executing...' : 'Login'}
-            </button>
-          </form>
+								<input
+									name="email"
+									type="email"
+									placeholder="EMAIL ADDRESS"
+									autoComplete="off"
+									value={formData.email}
+									className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[10px] font-black"
+									onChange={(e) =>
+										setFormData({ ...formData, email: e.target.value })
+									}
+									required
+								/>
 
-          <div className="mt-10 flex justify-between border-t border-black/5 pt-8">
-            <button type="button" onClick={() => setView(view === 'login' ? 'signup' : 'login')} className="text-[9px] uppercase font-black text-black/30 hover:text-black tracking-widest">
-              {view === 'login' ? 'Create Account' : 'Back to Login'}
-            </button>
-            {view === 'login' && (
-              <button type="button" onClick={() => setView('forgot')} className="text-[9px] uppercase font-black text-[#D4AF37] tracking-widest hover:underline">FORGOT PASSWORD?</button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+								<div className="relative">
+									<input
+										name="password"
+										autoComplete="off"
+										type={showPass ? "text" : "password"}
+										maxLength={15}
+										placeholder="PASSWORD (8-15 chars)"
+										value={formData.password}
+										className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[10px] font-black uppercase"
+										onChange={(e) =>
+											setFormData({ ...formData, password: e.target.value })
+										}
+										required
+									/>
+									<button
+										type="button"
+										onClick={() => setShowPass(!showPass)}
+										className="absolute right-0 top-1 text-2xl"
+									>
+										{showPass ? "🐵" : "🙈"}
+									</button>
+									{view === "signup" && (
+										<StrengthMeter pass={formData.password} />
+									)}
+								</div>
+
+								{view === "signup" && (
+									<input
+										name="confirmPassword"
+										type={showPass ? "text" : "password"}
+										autoComplete="off"
+										maxLength={15}
+										placeholder="CONFIRM PASSWORD"
+										value={formData.confirmPassword}
+										className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[10px] font-black uppercase"
+										onChange={(e) =>
+											setFormData({
+												...formData,
+												confirmPassword: e.target.value,
+											})
+										}
+										required
+									/>
+								)}
+
+								<button
+									type="submit"
+									disabled={loading}
+									className="w-full h-12 bg-black text-white rounded-2xl text-[9px] font-black uppercase tracking-[0.4em] mt-10 hover:bg-[#D4AF37] transition-all shadow-lg active:scale-95"
+								>
+									{loading
+										? "Processing..."
+										: view === "login"
+											? "Login"
+											: "Proceed"}
+								</button>
+							</form>
+							<div className="mt-10 flex justify-between border-t border-black/5 pt-6">
+								<button
+									type="button"
+									onClick={() =>
+										navigateTo(view === "login" ? "signup" : "login")
+									}
+									className="text-[10px] uppercase font-black text-black hover:text-[#D4AF37] transition-colors tracking-widest"
+								>
+									{view === "login" ? "Create Account" : "Back to Login"}
+								</button>
+								{view === "login" && (
+									<button
+										type="button"
+										onClick={() => setView("forgot")}
+										className="text-[10px] uppercase font-black text-black hover:text-[#D4AF37] transition-colors tracking-widest"
+									>
+										Forgot Password?
+									</button>
+								)}
+							</div>
+						</div>
+					</div>
+				)}
+			</div>
+		</div>
+	);
 };
 
 export default AuthPage;

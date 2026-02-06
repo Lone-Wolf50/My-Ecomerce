@@ -137,70 +137,71 @@ const handleAuth = async (e) => {
   if (e) e.preventDefault();
   setLoading(true);
   
+  // 1. DATA PREP
+  // Lowercase the email (standard practice)
   const emailVal = formData.email.trim().toLowerCase();
-  const passVal = formData.password.trim();
+  // DO NOT lowercase the password. bcrypt is case-sensitive!
+  const passVal = formData.password.trim(); 
   const nameVal = formData.fullName?.trim() || "";
-  
-  console.log("--- AUTH DEBUG START ---");
-  console.log("Target Email:", emailVal);
-  console.log("Current View:", view);
   
   try {
     if (view === "login") {
-      console.log("STEP 1: Verifying credentials...");
-      
-      // Fetch user with hashed password
+      // 2. LOGIN FLOW
       const { data: user, error: userError } = await supabase
         .from("profiles")
         .select("*")
-        .eq("email", emailVal)
-        .single();
+        .eq("email", emailVal) // Check against normalized email
+        .maybeSingle();
       
       if (userError || !user) {
-        console.warn("STEP 1 FAIL: User not found.");
+        // We use a generic error message for security
         throw new Error("Invalid credentials. Access denied.");
       }
       
-	  // Compare plain text password with hashed password
-	  const passwordMatch = await bcrypt.compare(passVal, user.password);
-      
-      if (!passwordMatch) {
-        console.warn("STEP 2 FAIL: Password mismatch.");
-        throw new Error("Invalid credentials. Access denied.");
-      }
-      
-      console.log("STEP 2: Success! Storing session for:", user.email);
-      sessionStorage.setItem("userEmail", user.email);
-      sessionStorage.setItem("isAuthenticated", "true");
-      luxeAlert("SUCCESS", `Welcome back, ${user.full_name || "User"}`);
-      setTimeout(() => window.location.assign("/"), 1000);
-      
+      // Compare user input (passVal) with stored hash (user.password)
+// ... inside handleAuth under view === 'login' success ...
+const passwordMatch = await bcrypt.compare(passVal, user.password);
+
+if (passwordMatch) {
+    // 1. Generate a unique ID for THIS specific browser tab/session
+    const currentSessionId = crypto.randomUUID();
+
+    // 2. Update the database with this new ID
+    await supabase
+        .from("profiles")
+        .update({ last_session_id: currentSessionId })
+        .eq("email", emailVal);
+
+    // 3. Store the IDs locally so the Security Alert can check them
+    sessionStorage.setItem("userEmail", user.email);
+    sessionStorage.setItem("userUuid", user.id); // Ensure your DB 'id' is saved here
+    sessionStorage.setItem("current_device_session", currentSessionId);
+    sessionStorage.setItem("isAuthenticated", "true");
+
+    luxeAlert("SUCCESS", `Welcome back`);
+    setTimeout(() => window.location.assign("/"), 1000);
+}
     } else if (view === "signup") {
-      console.log("STEP 1: Requesting OTP from Node server...");
-      
-      const response = await fetch(`${API_URL}/send-otp`, { // ✅ Fixed
+      // 3. SIGNUP FLOW (OTP Request)
+      const response = await fetch(`${API_URL}/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: emailVal }),
       });
       
       const data = await response.json();
-      if (!data.success) {
-        console.error("STEP 1 ERROR: Node server rejected OTP request.", data.error);
-        throw new Error(data.error || "Communication failure.");
-      }
+      if (!data.success) throw new Error(data.error || "Communication failure.");
       
-      console.log("STEP 2: OTP Sent. Switching to OTP view.");
       setTimer(120);
       setIsOtpPending(true);
       setView("otp");
       luxeAlert("SENT", "Sequence dispatched to inbox.");
       
     } else if (view === "otp") {
+      // 4. VERIFY & ARCHIVE FLOW
       const enteredOtp = otp.join("");
-      console.log("STEP 1: Verifying OTP sequence:", enteredOtp);
       
-      const verifyRes = await fetch(`${API_URL}/verify-otp`, { // ✅ Fixed
+      const verifyRes = await fetch(`${API_URL}/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: emailVal, otp: enteredOtp }),
@@ -208,68 +209,67 @@ const handleAuth = async (e) => {
       
       const verifyData = await verifyRes.json();
       if (!verifyData.success) {
-        console.warn("STEP 1 FAIL: OTP verification failed.");
         throw new Error("Invalid sequence code.");
       }
       
-      console.log("STEP 2: OTP Valid. Hashing password and inserting user...");
-      
-	  // Hash password before storing
-	  const hashedPassword = await bcrypt.hash(passVal, 10);
+      // Critical check: Ensure password wasn't lost during state change
+      if (!passVal) {
+        throw new Error("Session expired. Please restart signup.");
+      }
+
+      // Hash the original, case-sensitive password
+      const hashedPassword = await bcrypt.hash(passVal, 10);
       
       const { error: insertError } = await supabase
         .from("profiles")
         .insert({
           email: emailVal,
-          password: hashedPassword, // ✅ Store hashed password
+          password: hashedPassword,
           full_name: nameVal,
-          otp_code: enteredOtp, // ✅ Store the OTP code
+          created_at: new Date().toISOString()
         });
       
       if (insertError) {
-        console.error("STEP 2 ERROR: Profile insertion failed.", insertError);
+        if (insertError.code === '23505') throw new Error("Email already registered.");
         throw insertError;
       }
       
-      console.log("STEP 3: Registration successful.");
       sessionStorage.setItem("userEmail", emailVal);
       sessionStorage.setItem("isAuthenticated", "true");
       luxeAlert("WELCOME", "Identity archived successfully.");
       setTimeout(() => window.location.assign("/"), 1000);
     }
   } catch (err) {
-    console.error("CRITICAL AUTH ERROR:", err.message);
     luxeAlert("ERROR", err.message, "error");
   } finally {
     setLoading(false);
-    console.log("--- AUTH DEBUG END ---");
   }
-};
-const handleForgotCheck = async (e) => {
+};const handleForgotCheck = async (e) => {
   if (e) e.preventDefault();
-  console.log("Forgot Password: Checking registry for:", formData.email);
+  
+  // FIX: Normalize email to match how it was stored during signup
+  const emailVal = formData.email.trim().toLowerCase();
+  
+  console.log("Forgot Password: Checking registry for:", emailVal);
   setLoading(true);
   
   try {
     const { data, error } = await supabase
       .from("profiles")
       .select("email")
-      .eq("email", formData.email)
+      .eq("email", emailVal) // Use normalized email
       .maybeSingle();
 
     if (error) throw error;
 
     if (data) {
       console.log("Forgot Pass: Identity confirmed.");
-      // UX FIX: Clear the password state before moving to override screen
+      // Clear passwords so the fields are empty on the next screen
       setFormData((prev) => ({ ...prev, password: "", confirmPassword: "" }));
-      setResetEmail(formData.email);
+      
+      setResetEmail(data.email); // Use the email returned from DB
       setView("new_password");
-      luxeAlert(
-        "IDENTITY VERIFIED",
-        "Log found. Proceed with override.",
-        "success",
-      );
+      luxeAlert("IDENTITY VERIFIED", "Log found. Proceed with override.");
     } else {
       throw new Error("Identity not found in logs.");
     }
@@ -282,10 +282,17 @@ const handleForgotCheck = async (e) => {
 const handleOverride = async (e) => {
   if (e) e.preventDefault();
 
-  // 1. Validation Logic
-  const newPass = formData.password.trim();
+  // FIX: Do NOT use .toLowerCase() on passwords. 
+  // We want to preserve the user's choice of caps/lowercase.
+  const newPass = formData.password.trim(); 
   const confirmPass = formData.confirmPassword.trim();
+  
+  const targetEmail = (resetEmail || sessionStorage.getItem("resetEmail"))?.trim().toLowerCase();
 
+  if (!targetEmail) {
+    return luxeAlert("ERROR", "Session expired. Restart recovery.", "error");
+  }
+  
   if (newPass.length < 8 || newPass.length > 15) {
     return luxeAlert("ERROR", "Password must be 8-15 characters.", "error");
   }
@@ -294,39 +301,36 @@ const handleOverride = async (e) => {
   }
 
   setLoading(true);
- 
   try {
-    // 2. Hash the new password
+    // Bcrypt will hash 'Pass123' and 'pass123' differently.
     const hashedPassword = await bcrypt.hash(newPass, 10);
   
-    // 3. Update the password in the database
-    const { data: updateData, error } = await supabase
+    const { data, error } = await supabase
       .from("profiles")
       .update({ password: hashedPassword })
-      .eq("email", resetEmail)
-      .select(); // ✅ Add .select() to confirm update
+      .eq("email", targetEmail)
+      .select();
 
-    console.log("📝 Update result:", updateData); // DEBUG
-    
     if (error) throw error;
+    if (!data || data.length === 0) {
+      throw new Error("Target identity not found.");
+    }
 
-    // 4. Success & Cleanup
-    console.log("Override: Success. Password hashed and saved.");
     sessionStorage.removeItem("resetEmail");
     setResetEmail("");
 
-    // Clear form state
-    setFormData((prev) => ({ ...prev, password: "", confirmPassword: "" }));
+    // Keep the email for login, but clear the sensitive fields
+    setFormData({
+      email: targetEmail, 
+      password: "",
+      confirmPassword: "",
+      fullName: ""
+    });
 
-    luxeAlert(
-      "SUCCESS",
-      "Vault updated. Use your new password to sign in.",
-      "success",
-    );
-    navigateTo("login");
+    luxeAlert("SUCCESS", "Vault updated. Case-sensitive password saved.");
+    setView("login"); 
   } catch (err) {
-    console.error("Override Update Error:", err.message);
-    luxeAlert("ERROR", "Update failed: " + err.message, "error");
+    luxeAlert("ERROR", err.message, "error");
   } finally {
     setLoading(false);
   }
@@ -507,7 +511,7 @@ const handleOverride = async (e) => {
 									autoComplete="new password"
 									placeholder="NEW PASSWORD"
 									value={formData.password}
-									className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[10px] font-black uppercase bg-transparent"
+									className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[10px] font-black bg-transparent"
 									onChange={(e) =>
 										setFormData({ ...formData, password: e.target.value })
 									}
@@ -527,7 +531,7 @@ const handleOverride = async (e) => {
 								maxLength={15}
 								placeholder="CONFIRM NEW PASSWORD"
 								value={formData.confirmPassword}
-								className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[10px] font-black uppercase bg-transparent"
+								className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[10px] font-black  bg-transparent"
 								onChange={(e) =>
 									setFormData({ ...formData, confirmPassword: e.target.value })
 								}
@@ -570,7 +574,7 @@ const handleOverride = async (e) => {
 										placeholder="FULL NAME"
 										autoComplete="off"
 										value={formData.fullName}
-										className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[10px] font-black uppercase"
+										className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[10px] font-black "
 										onChange={(e) =>
 											setFormData({ ...formData, fullName: e.target.value })
 										}
@@ -599,7 +603,7 @@ const handleOverride = async (e) => {
 										maxLength={15}
 										placeholder="PASSWORD (8-15 chars)"
 										value={formData.password}
-										className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[10px] font-black uppercase"
+										className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[10px] font-black "
 										onChange={(e) =>
 											setFormData({ ...formData, password: e.target.value })
 										}
@@ -625,7 +629,7 @@ const handleOverride = async (e) => {
 										maxLength={15}
 										placeholder="CONFIRM PASSWORD"
 										value={formData.confirmPassword}
-										className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[10px] font-black uppercase"
+										className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[10px] font-black "
 										onChange={(e) =>
 											setFormData({
 												...formData,

@@ -4,6 +4,7 @@ import { supabase } from "../Database-Server/Superbase-client.js";
 import ProductCard from "./ProductCard";
 import useCart from "./useCart";
 import DetailsNavBar from "./DetailsNavBar";
+import Footer from "./Footer.jsx";
 
 const ProductDetail = () => {
     const { id } = useParams();
@@ -173,7 +174,7 @@ const ProductDetail = () => {
                     <section className="border-t border-black/10 pt-20">
                         <div className="flex flex-col items-center mb-12">
                             <h3 className="text-[10px] font-black tracking-[0.5em] text-black-solid uppercase mb-2">
-                                Explore Similar Pieces
+                                Explore Related Produccts
                             </h3>
                             <div className="h-1 w-12 bg-primary rounded-full"></div>
                         </div>
@@ -184,6 +185,7 @@ const ProductDetail = () => {
                         </div>
                     </section>
                 )}
+                <Footer />
             </main>
         </div>
     );

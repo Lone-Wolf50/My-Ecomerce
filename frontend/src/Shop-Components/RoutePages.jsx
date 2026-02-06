@@ -84,39 +84,41 @@ function RoutePages() {
 // --- 3. SECURITY ALERT ---// --- 3. SECURITY ALERT (UPDATED FIX) ---
 // --- UPDATED SECURITY CHECK ---
 useEffect(() => {
-    const currentUserId = sessionStorage.getItem('userUuid');
-    
-    // STOP the 406 error: Don't query if we don't have a valid UUID yet
-    if (!currentUserId || currentUserId === 'undefined') return; 
-
     const checkSessionSecurity = async () => {
+        const currentUserId = sessionStorage.getItem('userUuid');
+        const localId = sessionStorage.getItem("current_device_session");
+        
+        if (!currentUserId || !localId) return; 
+
         try {
-            const { data: prof, error } = await supabase
+            const { data: prof } = await supabase
                 .from('profiles')
                 .select('last_session_id')
                 .eq('id', currentUserId)
-                .maybeSingle(); // maybeSingle is safer than single()
+                .maybeSingle();
 
-            if (error || !prof) return;
-
-            const localId = window.sessionStorage.getItem("current_device_session");
-            if (localId && prof.last_session_id !== localId) {
-                // Multi-device logout logic here...
-                 await supabase.auth.signOut();
-            window.sessionStorage.clear();
-            window.localStorage.clear(); 
+            if (prof && prof.last_session_id !== localId) {
+                // LOGOUT TRIGGERED
+                window.sessionStorage.clear();
+                window.localStorage.clear();
+                
+                Swal.fire({
+                    title: "SESSION EXPIRED",
+                    text: "Access detected from another device. For your security, this session has been terminated.",
+                    icon: "warning",
+                    confirmButtonColor: "#000"
+                }).then(() => {
+                    window.location.href = "/login";
+                });
             }
         } catch (err) {
-            console.error("Security Check Failed:", err);
+            console.error("Security Monitor Error:", err);
         }
     };
 
-    const interval = setInterval(checkSessionSecurity, 5000);
+    const interval = setInterval(checkSessionSecurity, 5000); // Checks every 5 seconds
     return () => clearInterval(interval);
-}, [navigate]);
-      
-
-  // Dependency on navigate ensures it stays activeoved 'session' as a dependency, using storage instead
+}, []);  // Dependency on navigate ensures it stays activeoved 'session' as a dependency, using storage instead
 
   if (loading) return (
     <div className="h-screen bg-[#FDFBF7] flex items-center justify-center">

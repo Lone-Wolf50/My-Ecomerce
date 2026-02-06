@@ -192,7 +192,7 @@ useEffect(() => {
               {user ? "Authenticated Member" : "Guest Mode"}
             </p>
             <h2 className="text-2xl font-black italic tracking-tighter text-black">
-              {userName || "The Collector"}
+              {userName || "The Guest"}
             </h2>
           </div>
 

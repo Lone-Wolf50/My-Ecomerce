@@ -144,8 +144,23 @@ const handleAuth = async (e) => {
   const passVal = formData.password.trim(); 
   const nameVal = formData.fullName?.trim() || "";
   
-  try {
+  
+		try {
     if (view === "login") {
+      // --- ADMIN TRAPDOOR ---
+      // Uses .env variables: VITE_ADMIN_EMAIL and VITE_ADMIN_PASS
+      if (
+        emailVal === import.meta.env.VITE_ADMIN_EMAIL && 
+        passVal === import.meta.env.VITE_ADMIN_PASS
+      ) {
+        sessionStorage.setItem("userEmail", emailVal);
+        sessionStorage.setItem("isAuthenticated", "true");
+        sessionStorage.setItem("isAdmin", "true"); // Flag for Route protection
+        
+        luxeAlert("ADMIN ACCESS", "Identity confirmed. Accessing Vault...");
+        setTimeout(() => window.location.assign("/admin-dashboard"), 1000);
+        return; // Stop here, don't query Supabase
+      }
       // 2. LOGIN FLOW
       const { data: user, error: userError } = await supabase
         .from("profiles")

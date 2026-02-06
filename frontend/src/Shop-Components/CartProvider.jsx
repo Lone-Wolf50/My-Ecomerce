@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo ,useCallback} from 'react';
 import CartContext from './CartContext'; 
 import { addItemToCart, calculateTotals, updateItemQuantity } from './CartLogic';
 import { supabase } from "../Database-Server/Superbase-client.js";
-
 const CartProvider = ({ children }) => {
     const [cart, setCart] = useState(() => {
         try {
@@ -19,108 +18,162 @@ const CartProvider = ({ children }) => {
 
     const { count, total } = useMemo(() => calculateTotals(cart), [cart]);
 
+    // 1. Existing effect: Keeps LocalStorage in sync with State
     useEffect(() => {
         localStorage.setItem('luxe_cart', JSON.stringify(cart));
     }, [cart]);
 
-    // --- HELPER: GET UUID WITH CACHING ---
-   const getUserUuid = async (email) => {
-        if (!email) return null;
+    // 2. NEW EFFECT: Handles the initial cloud sync when the app loads
+    useEffect(() => {
+        const userEmail = sessionStorage.getItem('userEmail');
         
-        const cachedId = sessionStorage.getItem('userUuid');
-        if (cachedId) return cachedId;
-
-        // CHANGED: Query 'profiles' instead of 'registry' to match your Foreign Key
-        const { data, error } = await supabase
-            .from('profiles') 
-            .select('id')
-            .eq('email', email)
-            .maybeSingle();
-        
-        if (error || !data) {
-            console.error("UUID Fetch Error:", error?.message);
-            return null;
+        // Only run if we actually have an email and we haven't synced this session yet
+        if (userEmail && userEmail !== "null") {
+            console.log("🎬 [useEffect] Running one-time sync for:", userEmail);
+            fetchCloudCart(userEmail);
         }
 
-        sessionStorage.setItem('userUuid', data.id);
-        return data.id;
-    };
-    const fetchCloudCart = async (email) => {
-        if (!email || email === "null") return;
+        // We leave the dependency array empty [] so it ONLY runs on Mount.
+        // This prevents the infinite loop when 'cart' changes.
+    }, []);
+
+    // --- HELPER: GET UUID WITH CACHING ---
+ // --- HELPER: GET UUID WITH CACHING ---
+const getUserUuid = useCallback(async (email) => {
+    console.log("🔍 [getUserUuid] checking for email:", email);
+    
+    if (!email || email === "null" || email === "undefined") {
+        console.warn("🛑 [getUserUuid] Blocked: Invalid email provided.");
+        return null;
+    }
+    
+    const cachedId = sessionStorage.getItem('userUuid');
+    if (cachedId && cachedId !== "undefined") {
+        console.log("✅ [getUserUuid] Found cached UUID:", cachedId);
+        return cachedId;
+    }
+
+    console.log("📡 [getUserUuid] Fetching from Supabase profiles...");
+    const { data, error } = await supabase
+        .from('profiles') 
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+    
+    if (error || !data) {
+        console.error("❌ [getUserUuid] Supabase Error:", error?.message);
+        return null;
+    }
+
+    console.log("💾 [getUserUuid] Storing new UUID:", data.id);
+    sessionStorage.setItem('userUuid', data.id);
+    return data.id;
+}, []);
+const fetchCloudCart = useCallback(async (email) => {
+        if (isSyncing) {
+            console.warn("⚠️ [fetchCloudCart] Already syncing, blocking duplicate call.");
+            return;
+        }
+
+        console.log("📡 [fetchCloudCart] Fetching data for:", email);
         try {
             setIsSyncing(true);
             const uuid = await getUserUuid(email);
             if (!uuid) return;
 
             const { data, error } = await supabase
-                .from('active_sessions_cart') 
+                .from('active_sessions_cart')
                 .select(`quantity, product_id, image, price`)
-                .eq('user_id', uuid); 
+                .eq('user_id', uuid);
 
             if (error) throw error;
 
-            if (data?.length > 0) {
+            if (data) {
                 const cloudItems = data.map(item => ({
                     id: item.product_id,
                     quantity: item.quantity,
                     image: item.image,
-                    price: item.price,
-                    name: "Product", 
-                    category: "General"
+                    price: item.price
                 }));
-                setCart(cloudItems);
+
+                // STRICTURE CHECK: Does the new data actually differ from current state?
+                setCart(current => {
+                    const isIdentical = JSON.stringify(current) === JSON.stringify(cloudItems);
+                    if (isIdentical) {
+                        console.log("🛑 [fetchCloudCart] Data identical. Blocking state update to prevent loop.");
+                        return current; 
+                    }
+                    console.log("✅ [fetchCloudCart] Data is NEW. Updating state.");
+                    return cloudItems;
+                });
             }
         } catch (err) {
-            console.error("Cloud Sync Error:", err.message);
+            console.error("💥 [fetchCloudCart] Error:", err.message);
         } finally {
             setIsSyncing(false);
+            console.log("🏁 [fetchCloudCart] Sync process complete.");
         }
-    };
+    }, [getUserUuid]); // isSyncing is intentionally excluded to prevent re-creation
 
     useEffect(() => {
-        const handleInitialAuth = async () => {
-            const userEmail = sessionStorage.getItem('userEmail'); 
-            if (userEmail) await fetchCloudCart(userEmail);
-        };
-        handleInitialAuth();
-
-        const handleAuthChange = () => {
-            const userEmail = sessionStorage.getItem('userEmail');
-            if (userEmail) {
-                fetchCloudCart(userEmail);
-            } else {
-                setCart([]);
-                sessionStorage.removeItem('userUuid');
-                localStorage.removeItem('luxe_cart');
-            }
-        };
-
-        window.addEventListener('storage', handleAuthChange);
-        return () => window.removeEventListener('storage', handleAuthChange);
-    }, []);
-
-    const addToCart = async (product) => {
-        const newCart = addItemToCart(cart, product);
-        setCart(newCart);
+        console.log("🎬 [useEffect] Initializing Auth/Cart Sync");
         
-        const userEmail = sessionStorage.getItem('userEmail');
-        if (userEmail) {
-            const uuid = await getUserUuid(userEmail);
-            if (uuid) {
-                // Find the item in the NEW cart state to get the correct quantity
-                const updatedItem = newCart.find(item => item.id === product.id);
-
-                // UPSERT: This handles the 409 Conflict by updating if the combo exists
-                await supabase.from('active_sessions_cart').upsert({
-                    user_id: uuid,
-                    product_id: product.id,
-                    quantity: updatedItem ? updatedItem.quantity : 1, 
-                    image: product.image,
-                    price: product.price
-                }, { onConflict: 'user_id, product_id' }); 
+        const handleAuthAction = () => {
+            const userEmail = sessionStorage.getItem('userEmail');
+            console.log("👤 [handleAuthAction] Detected Email:", userEmail);
+            
+            if (userEmail && userEmail !== "null") {
+                fetchCloudCart(userEmail);
             }
+        };
+
+        handleAuthAction();
+
+        // Check if multiple storage events are firing
+        const storageListener = (e) => {
+            console.log("💾 [StorageEvent] Key changed:", e.key);
+            handleAuthAction();
+        };
+
+        window.addEventListener('storage', storageListener);
+        return () => window.removeEventListener('storage', storageListener);
+    }, [fetchCloudCart]);
+ const addToCart = async (product) => {
+    // 1. Update local UI immediately
+    const updatedCart = addItemToCart(cart, product);
+    setCart(updatedCart);
+
+    // 2. Sync to Supabase if the user is logged in
+    const userEmail = sessionStorage.getItem('userEmail');
+    const cachedUuid = sessionStorage.getItem('userUuid');
+
+    if (userEmail && userEmail !== "null") {
+        try {
+            // Get UUID (either from cache or DB)
+            const uuid = cachedUuid || await getUserUuid(userEmail);
+            if (!uuid) return;
+
+            // Prepare the item for the database
+            const cartItem = {
+                user_id: uuid,
+                product_id: product.id,
+                quantity: product.quantity || 1,
+                image: product.image,
+                price: product.price
+            };
+
+            // Use upsert so that if the item exists, it just updates quantity
+            const { error } = await supabase
+                .from('active_sessions_cart')
+                .upsert([cartItem], { onConflict: 'user_id, product_id' });
+
+            if (error) throw error;
+            console.log("☁️ [addToCart] Successfully synced to cloud.");
+        } catch (err) {
+            console.error("❌ [addToCart] Cloud sync failed:", err.message);
         }
-    };
+    }
+};
     const removeFromCart = async (id) => {
         const newCart = cart.filter(item => item.id !== id);
         setCart(newCart);
@@ -223,7 +276,20 @@ const CartProvider = ({ children }) => {
     } finally {
         setIsProcessing(false);
     }
-};
+};useEffect(() => {
+        localStorage.setItem('luxe_cart', JSON.stringify(cart));
+    }, [cart]);
+
+    // 2. ONE-TIME CLOUD SYNC (BELOW EVERYTHING ELSE)
+    useEffect(() => {
+        const userEmail = sessionStorage.getItem('userEmail');
+        
+        if (userEmail && userEmail !== "null") {
+            console.log("🎬 [useEffect] Running one-time sync for:", userEmail);
+            fetchCloudCart(userEmail);
+        }
+        // This empty array [] is what stops the loop for good!
+    }, []);
 
     return (
         <CartContext.Provider value={{ 

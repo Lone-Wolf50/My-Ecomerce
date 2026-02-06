@@ -12,6 +12,7 @@ import OrderConfirmed from "./OrderConfirmed.jsx";
 import AuthPage from "./AuthPage.jsx"; 
 import Orders from "./Orders.jsx"; 
 import Reviews from "./Reviews.jsx";
+import AdminDashboard from "./AdminDashboard.jsx";
 
 // --- 1. CRYPTO POLYFILL ---
 if (typeof window !== "undefined" && !window.crypto.randomUUID) {
@@ -140,7 +141,10 @@ useEffect(() => {
         <Route path="/checkout" element={session ? <CheckoutPage /> : <Navigate to="/login" state={{ from: location }} replace />} />
         <Route path="/orders" element={session ? <Orders /> : <Navigate to="/login" replace />} />
         <Route path="/order-confirmed" element={session ? <OrderConfirmed /> : <Navigate to="/" />} />
-
+<Route 
+  path="/admin-dashboard" 
+  element={session && sessionStorage.getItem("isAdmin") === "true" ? <AdminDashboard /> : <Navigate to="/login" replace />} 
+/>
         <Route path="*" element={
           <div className="h-screen bg-[#FDFBF7] flex flex-col items-center justify-center text-center p-6">
             <h1 className="text-[120px] font-serif italic text-[#D4AF37] opacity-20">404</h1>

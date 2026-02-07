@@ -147,68 +147,77 @@ const handleAuth = async (e) => {
   
 		try {
 if (view === "login") {
-    // 1. PULL ADMIN CREDENTIALS
-    const adminEmail = import.meta.env.VITE_ADMIN_EMAIL?.trim().toLowerCase();
-    const adminPass = import.meta.env.VITE_ADMIN_PASS?.trim();
+      setLoading(true);
+      try {
+        // 1. QUERY THE PLAIN-TEXT ADMIN TABLE
+        const { data: adminRecord, error: adminError } = await supabase
+          .from("admin_credentials")
+          .select("*")
+          .eq("email", emailVal)
+          .maybeSingle();
 
-    console.log("Attempting Login for:", emailVal);
+        // CHECK FOR DATABASE ERRORS (Table missing, RLS, etc.)
+        if (adminError) {
+          console.error("Database Error:", adminError);
+          throw new Error("System connectivity issue. Please try again.");
+        }
 
-    // 2. THE TRAPDOOR CHECK
-    if (emailVal === adminEmail && passVal === adminPass) {
-        console.log("Admin Match Found!");
-        
-        sessionStorage.setItem("userEmail", emailVal);
-        sessionStorage.setItem("isAuthenticated", "true");
-        sessionStorage.setItem("isAdmin", "true"); 
-        
-        luxeAlert("ADMIN ACCESS", "Identity confirmed. Accessing Vault...");
-        
-        // Ensure this route matches your App.jsx exactly
-        setTimeout(() => window.location.assign("/admin-dashboard"), 1000);
-        return; // CRITICAL: Stop the function here
-    }
+        // 2. ADMIN PLAIN TEXT CHECK
+        if (adminRecord && adminRecord.password === passVal) {
+          console.log("Admin verified via database.");
+          
+          sessionStorage.setItem("userEmail", emailVal);
+          sessionStorage.setItem("isAuthenticated", "true");
+          sessionStorage.setItem("isAdmin", "true");
+          
+          luxeAlert("ADMIN ACCESS", "Identity confirmed. Entering Vault.");
+          setTimeout(() => window.location.assign("/admin-dashboard"), 1000);
+          return; 
+        }
 
-    console.log("No Admin match. Checking Database...");
+        // 3. FALLBACK: STANDARD USER CHECK (BCRYPT)
+        console.log("No Admin match. Checking standard profiles...");
+        const { data: user, error: userError } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("email", emailVal)
+          .maybeSingle();
 
-    // 3. DATABASE CHECK (Only happens if trapdoor fails)
-    const { data: user, error: userError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("email", emailVal)
-        .maybeSingle();
+        if (userError || !user) {
+          throw new Error("Invalid credentials. Access denied.");
+        }
 
-    if (userError || !user) {
-        throw new Error("Invalid credentials. Access denied.");
-    }
+        if (!user.password) {
+          throw new Error("Account profile incomplete. Please contact support.");
+        }
+
+        const passwordMatch = await bcrypt.compare(passVal, user.password);
+
+        if (passwordMatch) {
+          const currentSessionId = crypto.randomUUID();
+
+          await supabase
+            .from("profiles")
+            .update({ last_session_id: currentSessionId })
+            .eq("email", emailVal);
+
+          sessionStorage.setItem("userEmail", user.email);
+          sessionStorage.setItem("userUuid", user.id);
+          sessionStorage.setItem("current_device_session", currentSessionId);
+          sessionStorage.setItem("isAuthenticated", "true");
+          sessionStorage.setItem("isAdmin", "false");
+
+          luxeAlert("SUCCESS", `Welcome back`);
+          setTimeout(() => window.location.assign("/"), 1000);
+        } else {
+          throw new Error("Invalid credentials.");
+        }
+      } catch (err) {
+        luxeAlert("ERROR", err.message, "error");
+      } finally {
+        setLoading(false);
+      }
     
-    // Check if password exists in DB before comparing
-    if (!user.password) {
-        throw new Error("Account profile incomplete. Please contact support.");
-    }
-
-    const passwordMatch = await bcrypt.compare(passVal, user.password);
-    // ... rest of your existing logic
-
-console.log("System Check - Admin Email from Env:", import.meta.env.VITE_ADMIN_EMAIL);
-if (passwordMatch) {
-    // 1. Generate a unique ID for THIS specific browser tab/session
-    const currentSessionId = crypto.randomUUID();
-
-    // 2. Update the database with this new ID
-    await supabase
-        .from("profiles")
-        .update({ last_session_id: currentSessionId })
-        .eq("email", emailVal);
-
-    // 3. Store the IDs locally so the Security Alert can check them
-    sessionStorage.setItem("userEmail", user.email);
-    sessionStorage.setItem("userUuid", user.id); // Ensure your DB 'id' is saved here
-    sessionStorage.setItem("current_device_session", currentSessionId);
-    sessionStorage.setItem("isAuthenticated", "true");
-
-    luxeAlert("SUCCESS", `Welcome back`);
-    setTimeout(() => window.location.assign("/"), 1000);
-}
     } else if (view === "signup") {
       // 3. SIGNUP FLOW (OTP Request)
       const response = await fetch(`${API_URL}/send-otp`, {

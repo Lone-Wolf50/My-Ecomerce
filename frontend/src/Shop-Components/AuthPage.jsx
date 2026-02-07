@@ -189,7 +189,7 @@ if (view === "login") {
     const passwordMatch = await bcrypt.compare(passVal, user.password);
     // ... rest of your existing logic
 
-
+console.log("System Check - Admin Email from Env:", import.meta.env.VITE_ADMIN_EMAIL);
 if (passwordMatch) {
     // 1. Generate a unique ID for THIS specific browser tab/session
     const currentSessionId = crypto.randomUUID();

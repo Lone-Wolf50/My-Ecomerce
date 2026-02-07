@@ -180,7 +180,7 @@ function Orders() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-[9px] font-black uppercase tracking-wider text-black/80 truncate">{item.products?.name || "Product"}</p>
-                          <p className="text-[9px] font-bold opacity-40">QTY: {item.quantity} — ${item.price}</p>
+                          <p className="text-[9px] font-bold opacity-40">QTY: {item.quantity} — GH&#8373;{item.price}</p>
                         </div>
                       </div>
                     ))}
@@ -189,7 +189,7 @@ function Orders() {
                   <div className="flex justify-between items-center pt-5 border-t border-black/5">
                     <div>
                       <p className="text-[8px] font-bold uppercase opacity-30 leading-none mb-1">Total</p>
-                      <p className="text-xl font-serif italic text-black/90">${order.total_amount}</p>
+                      <p className="text-xl font-serif italic text-black/90">GH&#8373;{order.total_amount}</p>
                     </div>
 
                     <div className="flex gap-2">

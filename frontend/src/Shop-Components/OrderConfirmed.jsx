@@ -14,7 +14,7 @@ const OrderConfirmed = () => {
           <span className="text-[#D4AF37] font-bold">✓</span>
         </div>
         <h1 className="text-[38px] font-serif italic text-[#D4AF37] mb-2">Thank You</h1>
-        <p className="text-[14px] text-black/50 italic mb-8">Your masterpiece is on its way.</p>
+        <p className="text-[14px] text-black/50 italic mb-8">Leading with excellence.</p>
         <div className="mb-10 w-full border-y border-[#D4AF37]/10 py-3">
           <p className="text-[10px] font-black tracking-[0.4em] text-[#D4AF37] uppercase">Order No. {orderNumber}</p>
         </div>

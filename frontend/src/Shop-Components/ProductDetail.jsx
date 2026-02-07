@@ -100,7 +100,7 @@ const ProductDetail = () => {
     if (!product)
         return (
             <div className="p-20 text-primary font-black bg-cream min-h-screen flex flex-col items-center justify-center gap-6">
-                <p className="tracking-widest uppercase">Archive piece not found.</p>
+                <p className="tracking-widest uppercase">Item not found.</p>
                 <p className="text-black-solid/20 text-[10px]">Reference ID: {id}</p>
             </div>
         );
@@ -132,7 +132,7 @@ const ProductDetail = () => {
                             {product.name}
                         </h1>
                         <p className="text-2xl font-black text-primary mb-8">
-                            ${product.price?.toLocaleString()}
+                            GH&#8373;{product.price?.toLocaleString()}
                         </p>
 
                         <div className="border-t border-black/10 pt-8 mb-10">

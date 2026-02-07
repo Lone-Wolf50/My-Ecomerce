@@ -118,7 +118,7 @@ function Cart() {
                                             <div className="text-right">
                                                 <p className="text-[10px] text-black-solid/30 uppercase tracking-[0.3em] font-black mb-1">Subtotal</p>
                                                 <p className="text-4xl font-black italic tracking-tighter text-black-solid">
-                                                    ${(item.price * item.quantity).toLocaleString()}
+                                                    GH&#8373;{(item.price * item.quantity).toLocaleString()}
                                                 </p>
                                             </div>
                                         </div>
@@ -132,13 +132,13 @@ function Cart() {
                     <div className="lg:col-span-4">
                         <div className="bg-white/60 border border-black/5 backdrop-blur-3xl p-10 md:p-12 rounded-[3.5rem] sticky top-32 shadow-2xl shadow-black/5">
                             <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-primary mb-10 pb-4 border-b border-black/10">
-                                Investment Summary
+                                Total Amount
                             </h2>
                             
                             <div className="space-y-6 mb-12">
                                 <div className="flex justify-between text-black-solid/40 uppercase tracking-widest text-[10px] font-black">
                                     <span>Subtotal</span>
-                                    <span className="text-black-solid font-black">${cartTotal.toLocaleString()}</span>
+                                    <span className="text-black-solid font-black">GH&#8373;{cartTotal.toLocaleString()}</span>
                                 </div>
                                 <div className="flex justify-between text-black-solid/40 uppercase tracking-widest text-[10px] font-black">
                                     <span>Insurance & Freight</span>
@@ -149,7 +149,7 @@ function Cart() {
                             <div className="pt-8 mb-12 border-t border-black/10">
                                 <p className="text-[10px] font-black uppercase tracking-[0.4em] text-black-solid/20 mb-2">Grand Total</p>
                                 <span className="text-5xl md:text-6xl font-black italic tracking-tighter text-black-solid">
-                                    ${cartTotal.toLocaleString()}
+                                    GH&#8373;{cartTotal.toLocaleString()}
                                 </span>
                             </div>
 

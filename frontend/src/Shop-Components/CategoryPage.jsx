@@ -66,7 +66,7 @@ const CategoryPage = () => {
 					<div className="text-center py-40">
 						<div className="animate-spin size-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
 						<p className="text-[10px] uppercase font-black tracking-widest text-primary">
-							Accessing Vault...
+							Accessing Database...
 						</p>
 					</div>
 				) : filteredProducts.length > 0 ? (
@@ -81,8 +81,7 @@ const CategoryPage = () => {
 							inventory_2
 						</span>
 						<p className="text-black-solid/30 uppercase tracking-[0.4em] text-[11px] font-black">
-							Vault Currently Empty
-						</p>
+							 Currently Unavailable						</p>
 					</div>
 				)}
 			</section>

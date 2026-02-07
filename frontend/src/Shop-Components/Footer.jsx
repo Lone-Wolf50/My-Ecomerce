@@ -21,9 +21,9 @@ function Footer() {
       title: "Assistance",
       type: "info", 
       links: [
-        { name: "Track Order", info: "Enter your 12-digit LUXE code in our global portal for real-time DHL updates." },
-        { name: "Shipping", info: "Complimentary white-glove delivery on all orders over $500. Insured worldwide." },
-        { name: "Returns", info: "We offer a 30-day collection service from your home for all returns and exchanges." },
+        { name: "Track Order", info: "Check your order status in the 'My Orders' section of your account." },
+        { name: "Shipping", info: "We deliver within 2-3 business days. Insured worldwide." },
+        { name: "Returns", info: "We offer a 5-day collection service from your home for all returns and exchanges." },
       ],
     },
     {
@@ -31,7 +31,7 @@ function Footer() {
       title: "Corporate",
       type: "info", 
       links: [
-        { name: "The Maison", info: "Founded in Paris, 2012. Our atelier combines traditional craft with modern tech." },
+        { name: "The Maison", info: "Founded in 2012. Our Product combines traditional craft with modern tech." },
         { name: "Sustainability", info: "Our leather is sourced from gold-rated tanneries with 0% water waste targets." },
         { name: "Privacy", info: "Your data is stored on private Swiss servers and is never shared with third parties." },
       ],

@@ -58,13 +58,33 @@ const CheckoutPage = () => {
 
     fetchUserData();
 }, []);
-    const handleInput = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+    const handleInput = (e) => {
+        const { name, value } = e.target;
+        if (name === "phone_number") {
+            // This line strips away anything that isn't a number
+            const onlyNums = value.replace(/[^0-9]/g, '');
+            setFormData(prev => ({ ...prev, [name]: onlyNums }));
+        } else {
+            setFormData(prev => ({ ...prev, [name]: value }));
+        }
+    };
 
+    // --- REPLACE YOUR OLD onConfirm WITH THIS ---
     const onConfirm = async () => {
+        // 1. Check for empty fields
         if (!formData.customer_name || !formData.customer_email || !formData.phone_number) {
             return Swal.fire("Required", "Please fill in all fields", "warning");
         }
-        
+
+        // 2. NEW: EXACT 10 DIGIT VALIDATION
+        const phoneRegex = /^\d{10}$/; 
+        if (!phoneRegex.test(formData.phone_number)) {
+            return Swal.fire(
+                "INVALID PHONE", 
+                "Please enter exactly 10 digits (e.g., 05XXXXXXXX)", 
+                "error"
+            );
+        }
         const result = await Swal.fire({
             title: 'CONFIRM ORDER',
             text: `Place order for $${cartTotal}?`,
@@ -140,7 +160,7 @@ const CheckoutPage = () => {
                     <div className="pt-10 flex justify-between items-end">
                         <div className="flex flex-col">
                             <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Grand Total</span>
-                            <span className="text-3xl font-serif text-[#D4AF37]">${cartTotal}</span>
+                            <span className="text-3xl font-serif text-[#D4AF37]">GH&#8373;{cartTotal}</span>
                         </div>
                         <button 
                             type="button" 

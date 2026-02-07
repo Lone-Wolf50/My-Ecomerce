@@ -27,7 +27,7 @@ export default function ProductCard({ product }) {
         </Link>
         {/* UPDATED: Price color to primary gold */}
         <p className="text-primary font-bold text-[12px] md:text-sm mt-auto">
-          ${product.price}
+          GH&#8373;{product.price}
         </p>
       </div>
 

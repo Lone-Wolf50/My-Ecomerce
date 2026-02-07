@@ -146,40 +146,49 @@ const handleAuth = async (e) => {
   
   
 		try {
-   if (view === "login") {
-  // 1. CHECK THE TRAPDOOR FIRST (Ignore Database)
-  const adminEmail = import.meta.env.VITE_ADMIN_EMAIL?.trim().toLowerCase();
-  const adminPass = import.meta.env.VITE_ADMIN_PASS?.trim();
+if (view === "login") {
+    // 1. PULL ADMIN CREDENTIALS
+    const adminEmail = import.meta.env.VITE_ADMIN_EMAIL?.trim().toLowerCase();
+    const adminPass = import.meta.env.VITE_ADMIN_PASS?.trim();
 
-  if (emailVal === adminEmail && passVal === adminPass) {
-    sessionStorage.setItem("userEmail", emailVal);
-    sessionStorage.setItem("isAuthenticated", "true");
-    sessionStorage.setItem("isAdmin", "true"); 
-    
-    luxeAlert("ADMIN ACCESS", "Identity confirmed. Accessing Vault...");
-    // Make sure the path matches your route exactly
-    setTimeout(() => window.location.assign("/admin-dashboard"), 1000);
-    return; // EXIT HERE so it doesn't try to check the DB
-  }
+    console.log("Attempting Login for:", emailVal);
 
-  // 2. ONLY IF TRAPDOOR FAILS, CHECK THE DATABASE
-  const { data: user, error: userError } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("email", emailVal)
-    .maybeSingle();
+    // 2. THE TRAPDOOR CHECK
+    if (emailVal === adminEmail && passVal === adminPass) {
+        console.log("Admin Match Found!");
+        
+        sessionStorage.setItem("userEmail", emailVal);
+        sessionStorage.setItem("isAuthenticated", "true");
+        sessionStorage.setItem("isAdmin", "true"); 
+        
+        luxeAlert("ADMIN ACCESS", "Identity confirmed. Accessing Vault...");
+        
+        // Ensure this route matches your App.jsx exactly
+        setTimeout(() => window.location.assign("/admin-dashboard"), 1000);
+        return; // CRITICAL: Stop the function here
+    }
 
-  // ... rest of your code
+    console.log("No Admin match. Checking Database...");
 
-      
-      if (userError || !user) {
-        // We use a generic error message for security
+    // 3. DATABASE CHECK (Only happens if trapdoor fails)
+    const { data: user, error: userError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("email", emailVal)
+        .maybeSingle();
+
+    if (userError || !user) {
         throw new Error("Invalid credentials. Access denied.");
-      }
-      
-      // Compare user input (passVal) with stored hash (user.password)
-// ... inside handleAuth under view === 'login' success ...
-const passwordMatch = await bcrypt.compare(passVal, user.password);
+    }
+    
+    // Check if password exists in DB before comparing
+    if (!user.password) {
+        throw new Error("Account profile incomplete. Please contact support.");
+    }
+
+    const passwordMatch = await bcrypt.compare(passVal, user.password);
+    // ... rest of your existing logic
+
 
 if (passwordMatch) {
     // 1. Generate a unique ID for THIS specific browser tab/session

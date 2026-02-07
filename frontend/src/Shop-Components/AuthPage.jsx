@@ -146,27 +146,31 @@ const handleAuth = async (e) => {
   
   
 		try {
-    if (view === "login") {
-      // --- ADMIN TRAPDOOR ---
-      // Uses .env variables: VITE_ADMIN_EMAIL and VITE_ADMIN_PASS
-      if (
-        emailVal === import.meta.env.VITE_ADMIN_EMAIL && 
-        passVal === import.meta.env.VITE_ADMIN_PASS
-      ) {
-        sessionStorage.setItem("userEmail", emailVal);
-        sessionStorage.setItem("isAuthenticated", "true");
-        sessionStorage.setItem("isAdmin", "true"); // Flag for Route protection
-        
-        luxeAlert("ADMIN ACCESS", "Identity confirmed. Accessing Vault...");
-        setTimeout(() => window.location.assign("/admin-dashboard"), 1000);
-        return; // Stop here, don't query Supabase
-      }
-      // 2. LOGIN FLOW
-      const { data: user, error: userError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("email", emailVal) // Check against normalized email
-        .maybeSingle();
+   if (view === "login") {
+  // 1. CHECK THE TRAPDOOR FIRST (Ignore Database)
+  const adminEmail = import.meta.env.VITE_ADMIN_EMAIL?.trim().toLowerCase();
+  const adminPass = import.meta.env.VITE_ADMIN_PASS?.trim();
+
+  if (emailVal === adminEmail && passVal === adminPass) {
+    sessionStorage.setItem("userEmail", emailVal);
+    sessionStorage.setItem("isAuthenticated", "true");
+    sessionStorage.setItem("isAdmin", "true"); 
+    
+    luxeAlert("ADMIN ACCESS", "Identity confirmed. Accessing Vault...");
+    // Make sure the path matches your route exactly
+    setTimeout(() => window.location.assign("/admin-dashboard"), 1000);
+    return; // EXIT HERE so it doesn't try to check the DB
+  }
+
+  // 2. ONLY IF TRAPDOOR FAILS, CHECK THE DATABASE
+  const { data: user, error: userError } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("email", emailVal)
+    .maybeSingle();
+
+  // ... rest of your code
+
       
       if (userError || !user) {
         // We use a generic error message for security

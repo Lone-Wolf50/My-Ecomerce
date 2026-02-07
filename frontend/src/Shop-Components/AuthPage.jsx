@@ -283,30 +283,37 @@ if (view === "login") {
   }
 };const handleForgotCheck = async (e) => {
   if (e) e.preventDefault();
-  
-  // FIX: Normalize email to match how it was stored during signup
   const emailVal = formData.email.trim().toLowerCase();
-  
-  console.log("Forgot Password: Checking registry for:", emailVal);
   setLoading(true);
   
   try {
     const { data, error } = await supabase
       .from("profiles")
       .select("email")
-      .eq("email", emailVal) // Use normalized email
+      .eq("email", emailVal)
       .maybeSingle();
 
     if (error) throw error;
 
     if (data) {
-      console.log("Forgot Pass: Identity confirmed.");
-      // Clear passwords so the fields are empty on the next screen
-      setFormData((prev) => ({ ...prev, password: "", confirmPassword: "" }));
+      // 1. TRIGGER OTP SEND
+      const response = await fetch(`${API_URL}/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailVal }),
+      });
       
-      setResetEmail(data.email); // Use the email returned from DB
-      setView("new_password");
-      luxeAlert("IDENTITY VERIFIED", "Log found. Proceed with override.");
+      const otpData = await response.json();
+      if (!otpData.success) throw new Error("Failed to dispatch security code.");
+
+      // 2. PREPARE STATE
+      setResetEmail(data.email);
+      setTimer(120); // Start 2-minute timer
+      setIsOtpPending(true);
+      
+      // 3. MOVE TO OTP VIEW
+      setView("otp"); 
+      luxeAlert("IDENTITY VERIFIED", "Security code dispatched to your inbox.");
     } else {
       throw new Error("Identity not found in logs.");
     }

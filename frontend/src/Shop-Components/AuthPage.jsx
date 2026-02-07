@@ -234,33 +234,46 @@ if (view === "login") {
       setView("otp");
       luxeAlert("SENT", "Sequence dispatched to inbox.");
       
-    } else if (view === "otp") {
+    }  else if (view === "otp") {
       // 4. VERIFY & ARCHIVE FLOW
       const enteredOtp = otp.join("");
       
+      // FIX: Use resetEmail if we are in recovery mode, otherwise use emailVal
+      const activeEmail = resetEmail || emailVal;
+
       const verifyRes = await fetch(`${API_URL}/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: emailVal, otp: enteredOtp }),
+        body: JSON.stringify({ email: activeEmail, otp: enteredOtp }),
       });
       
       const verifyData = await verifyRes.json();
       if (!verifyData.success) {
         throw new Error("Invalid sequence code.");
       }
+
+      // --- START FIX ---
+      // Check if this is a Password Recovery (resetEmail exists)
+      if (resetEmail) {
+        setIsOtpPending(false);
+        setTimer(0);
+        setView("new_password"); // Take them to the reset screen
+        luxeAlert("AUTHORIZED", "Security sequence accepted. Update your secret.");
+        return; // Stop here so we don't try to run the signup logic below
+      }
+      // --- END FIX ---
       
-      // Critical check: Ensure password wasn't lost during state change
+      // This part only runs for SIGNUP:
       if (!passVal) {
         throw new Error("Session expired. Please restart signup.");
       }
 
-      // Hash the original, case-sensitive password
       const hashedPassword = await bcrypt.hash(passVal, 10);
       
       const { error: insertError } = await supabase
         .from("profiles")
         .insert({
-          email: emailVal,
+          email: activeEmail,
           password: hashedPassword,
           full_name: nameVal,
           created_at: new Date().toISOString()
@@ -271,7 +284,7 @@ if (view === "login") {
         throw insertError;
       }
       
-      sessionStorage.setItem("userEmail", emailVal);
+      sessionStorage.setItem("userEmail", activeEmail);
       sessionStorage.setItem("isAuthenticated", "true");
       luxeAlert("WELCOME", "Identity archived successfully.");
       setTimeout(() => window.location.assign("/"), 1000);

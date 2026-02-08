@@ -357,7 +357,7 @@ function Homepage() {
 	}
 
 	return (
-		<div className="min-h-screen bg-[#FDFBF7] text-black overflow-x-hidden">
+		<div className="min-h-screen bg-[#FDFBF7] text-black overflow-x-hidden select-none">
 			<Toaster position="top-right" />
 
 			{/* MOBILE SEARCH OVERLAY */}

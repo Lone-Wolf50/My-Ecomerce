@@ -303,7 +303,7 @@ const AdminDashboard = () => {
   const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].includes(o.status?.toLowerCase())).length;
  
   return (
-    <div className="min-h-screen bg-[#FDFBF7] text-black font-sans flex">
+    <div className="min-h-screen bg-[#FDFBF7] text-black font-sans flex select-none">
       <nav className={`
         fixed inset-y-0 left-0 transform ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} 
         md:translate-x-0 md:relative md:flex

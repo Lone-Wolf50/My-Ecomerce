@@ -5,11 +5,13 @@ import { Menu, X, Package, ShoppingBag, PlusCircle, BarChart3, LogOut } from 'lu
 
 const AdminDashboard = () => {
   // --- EXISTING STATES ---
+  const [chartPeriod, setChartPeriod] = useState('Monthly');
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [activeTab, setActiveTab] = useState('inventory');
   const [editingId, setEditingId] = useState(null);
+  const [personalMsg, setPersonalMsg] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 const [orderSubTab, setOrderSubTab] = useState('incoming'); // 'incoming' or 'outgoing'
   // --- NEW STATES FOR ORDERS & NOTIFICATIONS ---
@@ -17,6 +19,46 @@ const [orderSubTab, setOrderSubTab] = useState('incoming'); // 'incoming' or 'ou
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [broadcastMsg, setBroadcastMsg] = useState("");
+
+const handleSendPersonalMessage = async (order) => {
+  if (!personalMsg.trim()) {
+    toast("Please enter a message first.");
+    return;
+  }
+
+  setLoading(true);
+  try {
+    // We target the specific user linked to this order
+    const { error } = await supabase
+      .from('site_notifications')
+      .insert([
+        { 
+          user_id: order.user_id, // Links to your user_id column
+          title: "Order Update",   // Matches your title column
+          message: personalMsg,    // Matches your message column
+          is_read: false,          // Matches your is_read column
+          created_at: new Date().toISOString() 
+        }
+      ]);
+
+    if (error) throw error;
+    
+    // Success feedback
+    Swal.fire({
+      title: 'Dispatched!',
+      text: `Your message has been sent to ${order.customer_name}`,
+      icon: 'success',
+      confirmButtonColor: '#D4AF37'
+    });
+    
+    setPersonalMsg(""); // Clear the text area
+  } catch (err) {
+    console.error("Transmission Error:", err.message);
+    toast("Database failed to receive the message.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const initialForm = {
     name: '', price: '', description: '', category: '',
@@ -183,7 +225,6 @@ const toggleOrderStatus = async (orderId, newStatus, customerEmail) => {
       setLoading(false);
     }
   };
-
   
   // --- SEND NOTIFICATION TO EVERYONE (GLOBAL BROADCAST) ---
 
@@ -240,11 +281,10 @@ const handleUpdateBroadcast = async () => {
     Swal.fire({ title: msg, icon: "success", timer: 2000, showConfirmButton: false, background: "#FDFBF7" });
   };
 
-  const totalValue = products.reduce((acc, p) => acc + (Number(p.price) || 0), 0);
-  const categories = [...new Set(products.map(p => p.category))];
- const incomingCount = orders.filter(o => ['pending', 'processing', 'shipped'].includes(o.status?.toLowerCase())).length;
+  const incomingCount = orders.filter(o => ['pending', 'processing', 'shipped'].includes(o.status?.toLowerCase())).length;
 const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].includes(o.status?.toLowerCase())).length;
  
+// 3. Define the variables the UI is looking for
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-black font-sans flex">
    {/* 1. SIDEBAR NAVIGATION (Highest Z-Index to cover everything) */}
@@ -597,134 +637,246 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
 )}
 
         {/* ANALYTICS & NOTIFICATIONS */}
-        {activeTab === 'stats' && (
-         <div className="space-y-6 md:space-y-12 animate-in zoom-in-95 duration-500">
-             <h2 className="text-3xl md:text-4xl font-serif italic">Analytics</h2>
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8">
-             <div className="p-8 md:p-10 bg-white border border-black/5 rounded-[2rem] md:rounded-[3rem]">
-                  <div className="text-[12px] font-black uppercase text-black/30 mb-2">Inventory</div>
-                  <div className="text-4xl md:text-5xl font-serif italic">{products.length}</div>
-                </div>
-              
-              <div className="p-8 md:p-10 bg-white border border-black/5 rounded-[2rem] md:rounded-[3rem]">
-                  <div className="text-[12px] font-black uppercase text-black/30 mb-2">Total Asset Value</div>
-                  <div className="text-4xl md:text-5xl font-serif italic">GH&#8373;{(totalValue / 1000).toFixed(1)}k</div>
-                </div>
-                <div className="p-8 md:p-10 bg-white border border-black/5 rounded-[2rem] md:rounded-[3rem]">
-                  <div className="text-[12px] font-black uppercase text-black/30 mb-2">Categories</div>
-                  <div className="text-4xl md:text-5xl font-serif italic">{categories.length}</div>
-                </div>
-            </div>
+       {/* ANALYTICS & NOTIFICATIONS */}
+{activeTab === 'stats' && (() => {
+  // --- INTERNAL LOGIC FOR CALCULATIONS ---
+  const totalValue = products.reduce((acc, p) => acc + (Number(p.price) || 0), 0);
+  const categories = [...new Set(products.map(p => p.category))];
+  
+  const totalRevenue = orders.filter(o => o.status?.toLowerCase() === 'delivered')
+    .reduce((acc, o) => acc + (Number(o.total_amount) || 0), 0);
+    
+  const pendingRevenue = orders.filter(o => ['pending', 'processing', 'shipped'].includes(o.status?.toLowerCase()))
+    .reduce((acc, o) => acc + (Number(o.total_amount) || 0), 0);
 
-            <div className="max-w-xl p-10 bg-white border border-black/5 rounded-[3rem] shadow-sm">
-                <h3 className="text-[27px] font-serif italic mb-6 text-[#D4AF37]">Global Homepage Broadcast</h3>
-                <label className="text-[13px] font-black uppercase tracking-widest text-black/40 mb-3 block">Custom Notification Bar Message</label>
-                <textarea 
-                    value={broadcastMsg}
-                    onChange={(e) => setBroadcastMsg(e.target.value)}
-                    className="w-full bg-black/5 border-none p-4 rounded-2xl text-[15px] focus:ring-1 focus:ring-[#D4AF37] outline-none"
-                    placeholder="Tell your clients something important..."
-                />
-                <button 
-                    onClick={handleUpdateBroadcast}
-                    disabled={loading}
-                    className="mt-6 w-full bg-black text-white py-4 rounded-full text-[13px] font-black uppercase tracking-widest hover:bg-[#D4AF37] transition-all"
-                >
-                    Send Message
-                </button>
+  // --- DYNAMIC CHART DATA GENERATOR ---
+  const getChartData = () => {
+    if (chartPeriod === 'Daily') {
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      return days.map((day, index) => ({
+        name: day,
+        amount: orders
+          .filter(o => new Date(o.created_at).getDay() === index)
+          .reduce((acc, o) => acc + (Number(o.total_amount) || 0), 0)
+      }));
+    }
+    if (chartPeriod === 'Yearly') {
+      const currentYear = new Date().getFullYear();
+      const years = [currentYear - 2, currentYear - 1, currentYear];
+      return years.map(year => ({
+        name: year.toString(),
+        amount: orders
+          .filter(o => new Date(o.created_at).getFullYear() === year)
+          .reduce((acc, o) => acc + (Number(o.total_amount) || 0), 0)
+      }));
+    }
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months.map((month, index) => ({
+      name: month,
+      amount: orders
+        .filter(o => new Date(o.created_at).getMonth() === index)
+        .reduce((acc, o) => acc + (Number(o.total_amount) || 0), 0)
+    }));
+  };
+
+  const activeChartData = getChartData();
+  const maxAmount = Math.max(...activeChartData.map(d => d.amount), 1);
+  const periodTotal = activeChartData.reduce((acc, curr) => acc + curr.amount, 0);
+
+  return (
+    <div className="space-y-6 md:space-y-12 animate-in zoom-in-95 duration-500">
+      <h2 className="text-3xl md:text-4xl font-serif italic">Analytics</h2>
+
+      {/* 1. TOP CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* REVENUE OVERVIEW */}
+        <div className="p-10 bg-black text-white rounded-[3rem] shadow-2xl relative overflow-hidden">
+          <div className="relative z-10">
+            <div className="flex justify-between items-center mb-8">
+              <span className="text-[12px] font-black uppercase tracking-widest text-white/40">Financial Pulse</span>
+              <div className="p-2 bg-white/10 rounded-full"><BarChart3 size={20} className="text-[#D4AF37]"/></div>
+            </div>
+            <div className="space-y-6">
+              <div>
+                <p className="text-[10px] font-black uppercase text-[#D4AF37] mb-1">Cleared Revenue</p>
+                <p className="text-4xl font-serif italic">GH₵ {totalRevenue.toLocaleString()}</p>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-[10px] font-black uppercase tracking-tighter">
+                  <span className="text-white/40">Pending: GH₵ {pendingRevenue.toLocaleString()}</span>
+                  <span className="text-[#D4AF37]">Flow Ratio</span>
+                </div>
+                <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-[#D4AF37] transition-all duration-1000" 
+                    style={{ width: `${(totalRevenue + pendingRevenue) > 0 ? (totalRevenue / (totalRevenue + pendingRevenue)) * 100 : 0}%` }}
+                  ></div>
+                </div>
+              </div>
             </div>
           </div>
-        )}
-      </main>
+          <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-[#D4AF37]/10 rounded-full blur-3xl"></div>
+        </div>
 
-      {/* ORDER MANIFEST MODAL */}
-    {/* ORDER MANIFEST MODAL */}
+        {/* VAULT DENSITY */}
+        <div className="p-10 bg-white border border-black/5 rounded-[3rem] flex flex-col justify-between shadow-sm">
+          <div>
+            <div className="flex justify-between items-start">
+              <span className="text-[12px] font-black uppercase tracking-widest text-black/30">Vault Density</span>
+              <div className="px-3 py-1 bg-black/5 rounded-full text-[10px] font-black uppercase">
+                Value: GH₵ {(totalValue / 1000).toFixed(1)}k
+              </div>
+            </div>
+            <p className="text-4xl font-serif italic mt-4">{products.length} <span className="text-sm font-sans not-italic text-black/40 ml-2">Total Assets</span></p>
+          </div>
+          <div className="flex flex-wrap gap-2 mt-8">
+            {categories.map(cat => (
+              <span key={cat} className="px-4 py-2 bg-black text-white rounded-full text-[9px] font-black uppercase tracking-wider">
+                {cat}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* 2. REVENUE TRENDS CHART */}
+      <div className="mt-12 p-10 bg-black text-white rounded-[3rem] shadow-2xl relative overflow-hidden">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-4 relative z-20">
+          <div>
+            <h3 className="text-2xl font-serif italic text-[#D4AF37]">{chartPeriod} Trends</h3>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Total: GH₵ {periodTotal.toLocaleString()}</p>
+          </div>
+          <div className="flex bg-white/5 p-1.5 rounded-2xl border border-white/10 relative z-30">
+            {['Daily', 'Monthly', 'Yearly'].map((t) => (
+              <button 
+                key={t} 
+                onClick={() => setChartPeriod(t)}
+                className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${chartPeriod === t ? 'bg-[#D4AF37] text-black shadow-lg' : 'text-white/40 hover:text-white'}`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-end justify-between gap-2 md:gap-4 h-64 px-2 relative z-10">
+          {activeChartData.map((data, i) => (
+            <div key={i} className="flex-1 flex flex-col items-center gap-4 group">
+              <div className="relative w-full flex justify-center items-end h-full">
+                <div className="absolute -top-8 opacity-0 group-hover:opacity-100 transition-all bg-white text-black text-[9px] font-black px-2 py-1 rounded-lg z-20 whitespace-nowrap">
+                  GH₵{data.amount.toLocaleString()}
+                </div>
+                <div 
+                  className="w-full max-w-[20px] bg-[#D4AF37] rounded-t-full transition-all duration-1000 ease-out opacity-20 group-hover:opacity-100"
+                  style={{ height: `${(data.amount / maxAmount) * 100}%`, minHeight: '4px' }}
+                ></div>
+              </div>
+              <span className="text-[9px] font-black uppercase text-white/20 group-hover:text-[#D4AF37]">
+                {data.name}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/5 rounded-full blur-[100px] -mr-32 -mt-32"></div>
+      </div>
+
+      {/* 3. BROADCAST SECTION */}
+      <div className="max-w-xl p-10 bg-white border border-black/5 rounded-[3rem] shadow-sm">
+        <h3 className="text-[27px] font-serif italic mb-6 text-[#D4AF37]">Global Homepage Broadcast</h3>
+        <textarea 
+          value={broadcastMsg}
+          onChange={(e) => setBroadcastMsg(e.target.value)}
+          className="w-full bg-black/5 border-none p-4 rounded-2xl text-[15px] focus:ring-1 focus:ring-[#D4AF37] outline-none min-h-[100px]"
+          placeholder="Tell your clients something important..."
+        />
+        <button 
+          onClick={handleUpdateBroadcast}
+          disabled={loading}
+          className="mt-6 w-full bg-black text-white py-4 rounded-full text-[13px] font-black uppercase tracking-widest hover:bg-[#D4AF37] transition-all"
+        >
+          {loading ? "Transmitting..." : "Send Message"}
+        </button>
+      </div>
+    </div>
+  );
+})()}  </main>
+{/* ORDER MANIFEST MODAL */}
 {/* ORDER MANIFEST MODAL */}
 {/* ORDER MANIFEST MODAL */}
 {isOrderModalOpen && selectedOrder && (
-  <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100] flex items-end md:items-center justify-center">
-    <div className="bg-[#FDFBF7] w-full max-w-2xl md:rounded-[3rem] rounded-t-[3rem] p-6 md:p-12 shadow-2xl animate-in slide-in-from-bottom-10 h-[90vh] md:h-auto overflow-y-auto">
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[110] flex items-end md:items-center justify-center">
+    <div className="bg-[#FDFBF7] w-full max-w-2xl md:rounded-[3rem] rounded-t-[3rem] p-6 md:p-12 shadow-2xl h-[90vh] md:h-auto overflow-y-auto flex flex-col">
+      
+      {/* HEADER: Client Info & Status Dropdown */}
       <div className="flex justify-between items-start mb-8">
         <div>
           <h3 className="text-3xl font-serif italic">Order Manifest</h3>
           <p className="text-[10px] font-black uppercase text-black/40 tracking-widest mt-1">
-            Client: {selectedOrder.customer_name}
+            Registry ID: {selectedOrder.id.slice(0,8)}...
           </p>
         </div>
         
-        {/* GLASS-MORPHISM DROPDOWN */}
         <div className="relative group">
-          <div className="absolute inset-0 bg-white/40 backdrop-blur-xl rounded-2xl border border-white/20 shadow-sm transition-all group-hover:bg-white/60"></div>
-          
+          <div className="absolute inset-0 bg-white/40 backdrop-blur-xl rounded-2xl border border-white/20 shadow-sm"></div>
           <select 
             value={selectedOrder.status}
-            onChange={(e) => toggleOrderStatus(
-              selectedOrder.id, 
-              e.target.value, 
-              selectedOrder.customer_email
-            )}
-            className={`relative z-10 appearance-none outline-none px-6 py-3 pr-12 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer border-none bg-transparent
-              ${selectedOrder.status === 'delivered' ? 'text-green-600' : 
-                selectedOrder.status === 'cancelled' ? 'text-red-500' : 
-                selectedOrder.status === 'shipped' ? 'text-blue-500' : 'text-black/80'}`}
+            onChange={(e) => toggleOrderStatus(selectedOrder.id, e.target.value, selectedOrder.customer_email)}
+            className="relative z-10 appearance-none outline-none px-6 py-3 pr-12 rounded-2xl text-[10px] font-black uppercase tracking-widest cursor-pointer bg-transparent border-none"
           >
-            {/* Using a helper-style label for the current selection */}
-            <optgroup label="Action Required" className="bg-white text-black">
-              <option value="pending">◌ Revert to Pending</option>
-              <option value="processing">⚙ Still Processing</option>
-              <option value="shipped">✈ Order Dispatched</option>
-            </optgroup>
-            
-            <optgroup label="Finalize (To User History)" className="bg-white text-black">
-              <option value="delivered">✓ Parcel Delivered</option>
-              <option value="cancelled">✕ Cancel Order</option>
-              <option value="returned">↺ Process Return</option>
-            </optgroup>
+            <option value="pending">Pending</option>
+            <option value="processing">Processing</option>
+            <option value="shipped">Shipped</option>
+            <option value="delivered">Delivered</option>
+            <option value="cancelled">Cancelled</option>
           </select>
-
-          {/* Creative Status Label Overlay (The "Be Creative" part) */}
-          <div className="absolute -bottom-5 right-2 whitespace-nowrap">
-             <span className="text-[8px] font-bold italic uppercase tracking-tighter opacity-60">
-                {selectedOrder.status === 'delivered' && "Signed & Sealed"}
-                {selectedOrder.status === 'shipped' && "In Transit..."}
-                {selectedOrder.status === 'processing' && "Crafting fulfillment"}
-                {selectedOrder.status === 'pending' && "Awaiting Review"}
-                {selectedOrder.status === 'cancelled' && "Voided"}
-             </span>
-          </div>
-
-          {/* Custom Chevron Arrow */}
-          <div className="pointer-events-none absolute inset-y-0 right-4 z-20 flex items-center opacity-40">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-          </div>
         </div>
       </div>
 
-      <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-4 custom-scrollbar">
-        {selectedOrder.order_items.map((item, idx) => (
-          <div key={idx} className="flex justify-between items-center p-4 bg-white/50 border border-black/5 rounded-2xl transition-all hover:bg-white/80">
-            <div>
-              <div className="text-[11px] font-black uppercase">PID: {item.product_id}</div>
-              <div className="text-[9px] text-black/40 italic">Unit Price: GH₵{item.price}</div>
-            </div>
-            <div className="text-right">
-              <div className="text-[12px] font-bold">qty: {item.quantity}</div>
-              <div className="text-[10px] font-black text-[#D4AF37]">GH₵{(item.price * item.quantity).toLocaleString()}</div>
-            </div>
+      {/* ITEM LIST */}
+      <div className="space-y-4 max-h-[25vh] overflow-y-auto pr-4 mb-8 custom-scrollbar">
+        <p className="text-[9px] font-black uppercase text-black/20 mb-2">Inventory Items</p>
+        {selectedOrder.order_items?.map((item, idx) => (
+          <div key={idx} className="flex justify-between items-center p-4 bg-white border border-black/5 rounded-2xl">
+            <span className="text-[11px] font-black uppercase">Asset #{item.product_id.slice(0,5)}</span>
+            <span className="text-[11px] font-bold text-[#D4AF37]">GH₵{item.price.toLocaleString()}</span>
           </div>
         ))}
       </div>
 
-      <div className="mt-8 pt-8 border-t border-black/10 flex justify-between items-center">
+      {/* PERSONAL MESSAGE SECTION (The Corrected Version) */}
+      <div className="p-8 bg-black rounded-[2.5rem] text-white shadow-xl mb-8">
+        <div className="flex justify-between items-center mb-4">
+          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D4AF37]">Direct Client Dispatch</h4>
+          <span className="text-[8px] font-bold text-white/30 italic">Secure Channel</span>
+        </div>
+        
+        <textarea 
+          value={personalMsg}
+          onChange={(e) => setPersonalMsg(e.target.value)}
+          placeholder={`Personal note for ${selectedOrder.customer_name}...`}
+          className="w-full bg-white/5 border border-white/10 p-4 rounded-2xl text-xs text-white focus:border-[#D4AF37] outline-none min-h-[100px] resize-none mb-4"
+        />
+        
+        <button 
+          onClick={() => handleSendPersonalMessage(selectedOrder)}
+          disabled={loading || !personalMsg}
+          className="w-full bg-[#D4AF37] text-black py-4 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all active:scale-95 disabled:opacity-20"
+        >
+          {loading ? "TRANSMITTING TO VAULT..." : "SEND PERSONAL MESSAGE"}
+        </button>
+      </div>
+
+      {/* TOTAL & CLOSE */}
+      <div className="mt-auto pt-8 border-t border-black/10 flex justify-between items-center">
         <div>
-          <div className="text-[10px] font-black uppercase text-black/40">Total Order Value</div>
-          <div className="text-3xl font-serif italic text-[#D4AF37]">GH₵{selectedOrder.total_amount?.toLocaleString()}</div>
+          <p className="text-[10px] font-black uppercase text-black/40">Manifest Total</p>
+          <p className="text-3xl font-serif italic text-[#D4AF37]">GH₵{selectedOrder.total_amount?.toLocaleString()}</p>
         </div>
         <button 
-          onClick={() => setIsOrderModalOpen(false)} 
-          className="bg-black text-white px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-black/10 transition-transform active:scale-95"
+          onClick={() => { setIsOrderModalOpen(false); setPersonalMsg(""); }}
+          className="bg-black text-white px-10 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-500 transition-colors"
         >
-          Close Manifest
+          Close
         </button>
       </div>
     </div>

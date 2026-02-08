@@ -403,7 +403,7 @@ const handleOverride = async (e) => {
 						style={{ width: `${score}%` }}
 					></div>
 				</div>
-				<p className="text-[7px] font-black text-right mt-1 opacity-50 uppercase tracking-widest">
+				<p className="text-[9px] font-black text-right mt-1 opacity-50 uppercase tracking-widest">
 					Strength: {score}%
 				</p>
 			</div>
@@ -450,7 +450,7 @@ const handleOverride = async (e) => {
 			<div
 				className={`fixed top-4 right-4 w-40 bg-black text-white p-4 rounded-2xl shadow-2xl border border-[#D4AF37]/30 z-50 transition-all duration-500 ${isOtpPending ? "opacity-100" : "opacity-0 pointer-events-none"}`}
 			>
-				<p className="text-[7px] font-black tracking-widest text-[#D4AF37] uppercase mb-1 text-center">
+				<p className="text-[9px] font-black tracking-widest text-[#D4AF37] uppercase mb-1 text-center">
 					Session Active
 				</p>
 				<h2 className="text-xl font-mono font-bold text-center tracking-widest">
@@ -464,8 +464,8 @@ const handleOverride = async (e) => {
 						<h1 className="text-2xl font-serif italic mb-2 uppercase">
 							Verify
 						</h1>
-						<p className="text-[9px] font-black tracking-[0.3em] uppercase opacity-40 mb-10 text-[#D4AF37]">
-							Enter OTP Sequence
+						<p className="text-[13px] font-black tracking-[0.3em] uppercase opacity-60 mb-10 text-[#D4AF37]">
+							Enter OTP Code
 						</p>
 
 						<div className="flex justify-between gap-2 mb-6">
@@ -488,7 +488,7 @@ const handleOverride = async (e) => {
 						<div className="mb-6">
 							{timer > 0 ? (
 								/* Show the countdown if time is remaining */
-								<div className="text-[11px] font-mono font-black text-[#D4AF37]">
+								<div className="text-[15px] font-mono font-black text-[#D4AF37]">
 									{formatTime(timer)}
 								</div>
 							) : /* Timer is 0 - Show Resend or Limit Reached */
@@ -509,7 +509,7 @@ const handleOverride = async (e) => {
 
 						<button
 							onClick={() => navigateTo("login")}
-							className="text-[10px] font-black uppercase tracking-widest opacity-60 hover:opacity-100 transition-opacity"
+							className="text-[14px] font-black uppercase tracking-widest opacity-60 hover:opacity-100 transition-opacity"
 						>
 							Abort Session
 						</button>
@@ -518,9 +518,9 @@ const handleOverride = async (e) => {
 				{view === "forgot" && (
 					<div className="w-full max-w-[400px] bg-white/40 backdrop-blur-3xl border border-white/20 p-10 rounded-[3rem] shadow-2xl text-center animate-in zoom-in duration-300">
 						<h1 className="text-2xl font-serif italic mb-2 uppercase">
-							Recovery
+							Recovery Password
 						</h1>
-						<p className="text-[9px] font-black tracking-[0.3em] uppercase opacity-40 mb-10 text-[#D4AF37]">
+						<p className="text-[13px] font-black tracking-[0.3em] uppercase opacity-50 mb-10 text-[#D4AF37]">
 							Enter Identity Email
 						</p>
 						<form onSubmit={handleForgotCheck} className="space-y-6">
@@ -529,7 +529,7 @@ const handleOverride = async (e) => {
 								placeholder="EMAIL ADDRESS"
 								autoComplete="off"
 								value={formData.email}
-								className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[10px] font-black bg-transparent text-center"
+								className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[15px] font-black bg-transparent text-center"
 								onChange={(e) =>
 									setFormData({ ...formData, email: e.target.value })
 								}
@@ -537,14 +537,14 @@ const handleOverride = async (e) => {
 							/>
 							<button
 								type="submit"
-								className="w-full h-12 bg-black text-white rounded-2xl text-[9px] font-black uppercase tracking-[0.4em] hover:bg-[#D4AF37] transition-all"
+								className="w-full h-12 bg-black text-white rounded-2xl text-[13px] font-black uppercase tracking-[0.4em] hover:bg-[#D4AF37] transition-all"
 							>
 								Verify Email
 							</button>
 							<button
 								type="button"
 								onClick={() => navigateTo("login")}
-								className="text-[10px] font-black uppercase opacity-60 hover:opacity-100 transition-opacity"
+								className="text-[14px] font-black uppercase opacity-60 hover:opacity-100 transition-opacity"
 							>
 								Back to Login
 							</button>
@@ -557,7 +557,7 @@ const handleOverride = async (e) => {
 						<h1 className="text-2xl font-serif italic mb-2 uppercase">
 							Reset
 						</h1>
-						<p className="text-[9px] font-black tracking-[0.3em] uppercase opacity-40 mb-10 text-[#D4AF37]">
+						<p className="text-[13px] font-black tracking-[0.3em] uppercase opacity-70 mb-10 text-[#D4AF37]">
 							Updating: {resetEmail}
 						</p>
 						<form onSubmit={handleOverride} className="space-y-6">
@@ -568,7 +568,7 @@ const handleOverride = async (e) => {
 									autoComplete="new password"
 									placeholder="NEW PASSWORD"
 									value={formData.password}
-									className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[10px] font-black bg-transparent"
+									className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[15px] font-black bg-transparent"
 									onChange={(e) =>
 										setFormData({ ...formData, password: e.target.value })
 									}
@@ -588,7 +588,7 @@ const handleOverride = async (e) => {
 								maxLength={15}
 								placeholder="CONFIRM NEW PASSWORD"
 								value={formData.confirmPassword}
-								className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[10px] font-black  bg-transparent"
+								className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[15px] font-black  bg-transparent"
 								onChange={(e) =>
 									setFormData({ ...formData, confirmPassword: e.target.value })
 								}
@@ -596,14 +596,14 @@ const handleOverride = async (e) => {
 							/>
 							<button
 								type="submit"
-								className="w-full h-12 bg-black text-white rounded-2xl text-[9px] font-black uppercase tracking-[0.4em] hover:bg-[#D4AF37] transition-all"
+								className="w-full h-12 bg-black text-white rounded-2xl text-[12px] font-black uppercase tracking-[0.4em] hover:bg-[#D4AF37] transition-all"
 							>
 								Confirm 
 							</button>
 							<button
 								type="button"
 								onClick={() => navigateTo("login")}
-								className="text-[10px] font-black uppercase opacity-60 hover:opacity-100 transition-opacity"
+								className="text-[13px] font-black uppercase opacity-60 hover:opacity-100 transition-opacity"
 							>
 								Cancel
 							</button>
@@ -631,7 +631,7 @@ const handleOverride = async (e) => {
 										placeholder="FULL NAME"
 										autoComplete="off"
 										value={formData.fullName}
-										className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[10px] font-black "
+										className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[14px] font-black "
 										onChange={(e) =>
 											setFormData({ ...formData, fullName: e.target.value })
 										}
@@ -645,7 +645,7 @@ const handleOverride = async (e) => {
 									placeholder="EMAIL ADDRESS"
 									autoComplete="off"
 									value={formData.email}
-									className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[10px] font-black"
+									className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[14px] font-black"
 									onChange={(e) =>
 										setFormData({ ...formData, email: e.target.value })
 									}
@@ -660,7 +660,7 @@ const handleOverride = async (e) => {
 										maxLength={15}
 										placeholder="PASSWORD (8-15 chars)"
 										value={formData.password}
-										className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[10px] font-black "
+										className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[14px] font-black "
 										onChange={(e) =>
 											setFormData({ ...formData, password: e.target.value })
 										}
@@ -686,7 +686,7 @@ const handleOverride = async (e) => {
 										maxLength={15}
 										placeholder="CONFIRM PASSWORD"
 										value={formData.confirmPassword}
-										className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[10px] font-black "
+										className="w-full h-10 border-b border-black/10 outline-none focus:border-[#D4AF37] text-[14px] font-black "
 										onChange={(e) =>
 											setFormData({
 												...formData,
@@ -700,7 +700,7 @@ const handleOverride = async (e) => {
 								<button
 									type="submit"
 									disabled={loading}
-									className="w-full h-12 bg-black text-white rounded-2xl text-[9px] font-black uppercase tracking-[0.4em] mt-10 hover:bg-[#D4AF37] transition-all shadow-lg active:scale-95"
+									className="w-full h-12 bg-black text-white rounded-2xl text-[14px] font-black uppercase tracking-[0.4em] mt-10 hover:bg-[#D4AF37] transition-all shadow-lg active:scale-95"
 								>
 									{loading
 										? "Processing..."
@@ -715,7 +715,7 @@ const handleOverride = async (e) => {
 									onClick={() =>
 										navigateTo(view === "login" ? "signup" : "login")
 									}
-									className="text-[10px] uppercase font-black text-black hover:text-[#D4AF37] transition-colors tracking-widest"
+									className="text-[12px] uppercase font-black text-black hover:text-[#D4AF37] transition-colors tracking-widest"
 								>
 									{view === "login" ? "Create Account" : "Back to Login"}
 								</button>
@@ -723,7 +723,7 @@ const handleOverride = async (e) => {
 									<button
 										type="button"
 										onClick={() => setView("forgot")}
-										className="text-[10px] uppercase font-black text-black hover:text-[#D4AF37] transition-colors tracking-widest"
+										className="text-[12px] uppercase font-black text-black hover:text-[#D4AF37] transition-colors tracking-widest"
 									>
 										Forgot Password?
 									</button>

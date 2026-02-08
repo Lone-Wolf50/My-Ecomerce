@@ -57,7 +57,7 @@ function Footer() {
             {/* Brand Logo */}
             <div className="lg:w-1/4">
               <h2 className="text-3xl font-black tracking-[0.4em] italic text-black-solid">LUXE</h2>
-              <p className="mt-4 text-[10px] text-black-solid/40 font-bold uppercase tracking-[0.3em]">
+              <p className="mt-4 text-[15px] text-black-solid/40 font-bold uppercase tracking-[0.3em]">
                 Excellence in every stitch.
               </p>
             </div>
@@ -66,7 +66,7 @@ function Footer() {
             <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-12">
               {footerSections.map((section) => (
                 <div key={section.id} className="flex flex-col gap-6">
-                  <h4 className="font-black text-[9px] uppercase tracking-[0.5em] text-primary/60 border-b border-black/5 pb-2">
+                  <h4 className="font-black text-[15px] uppercase tracking-[0.5em] text-primary/60 border-b border-black/5 pb-2">
                     {section.title}
                   </h4>
                   <ul className="flex flex-col gap-5">
@@ -81,20 +81,20 @@ function Footer() {
                         {section.type === "link" ? (
                           <Link 
                             to={link.path}
-                            className="text-[11px] text-black-solid/50 font-bold uppercase tracking-[0.2em] hover:text-primary transition-colors"
+                            className="text-[15px] text-black-solid/50 font-bold uppercase tracking-[0.2em] hover:text-primary transition-colors"
                           >
                             {link.name}
                           </Link>
                         ) : (
                           <div className="flex flex-col cursor-pointer">
-                            <span className={`text-[11px] font-bold uppercase tracking-[0.2em] transition-all duration-300 ${activeInfo === link.name ? 'text-primary translate-x-1' : 'text-black-solid/50'}`}>
+                            <span className={`text-[15px] font-bold uppercase tracking-[0.2em] transition-all duration-300 ${activeInfo === link.name ? 'text-primary translate-x-1' : 'text-black-solid/50'}`}>
                               {link.name}
                             </span>
                             
                             {/* THE DROPDOWN INFO (Appears directly below the link) */}
                             <div className={`overflow-hidden transition-all duration-500 ease-in-out ${activeInfo === link.name ? 'max-h-32 opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
                               <div className="p-4 bg-white/30 backdrop-blur-3xl border border-white/40 rounded-lg shadow-xl">
-                                <p className="text-[10px] leading-relaxed text-black-solid/70 font-bold italic tracking-wide">
+                                <p className="text-[14px] leading-relaxed text-black-solid/70 font-bold italic tracking-wide">
                                   {link.info}
                                 </p>
                               </div>
@@ -111,13 +111,13 @@ function Footer() {
 
           {/* Bottom Bar */}
           <div className="mt-20 pt-10 border-t border-black/[0.03] flex flex-col sm:flex-row justify-between items-center gap-6">
-            <p className="text-[8px] uppercase tracking-[0.8em] text-black-solid/20 font-black">
+            <p className="text-[12px] uppercase tracking-[0.8em] text-black-solid/20 font-black">
               © 2026 LUXE S.p.A.
             </p>
-            <div className="flex gap-10 grayscale opacity-30">
-                <span className="text-[9px] uppercase tracking-[0.4em]">Milan</span>
-                <span className="text-[9px] uppercase tracking-[0.4em]">Paris</span>
-                <span className="text-[9px] uppercase tracking-[0.4em]">NYC</span>
+            <div className="flex gap-7 grayscale opacity-12">
+                <span className="text-[14px] uppercase tracking-[0.4em]">Milan</span>
+                <span className="text-[14px] uppercase tracking-[0.4em]">Paris</span>
+                <span className="text-[14px] uppercase tracking-[0.4em]">NYC</span>
             </div>
           </div>
         </div>

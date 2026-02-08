@@ -125,7 +125,7 @@ const ProductDetail = () => {
 
                     {/* Content Box */}
                     <div className="w-full lg:w-[40%] flex flex-col justify-center max-w-[420px] mx-auto lg:ml-auto lg:mr-0">
-                        <p className="text-[10px] font-black text-primary uppercase tracking-[0.6em] mb-3">
+                        <p className="text-[15px] font-black text-primary uppercase tracking-[0.6em] mb-3">
                             {product.series}
                         </p>
                         <h1 className="text-4xl lg:text-6xl font-black text-black-solid uppercase mb-4 tracking-tighter leading-[0.9] italic">
@@ -136,24 +136,24 @@ const ProductDetail = () => {
                         </p>
 
                         <div className="border-t border-black/10 pt-8 mb-10">
-                            <p className="text-black-solid/60 text-[14px] leading-relaxed font-light mb-8">
+                            <p className="text-black-solid/60 text-[21px] leading-relaxed font-light mb-8">
                                 {product.description}
                             </p>
 
                             <div className="flex gap-12">
                                 <div className="flex flex-col gap-1">
-                                    <p className="text-[8px] uppercase font-black text-black-solid/20 tracking-[0.2em]">
+                                    <p className="text-[16px] uppercase font-black text-black-solid/20 tracking-[0.2em]">
                                         Material
                                     </p>
-                                    <p className="text-[11px] font-bold text-black-solid/70">
+                                    <p className="text-[20px] font-bold text-black-solid/70">
                                         {product.material}
                                     </p>
                                 </div>
                                 <div className="flex flex-col gap-1">
-                                    <p className="text-[8px] uppercase font-black text-black-solid/20 tracking-[0.2em]">
+                                    <p className="text-[16px] uppercase font-black text-black-solid/20 tracking-[0.2em]">
                                         Origin
                                     </p>
-                                    <p className="text-[11px] font-bold text-black-solid/70">
+                                    <p className="text-[20px] font-bold text-black-solid/70">
                                         {product.origin}
                                     </p>
                                 </div>
@@ -162,7 +162,7 @@ const ProductDetail = () => {
 
                         <button
                             onClick={() => addToCart(product)}
-                            className="w-full bg-black-solid text-white py-6 text-[10px] font-black uppercase tracking-[0.4em] hover:bg-primary transition-all duration-500 rounded-2xl shadow-xl shadow-black/10 active:scale-[0.98]"
+                            className="w-full bg-black-solid text-white py-6 text-[13px] font-black uppercase tracking-[0.4em] hover:bg-primary transition-all duration-500 rounded-2xl shadow-xl shadow-black/10 active:scale-[0.98]"
                         >
                             Add to Bag
                         </button>

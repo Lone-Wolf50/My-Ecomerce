@@ -125,48 +125,48 @@ const CheckoutPage = () => {
                 <form className="space-y-10" onSubmit={(e) => e.preventDefault()}>
                     <div className="space-y-6">
                         <div className="group">
-                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
+                            <label className="text-[15px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
                             <input 
                                 name="customer_name" 
                                 value={formData.customer_name} 
                                 placeholder="YOUR NAME" 
                                 onChange={handleInput} 
-                                className="w-full bg-transparent border-b border-gray-200 py-3 text-[11px] tracking-widest outline-none focus:border-[#D4AF37] transition-all" 
+                                className="w-full bg-transparent border-b border-gray-200 py-3 text-[14px] tracking-widest outline-none focus:border-[#D4AF37] transition-all" 
                             />
                         </div>
                         
                         <div className="group">
-                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Account Email (Verified)</label>
+                            <label className="text-[15px] font-black text-gray-400 uppercase tracking-widest ml-1">Account Email (Verified)</label>
                             <input 
                                 name="customer_email" 
                                 value={formData.customer_email} 
                                 readOnly 
-                                className="w-full bg-black/5 border-b border-gray-200 py-3 px-2 text-[11px] tracking-widest outline-none text-gray-400 cursor-not-allowed italic" 
+                                className="w-full bg-black/5 border-b border-gray-200 py-3 px-2 text-[14px] tracking-widest outline-none text-gray-400 cursor-not-allowed italic" 
                             />
                         </div>
                         
                         <div className="group">
-                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Contact Number</label>
+                            <label className="text-[15px] font-black text-gray-400 uppercase tracking-widest ml-1">Contact Number</label>
                             <input 
                                 name="phone_number" 
                                 placeholder="0XX XXX XXXX" 
                                 maxLength={10} 
                                 onChange={handleInput} 
-                                className="w-full bg-transparent border-b border-gray-200 py-3 text-[11px] tracking-widest outline-none focus:border-[#D4AF37] transition-all" 
+                                className="w-full bg-transparent border-b border-gray-200 py-3 text-[14px] tracking-widest outline-none focus:border-[#D4AF37] transition-all" 
                             />
                         </div>
                     </div>
 
                     <div className="pt-10 flex justify-between items-end">
                         <div className="flex flex-col">
-                            <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Grand Total</span>
-                            <span className="text-3xl font-serif text-[#D4AF37]">GH&#8373;{cartTotal}</span>
+                            <span className="text-[12px] font-black text-gray-400 uppercase tracking-widest">Grand Total</span>
+                            <span className="text-3xl font-serif text-[#D4AF37]">GH&#8373; {cartTotal}</span>
                         </div>
                         <button 
                             type="button" 
                             onClick={onConfirm} 
                             disabled={isProcessing}
-                            className="bg-black text-white px-10 py-5 rounded-full text-[10px] font-black tracking-widest hover:bg-[#D4AF37] transition-all disabled:opacity-30 shadow-lg active:scale-95"
+                            className="bg-black text-white px-10 py-5 rounded-full text-[13px] font-black tracking-widest hover:bg-[#D4AF37] transition-all disabled:opacity-30 shadow-lg active:scale-95"
                         >
                             {isProcessing ? "PROCESSING..." : "CONFIRM →"}
                         </button>

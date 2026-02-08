@@ -21,13 +21,13 @@ export default function ProductCard({ product }) {
       <div className="flex flex-col flex-grow text-center mb-4 px-2">
         <Link to={`/product/${product.id}`} className="block mb-1 group-hover:text-primary transition-colors">
           {/* UPDATED: Text color to black-solid */}
-          <h3 className="text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] leading-tight min-h-[2.2rem] flex items-center justify-center text-black-solid">
+          <h3 className="text-[10px] md:text-[15px] font-black uppercase tracking-[0.2em] leading-tight min-h-[2.2rem] flex items-center justify-center text-black-solid">
             {product.name}
           </h3>
         </Link>
         {/* UPDATED: Price color to primary gold */}
         <p className="text-primary font-bold text-[12px] md:text-sm mt-auto">
-          GH&#8373;{product.price}
+          GH&#8373; {product.price}
         </p>
       </div>
 

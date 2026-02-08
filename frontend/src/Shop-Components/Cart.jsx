@@ -21,7 +21,7 @@ function Cart() {
                             onClick={() => navigate(-1)}
                             className="group flex items-center justify-center size-12 rounded-full border border-black/10 hover:border-primary/50 transition-all duration-500 bg-white/40 backdrop-blur-sm"
                         >
-                            <span className="material-symbols-outlined text-black-solid/40 group-hover:text-primary group-hover:-translate-x-1 transition-all duration-300">
+                            <span className="material-symbols-outlined text-black-solid/80 group-hover:text-primary group-hover:-translate-x-1 transition-all duration-300">
                                 arrow_back_ios_new
                             </span>
                         </button>
@@ -30,8 +30,8 @@ function Cart() {
                             The <span className="text-primary">Cart</span>
                         </h1>
                     </div>
-                    <p className="text-[11px] font-black uppercase tracking-[0.4em] text-black-solid/30">
-                        {cart.length} pieces in your vault
+                    <p className="text-[13px] font-black uppercase tracking-[0.4em] text-black-solid/30">
+                        {cart.length} pieces in your cart
                     </p>
                 </div>
 
@@ -67,7 +67,7 @@ function Cart() {
                                                     <h3 className="text-3xl font-black tracking-tighter uppercase italic text-black-solid leading-none group-hover:text-primary transition-colors">
                                                         {item.name}
                                                     </h3>
-                                                    <p className="text-[10px] uppercase tracking-[0.4em] text-primary font-black mt-3">
+                                                    <p className="text-[14px] uppercase tracking-[0.4em] text-primary font-black mt-3">
                                                         {item.category}
                                                     </p>
                                                 </div>
@@ -78,7 +78,7 @@ function Cart() {
                                                     <span className="material-symbols-outlined text-xl">close</span>
                                                 </button>
                                             </div>
-                                            <p className="mt-6 text-[14px] text-black-solid/40 font-light leading-relaxed max-w-sm italic">
+                                            <p className="mt-6 text-[17px] text-black-solid/40 font-black leading-relaxed max-w-sm italic">
                                                 Exquisite detailing with signature LUXE craftsmanship.
                                             </p>
                                         </div>
@@ -88,7 +88,7 @@ function Cart() {
                                             
                                             {/* Quantity Selector Pill */}
                                             <div className="flex flex-col gap-3">
-                                                <span className="text-[8px] uppercase tracking-[0.3em] font-black text-black-solid/20">Set Quantity</span>
+                                                <span className="text-[13px] uppercase tracking-[0.3em] font-black text-black-solid/60">Set Quantity</span>
                                                 <div className="flex items-center bg-black-solid rounded-full px-6 py-3 gap-8 w-fit shadow-xl shadow-black/10">
                                                     <button 
                                                         onClick={(e) => {
@@ -116,9 +116,9 @@ function Cart() {
 
                                             {/* Price grouping */}
                                             <div className="text-right">
-                                                <p className="text-[10px] text-black-solid/30 uppercase tracking-[0.3em] font-black mb-1">Subtotal</p>
+                                                <p className="text-[15px] text-black-solid/30 uppercase tracking-[0.3em] font-black mb-1">Subtotal</p>
                                                 <p className="text-4xl font-black italic tracking-tighter text-black-solid">
-                                                    GH&#8373;{(item.price * item.quantity).toLocaleString()}
+                                                    GH&#8373; {(item.price * item.quantity).toLocaleString()}
                                                 </p>
                                             </div>
                                         </div>
@@ -128,42 +128,42 @@ function Cart() {
                         )}
                     </div>
 
-                    {/* Order Summary Sidebar */}
+                    {/* Order Summary Sidebar - Removed sticky positioning */}
                     <div className="lg:col-span-4">
-                        <div className="bg-white/60 border border-black/5 backdrop-blur-3xl p-10 md:p-12 rounded-[3.5rem] sticky top-32 shadow-2xl shadow-black/5">
-                            <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-primary mb-10 pb-4 border-b border-black/10">
+                        <div className="bg-white/60 border border-black/5 backdrop-blur-3xl p-10 md:p-12 rounded-[3.5rem] shadow-2xl shadow-black/5">
+                            <h2 className="text-[15px] font-black uppercase tracking-[0.4em] text-primary mb-10 pb-4 border-b border-black/10">
                                 Total Amount
                             </h2>
                             
                             <div className="space-y-6 mb-12">
-                                <div className="flex justify-between text-black-solid/40 uppercase tracking-widest text-[10px] font-black">
+                                <div className="flex justify-between text-black-solid/40 uppercase tracking-widest text-[12px] font-black">
                                     <span>Subtotal</span>
-                                    <span className="text-black-solid font-black">GH&#8373;{cartTotal.toLocaleString()}</span>
+                                    <span className="text-black-solid font-black ">GH&#8373; {cartTotal.toLocaleString()}</span>
                                 </div>
-                                <div className="flex justify-between text-black-solid/40 uppercase tracking-widest text-[10px] font-black">
+                                <div className="flex justify-between text-black-solid/40 uppercase tracking-widest text-[12px] font-black">
                                     <span>Insurance & Freight</span>
                                     <span className="text-primary font-black">Complimentary</span>
                                 </div>
                             </div>
 
                             <div className="pt-8 mb-12 border-t border-black/10">
-                                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-black-solid/20 mb-2">Grand Total</p>
+                                <p className="text-[13px] font-black uppercase tracking-[0.4em] text-black-solid/50 mb-2">Grand Total</p>
                                 <span className="text-5xl md:text-6xl font-black italic tracking-tighter text-black-solid">
-                                    GH&#8373;{cartTotal.toLocaleString()}
+                                    GH&#8373; {cartTotal.toLocaleString()}
                                 </span>
                             </div>
 
                             <button 
                                 disabled={cart.length === 0}
                                 onClick={() => navigate('/checkout')} 
-                                className="w-full bg-black-solid text-white py-6 rounded-2xl font-black text-[11px] uppercase tracking-[0.4em] hover:bg-primary transition-all duration-500 shadow-xl shadow-black/10 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+                                className="w-full bg-black-solid text-white py-6 rounded-2xl font-black text-[13px] uppercase tracking-[0.4em] hover:bg-primary transition-all duration-500 shadow-xl shadow-black/10 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                                 Checkout Securely
                             </button>
 
                             <div className="mt-8 flex flex-col items-center gap-2 opacity-20">
                                 <span className="material-symbols-outlined text-xl">verified_user</span>
-                                <p className="text-[8px] uppercase tracking-[0.2em] font-black">Fully Encrypted Transaction</p>
+                                <p className="text-[10px] uppercase tracking-[0.2em] font-black">Fully Encrypted Transaction</p>
                             </div>
                         </div>
                     </div>

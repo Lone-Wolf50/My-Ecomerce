@@ -51,7 +51,7 @@ const CategoryPage = () => {
 
 				<div className="flex items-center gap-4">
 					<span className="h-[2px] w-8 bg-primary rounded-full"></span>
-					<p className="text-[10px] uppercase font-black tracking-[0.4em] text-black-solid/40">
+					<p className="text-[11px] uppercase font-black tracking-[0.4em] text-black-solid/40">
 						{loading
 							? "Counting..."
 							: `${filteredProducts.length} Curated Pieces`}

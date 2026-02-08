@@ -2,7 +2,7 @@ import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-
 import React, { useEffect, useState } from 'react';
 import { supabase } from "../Database-Server/Superbase-client.js";
 import Swal from 'sweetalert2';
-
+import OrderTrackingPage from "./OrderTrackingPage.jsx";
 import Homepage from "./Homepage.jsx";
 import Cart from "./Cart.jsx";
 import CategoryPage from "./CategoryPage.jsx";
@@ -134,7 +134,8 @@ useEffect(() => {
         <Route path="/shop/:categoryName" element={<CategoryPage />} />
         <Route path="/product/:id" element={<ProductDetail />} />
         <Route path="/reviews" element={<Reviews />} />
-        
+        <Route path="/orders" element={session ? <Orders /> : <Navigate to="/login" replace />} />
+<Route path="/track/:Id" element={session ? <OrderTrackingPage /> : <Navigate to="/login" replace />} />
         <Route path="/login" element={!session ? <AuthPage /> : <Navigate to="/" replace />} />
 
         <Route path="/cart" element={session ? <Cart /> : <Navigate to="/login" replace />} />

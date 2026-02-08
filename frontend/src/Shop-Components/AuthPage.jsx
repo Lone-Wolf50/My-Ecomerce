@@ -446,7 +446,7 @@ const handleOverride = async (e) => {
 	};
 
 	return (
-		<div className="min-h-[100dvh] w-full bg-[#FDFBF7] flex items-center justify-center p-4 font-sans text-black overflow-y-auto relative">
+		<div className="min-h-[100dvh] w-full bg-[#FDFBF7] flex items-center justify-center p-4 font-sans text-black overflow-y-auto relative select-none">
 			<div
 				className={`fixed top-4 right-4 w-40 bg-black text-white p-4 rounded-2xl shadow-2xl border border-[#D4AF37]/30 z-50 transition-all duration-500 ${isOtpPending ? "opacity-100" : "opacity-0 pointer-events-none"}`}
 			>
@@ -715,7 +715,7 @@ const handleOverride = async (e) => {
 									onClick={() =>
 										navigateTo(view === "login" ? "signup" : "login")
 									}
-									className="text-[12px] uppercase font-black text-black hover:text-[#D4AF37] transition-colors tracking-widest"
+									className="text-[10px] uppercase font-black text-black hover:text-[#D4AF37] transition-colors tracking-widest"
 								>
 									{view === "login" ? "Create Account" : "Back to Login"}
 								</button>
@@ -723,7 +723,7 @@ const handleOverride = async (e) => {
 									<button
 										type="button"
 										onClick={() => setView("forgot")}
-										className="text-[12px] uppercase font-black text-black hover:text-[#D4AF37] transition-colors tracking-widest"
+										className="text-[10px] uppercase font-black text-black hover:text-[#D4AF37] transition-colors tracking-widest"
 									>
 										Forgot Password?
 									</button>

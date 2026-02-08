@@ -106,7 +106,7 @@ const ProductDetail = () => {
         );
 
     return (
-        <div className="bg-cream min-h-screen selection:bg-primary/20 text-black-solid">
+        <div className="bg-cream min-h-screen selection:bg-primary/20 text-black-solid select-none">
             <DetailsNavBar category={product.category} />
 
             <main

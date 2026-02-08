@@ -156,7 +156,7 @@ function Cart() {
                             <button 
                                 disabled={cart.length === 0}
                                 onClick={() => navigate('/checkout')} 
-                                className="w-full bg-black-solid text-white py-6 rounded-2xl font-black text-[13px] uppercase tracking-[0.4em] hover:bg-primary transition-all duration-500 shadow-xl shadow-black/10 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+                                className="w-full bg-black-solid text-white py-6 rounded-2xl font-black text-[12px] uppercase tracking-[0.4em] hover:bg-primary transition-all duration-500 shadow-xl shadow-black/10 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                                 Checkout Securely
                             </button>

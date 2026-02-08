@@ -160,13 +160,13 @@ const CheckoutPage = () => {
                     <div className="pt-10 flex justify-between items-end">
                         <div className="flex flex-col">
                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Grand Total</span>
-                            <span className="text-3xl font-serif text-[#D4AF37]">GH&#8373; {cartTotal}</span>
+                            <span className="text-2xl font-serif text-[#D4AF37]">GH&#8373; {cartTotal}</span>
                         </div>
                         <button 
                             type="button" 
                             onClick={onConfirm} 
                             disabled={isProcessing}
-                            className="bg-black text-white px-10 py-5 rounded-full text-[10px] font-black tracking-widest hover:bg-[#D4AF37] transition-all disabled:opacity-30 shadow-lg active:scale-95"
+                            className="bg-black text-white px-10 py-5 rounded-full text-[9px] font-black tracking-widest hover:bg-[#D4AF37] transition-all disabled:opacity-30 shadow-lg active:scale-95"
                         >
                             {isProcessing ? "PROCESSING..." : "CONFIRM →"}
                         </button>

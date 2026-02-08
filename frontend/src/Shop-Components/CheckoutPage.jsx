@@ -117,7 +117,7 @@ const CheckoutPage = () => {
     }
 
     return (
-        <div className="min-h-screen bg-[#FDFBF7] py-20 px-4">
+        <div className="min-h-screen bg-[#FDFBF7] py-20 px-4 select-none">
             <DetailsNavBar />
             <div className="max-w-xl mx-auto backdrop-blur-xl bg-white/40 border border-white/60 p-10 rounded-[2.5rem] shadow-2xl">
                 <h1 className="text-4xl font-serif text-[#D4AF37] mb-12 text-center uppercase tracking-widest">Checkout</h1>
@@ -159,14 +159,14 @@ const CheckoutPage = () => {
 
                     <div className="pt-10 flex justify-between items-end">
                         <div className="flex flex-col">
-                            <span className="text-[12px] font-black text-gray-400 uppercase tracking-widest">Grand Total</span>
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Grand Total</span>
                             <span className="text-3xl font-serif text-[#D4AF37]">GH&#8373; {cartTotal}</span>
                         </div>
                         <button 
                             type="button" 
                             onClick={onConfirm} 
                             disabled={isProcessing}
-                            className="bg-black text-white px-10 py-5 rounded-full text-[13px] font-black tracking-widest hover:bg-[#D4AF37] transition-all disabled:opacity-30 shadow-lg active:scale-95"
+                            className="bg-black text-white px-10 py-5 rounded-full text-[10px] font-black tracking-widest hover:bg-[#D4AF37] transition-all disabled:opacity-30 shadow-lg active:scale-95"
                         >
                             {isProcessing ? "PROCESSING..." : "CONFIRM →"}
                         </button>

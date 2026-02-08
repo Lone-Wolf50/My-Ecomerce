@@ -4,7 +4,6 @@ import Swal from 'sweetalert2';
 import { Menu, X, Package, ShoppingBag, PlusCircle, BarChart3, LogOut } from 'lucide-react';
 
 const AdminDashboard = () => {
-  // --- EXISTING STATES ---
   const [chartPeriod, setChartPeriod] = useState('Monthly');
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -13,8 +12,7 @@ const AdminDashboard = () => {
   const [editingId, setEditingId] = useState(null);
   const [personalMsg, setPersonalMsg] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-const [orderSubTab, setOrderSubTab] = useState('incoming'); // 'incoming' or 'outgoing'
-  // --- NEW STATES FOR ORDERS & NOTIFICATIONS ---
+  const [orderSubTab, setOrderSubTab] = useState('incoming');
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
@@ -28,22 +26,20 @@ const handleSendPersonalMessage = async (order) => {
 
   setLoading(true);
   try {
-    // We target the specific user linked to this order
     const { error } = await supabase
       .from('site_notifications')
       .insert([
         { 
-          user_id: order.user_id, // Links to your user_id column
-          title: "Order Update",   // Matches your title column
-          message: personalMsg,    // Matches your message column
-          is_read: false,          // Matches your is_read column
+          user_id: order.user_id,
+          title: "Order Update",
+          message: personalMsg,
+          is_read: false,
           created_at: new Date().toISOString() 
         }
       ]);
 
     if (error) throw error;
     
-    // Success feedback
     Swal.fire({
       title: 'Dispatched!',
       text: `Your message has been sent to ${order.customer_name}`,
@@ -51,7 +47,7 @@ const handleSendPersonalMessage = async (order) => {
       confirmButtonColor: '#D4AF37'
     });
     
-    setPersonalMsg(""); // Clear the text area
+    setPersonalMsg("");
   } catch (err) {
     console.error("Transmission Error:", err.message);
     toast("Database failed to receive the message.");
@@ -66,7 +62,6 @@ const handleSendPersonalMessage = async (order) => {
   };
   const [form, setForm] = useState(initialForm);
 
-  // --- FETCH PRODUCTS ---
   const fetchProducts = useCallback(async () => {
     const { data, error } = await supabase
       .from('products')
@@ -75,7 +70,6 @@ const handleSendPersonalMessage = async (order) => {
     if (!error) setProducts(data);
   }, []);
 
-  // --- FETCH ORDERS ---
   const fetchOrders = useCallback(async () => {
     const { data, error } = await supabase
       .from('orders')
@@ -85,7 +79,6 @@ const handleSendPersonalMessage = async (order) => {
     else console.error("Order Fetch Error:", error.message);
   }, []);
 
-  // --- FETCH CURRENT BROADCAST ---
   const fetchBroadcast = useCallback(async () => {
     const { data, error } = await supabase
       .from('site_notifications')
@@ -101,17 +94,15 @@ const handleSendPersonalMessage = async (order) => {
     fetchBroadcast();
   }, [fetchProducts, fetchOrders, fetchBroadcast]);
 
-// --- UPDATED: TOGGLE ORDER STATUS & TRIGGER NODEJS EMAIL ---
 const toggleOrderStatus = async (orderId, newStatus, customerEmail) => {
   console.log(`--- DEBUG: Updating Order ID: ${orderId} ---`);
   console.log(`Target Status: ${newStatus}`);
 
-  // 1. Update Supabase Database
   const { data, error } = await supabase
     .from('orders')
     .update({ status: newStatus })
     .eq('id', orderId)
-    .select(); // select() helps confirm what the DB actually saved
+    .select();
 
   if (error) {
     console.error("CRITICAL DB ERROR:", error.message);
@@ -121,7 +112,6 @@ const toggleOrderStatus = async (orderId, newStatus, customerEmail) => {
 
   console.log("DB Update Result:", data);
 
-  // 2. Update local state for immediate UI feedback
   setOrders(prevOrders => 
     prevOrders.map(o => o.id === orderId ? { ...o, status: newStatus } : o)
   );
@@ -130,12 +120,10 @@ const toggleOrderStatus = async (orderId, newStatus, customerEmail) => {
     setSelectedOrder({ ...selectedOrder, status: newStatus });
   }
 
-  // 3. TRIGGER NODEJS EMAIL (Only if marked as completed)
   if (newStatus === 'completed') {
     toast(`ORDER SEALED. Dispatching Confirmation...`);
     
     try {
-      // Replace 'http://localhost:3001' with your deployed backend URL if necessary
       const response = await fetch("http://localhost:3001/send-status-update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -154,7 +142,9 @@ const toggleOrderStatus = async (orderId, newStatus, customerEmail) => {
     } catch (err) {
       console.error("Failed to trigger Node.js email:", err);
     }
-  } const messages = {
+  }
+  
+  const messages = {
     pending: "Order moved back to Pending",
     processing: "Order is now being Crafted",
     shipped: "Order has been Dispatched! ✈",
@@ -163,14 +153,10 @@ const toggleOrderStatus = async (orderId, newStatus, customerEmail) => {
     returned: "Return process initiated ↺"
   };
 
-  // Use the newStatus to show the correct toast, or a default if not found
   const toastMessage = messages[newStatus] || `Status updated to ${newStatus}`;
-  
   toast(toastMessage);
-
 };
 
-  // --- IMAGE UPLOAD ---
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -199,7 +185,6 @@ const toggleOrderStatus = async (orderId, newStatus, customerEmail) => {
     }
   };
 
-  // --- HANDLE SUBMIT ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.image) return Swal.fire("Missing Asset", "Please upload an image first.", "warning");
@@ -225,8 +210,6 @@ const toggleOrderStatus = async (orderId, newStatus, customerEmail) => {
       setLoading(false);
     }
   };
-  
-  // --- SEND NOTIFICATION TO EVERYONE (GLOBAL BROADCAST) ---
 
 const handleUpdateBroadcast = async () => {
   setLoading(true);
@@ -247,7 +230,7 @@ const handleUpdateBroadcast = async () => {
       Swal.fire("Error", insertError.message, "error");
     } else {
       toast("Broadcast delivered");
-      setBroadcastMsg(""); // <--- THIS CLEARS THE TEXTAREA AFTER SUCCESS
+      setBroadcastMsg("");
     }
   } catch (err) {
     console.error("CRITICAL SCRIPT ERROR:", err.message);
@@ -255,6 +238,7 @@ const handleUpdateBroadcast = async () => {
     setLoading(false);
   }
 };
+
   const handleEdit = (product) => {
     setForm(product);
     setEditingId(product.id);
@@ -282,12 +266,10 @@ const handleUpdateBroadcast = async () => {
   };
 
   const incomingCount = orders.filter(o => ['pending', 'processing', 'shipped'].includes(o.status?.toLowerCase())).length;
-const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].includes(o.status?.toLowerCase())).length;
+  const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].includes(o.status?.toLowerCase())).length;
  
-// 3. Define the variables the UI is looking for
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-black font-sans flex">
-   {/* 1. SIDEBAR NAVIGATION (Highest Z-Index to cover everything) */}
     <nav className={`
       fixed inset-y-0 left-0 transform ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} 
       md:translate-x-0 md:relative md:flex
@@ -296,7 +278,6 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
       bg-white z-[100] shadow-2xl md:shadow-none md:sticky md:top-0
     `}>
       <div className="space-y-12">
-        {/* Mobile Close Button (Optional: so they can close without clicking overlay) */}
         <div className="md:hidden flex justify-end">
           <button onClick={() => setIsSidebarOpen(false)} className="p-2">
             <X size={28} />
@@ -339,14 +320,14 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
       </button>
     </nav>
 
-    {/* 2. OVERLAY */}
     {isSidebarOpen && (
       <div 
         className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[90] md:hidden" 
         onClick={() => setIsSidebarOpen(false)} 
       />
-    )} <main className="flex-1 p-12 overflow-y-auto">
-      {/* MOBILE HEADER (Inside main, so it gets covered by Sidebar) */}
+    )}
+
+    <main className="flex-1 p-12 overflow-y-auto">
       <div className="md:hidden flex items-center justify-between p-6 bg-transparent">
         <div className="flex flex-col">
            <h1 className="text-xl font-serif italic text-[#D4AF37]">Admin</h1>
@@ -360,12 +341,10 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
         </button>
       </div>
         
-       {/* INVENTORY TAB - RESPONSIVE GRID */}
         {activeTab === 'inventory' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
             <h2 className="text-3xl md:text-4xl font-serif italic mb-8">Current Collection</h2>
             
-            {/* Desktop Header */}
             <div className="hidden md:grid grid-cols-6 p-4 text-[15px] font-black uppercase text-black/40 border-b border-black/10 mb-2">
               <div className="col-span-2">Product</div>
               <div>Category</div>
@@ -410,8 +389,6 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
           </div>
         )}
 
-       {/* ORDERS TAB */}
-{/* ORDERS TAB */}
 {activeTab === 'orders' && (
   <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
     <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
@@ -420,8 +397,6 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
         <p className="text-[13px] font-black uppercase tracking-[0.2em] text-black/30 mt-2">Vault Order Management</p>
       </div>
 
-      {/* SUB-TAB NAVIGATION */}
-     {/* SUB-TAB NAVIGATION WITH BADGES */}
 <div className="flex bg-black/5 p-1.5 rounded-[1.5rem] w-full md:w-auto backdrop-blur-sm">
   <button 
     onClick={() => setOrderSubTab('incoming')}
@@ -449,7 +424,6 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
 </div>
     </div>
 
-    {/* Header - Only visible on Desktop */}
     <div className="hidden md:grid grid-cols-6 px-8 mb-4 text-[15px] font-black uppercase tracking-[0.2em] text-black/30">
       <div className="col-span-2">Client Details</div>
       <div>Phone</div>
@@ -472,7 +446,6 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
             key={order.id} 
             className="group bg-white rounded-[2rem] md:rounded-full border border-black/5 p-4 md:px-8 md:py-4 flex flex-col md:grid md:grid-cols-6 items-center gap-4 md:gap-0 hover:shadow-xl hover:shadow-black/[0.02] transition-all duration-500"
           >
-            {/* Client & Status */}
             <div className="w-full md:col-span-2 flex items-center gap-4">
               <div className="relative">
                 <div className={`w-3 h-3 rounded-full ${
@@ -492,24 +465,20 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
               </div>
             </div>
 
-            {/* Phone - Desktop Only */}
             <div className="hidden md:block text-[14px] font-medium text-black/60">
               {order.phone_number}
             </div>
 
-            {/* Assets Count */}
             <div className="w-full md:w-auto flex justify-between md:block border-t md:border-none border-black/5 pt-3 md:pt-0">
               <span className="md:hidden text-[10px] font-black uppercase text-black/20">Assets</span>
               <span className="text-[14px] font-bold md:font-medium">{order.order_items?.length || 0} Items</span>
             </div>
 
-            {/* Total Value */}
             <div className="w-full md:w-auto flex justify-between md:block">
               <span className="md:hidden text-[10px] font-black uppercase text-black/20">Value</span>
               <span className="text-[15px] font-bold text-[#D4AF37]">GH₵{order.total_amount?.toLocaleString()}</span>
             </div>
 
-            {/* Action Button */}
             <div className="w-full md:w-auto flex justify-end pt-2 md:pt-0">
               <button 
                 onClick={() => { setSelectedOrder(order); setIsOrderModalOpen(true); }}
@@ -521,7 +490,6 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
           </div>
         ))}
 
-      {/* Empty State */}
       {orders.filter(order => {
           const s = order.status?.toLowerCase();
           return orderSubTab === 'incoming' 
@@ -537,8 +505,8 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
     </div>
   </div>
 )}
-        {/* ADD/EDIT TAB */}
-       {activeTab === 'add' && (
+
+{activeTab === 'add' && (
   <div className="max-w-2xl animate-in fade-in slide-in-from-right-4 duration-500 pb-20">
     <h2 className="text-3xl md:text-4xl font-serif italic mb-8">
       {editingId ? 'Modify Artifact' : 'Add New Entry'}
@@ -546,13 +514,11 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
     
     <form onSubmit={handleSubmit} className="flex flex-col md:grid md:grid-cols-2 gap-x-8 gap-y-6">
       
-      {/* Product Name - Always full width */}
       <div className="md:col-span-2">
         <label className="text-[13px] md:text-[15px] font-black uppercase tracking-widest text-black/40">Product Name</label>
         <input required className="w-full bg-transparent border-b border-black/20 p-2 focus:border-[#D4AF37] outline-none font-bold text-lg md:text-base" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
       </div>
 
-      {/* Price and Category - Stacked on mobile, side-by-side on desktop */}
       <div className="w-full">
         <label className="text-[13px] md:text-[15px] font-black uppercase tracking-widest text-black/40">Price (GH₵)</label>
         <input required type="number" step="0.01" className="w-full bg-transparent border-b border-black/20 p-2 focus:border-[#D4AF37] outline-none font-bold" value={form.price} onChange={e => setForm({...form, price: e.target.value})} />
@@ -563,7 +529,6 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
         <input required className="w-full bg-transparent border-b border-black/20 p-2 focus:border-[#D4AF37] outline-none font-bold" value={form.category} onChange={e => setForm({...form, category: e.target.value})} />
       </div>
 
-      {/* Visual Documentation - Re-styled for mobile stacking */}
       <div className="md:col-span-2 p-6 md:p-8 border-2 border-dashed border-black/10 rounded-[2rem] bg-black/[0.02]">
         <label className="text-[10px] font-black uppercase tracking-widest text-black/40 block mb-6 text-center md:text-left">
           Visual Documentation (Local Upload)
@@ -593,7 +558,6 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
         </div>
       </div>
 
-      {/* Material and Origin */}
       <div className="w-full">
         <label className="text-[13px] md:text-[15px] font-black uppercase tracking-widest text-black/40">Material</label>
         <input className="w-full bg-transparent border-b border-black/20 p-2 focus:border-[#D4AF37] outline-none font-bold" value={form.material} onChange={e => setForm({...form, material: e.target.value})} />
@@ -604,13 +568,22 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
         <input className="w-full bg-transparent border-b border-black/20 p-2 focus:border-[#D4AF37] outline-none font-bold" value={form.origin} onChange={e => setForm({...form, origin: e.target.value})} />
       </div>
 
-      {/* Series - Full Width */}
       <div className="md:col-span-2">
         <label className="text-[13px] md:text-[15px] font-black uppercase tracking-widest text-black/40">Series / Collection</label>
-        <input className="w-full bg-transparent border-b border-black/20 p-2 focus:border-[#D4AF37] outline-none font-bold italic" value={form.series} onChange={e => setForm({...form, series: e.target.value})} />
+        <input className="w-full bg-transparent border-b border-black/20 p-2 focus:border-[#D4AF37] outline-none font-bold" value={form.series} onChange={e => setForm({...form, series: e.target.value})} />
       </div>
 
-      {/* FORM ACTIONS */}
+      <div className="md:col-span-2">
+        <label className="text-[13px] md:text-[15px] font-black uppercase tracking-widest text-black/40">Description</label>
+        <textarea 
+          className="w-full bg-transparent border border-black/20 p-4 rounded-2xl focus:border-[#D4AF37] outline-none font-medium resize-none" 
+          rows="4"
+          value={form.description} 
+          onChange={e => setForm({...form, description: e.target.value})}
+          placeholder="Describe the product details, features, and craftsmanship..."
+        />
+      </div>
+
 <div className="md:col-span-2 flex flex-col md:flex-row gap-4 mt-6">
   <button 
     type="submit"
@@ -636,10 +609,7 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
   </div>
 )}
 
-        {/* ANALYTICS & NOTIFICATIONS */}
-       {/* ANALYTICS & NOTIFICATIONS */}
 {activeTab === 'stats' && (() => {
-  // --- INTERNAL LOGIC FOR CALCULATIONS ---
   const totalValue = products.reduce((acc, p) => acc + (Number(p.price) || 0), 0);
   const categories = [...new Set(products.map(p => p.category))];
   
@@ -649,7 +619,6 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
   const pendingRevenue = orders.filter(o => ['pending', 'processing', 'shipped'].includes(o.status?.toLowerCase()))
     .reduce((acc, o) => acc + (Number(o.total_amount) || 0), 0);
 
-  // --- DYNAMIC CHART DATA GENERATOR ---
   const getChartData = () => {
     if (chartPeriod === 'Daily') {
       const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -680,16 +649,14 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
   };
 
   const activeChartData = getChartData();
-  const maxAmount = Math.max(...activeChartData.map(d => d.amount), 1);
+  const maxAmount = Math.max(...activeChartData.map(d => d.amount), 100);
   const periodTotal = activeChartData.reduce((acc, curr) => acc + curr.amount, 0);
 
   return (
     <div className="space-y-6 md:space-y-12 animate-in zoom-in-95 duration-500">
       <h2 className="text-3xl md:text-4xl font-serif italic">Analytics</h2>
 
-      {/* 1. TOP CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* REVENUE OVERVIEW */}
         <div className="p-10 bg-black text-white rounded-[3rem] shadow-2xl relative overflow-hidden">
           <div className="relative z-10">
             <div className="flex justify-between items-center mb-8">
@@ -718,7 +685,6 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
           <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-[#D4AF37]/10 rounded-full blur-3xl"></div>
         </div>
 
-        {/* VAULT DENSITY */}
         <div className="p-10 bg-white border border-black/5 rounded-[3rem] flex flex-col justify-between shadow-sm">
           <div>
             <div className="flex justify-between items-start">
@@ -739,7 +705,6 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
         </div>
       </div>
 
-      {/* 2. REVENUE TRENDS CHART */}
       <div className="mt-12 p-10 bg-black text-white rounded-[3rem] shadow-2xl relative overflow-hidden">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-4 relative z-20">
           <div>
@@ -760,27 +725,31 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
         </div>
 
         <div className="flex items-end justify-between gap-2 md:gap-4 h-64 px-2 relative z-10">
-          {activeChartData.map((data, i) => (
-            <div key={i} className="flex-1 flex flex-col items-center gap-4 group">
-              <div className="relative w-full flex justify-center items-end h-full">
-                <div className="absolute -top-8 opacity-0 group-hover:opacity-100 transition-all bg-white text-black text-[9px] font-black px-2 py-1 rounded-lg z-20 whitespace-nowrap">
-                  GH₵{data.amount.toLocaleString()}
+          {activeChartData.map((data, i) => {
+            const barHeight = maxAmount > 0 ? (data.amount / maxAmount) * 100 : 0;
+            const displayHeight = Math.max(barHeight, data.amount > 0 ? 8 : 0);
+            
+            return (
+              <div key={i} className="flex-1 flex flex-col items-center gap-4 group">
+                <div className="relative w-full flex justify-center items-end h-full">
+                  <div className="absolute -top-8 opacity-0 group-hover:opacity-100 transition-all bg-white text-black text-[9px] font-black px-2 py-1 rounded-lg z-20 whitespace-nowrap">
+                    GH₵{data.amount.toLocaleString()}
+                  </div>
+                  <div 
+                    className="w-full max-w-[20px] bg-[#D4AF37] rounded-t-full transition-all duration-1000 ease-out opacity-60 group-hover:opacity-100"
+                    style={{ height: `${displayHeight}%` }}
+                  ></div>
                 </div>
-                <div 
-                  className="w-full max-w-[20px] bg-[#D4AF37] rounded-t-full transition-all duration-1000 ease-out opacity-20 group-hover:opacity-100"
-                  style={{ height: `${(data.amount / maxAmount) * 100}%`, minHeight: '4px' }}
-                ></div>
+                <span className="text-[9px] font-black uppercase text-white/20 group-hover:text-[#D4AF37]">
+                  {data.name}
+                </span>
               </div>
-              <span className="text-[9px] font-black uppercase text-white/20 group-hover:text-[#D4AF37]">
-                {data.name}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
         <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/5 rounded-full blur-[100px] -mr-32 -mt-32"></div>
       </div>
 
-      {/* 3. BROADCAST SECTION */}
       <div className="max-w-xl p-10 bg-white border border-black/5 rounded-[3rem] shadow-sm">
         <h3 className="text-[27px] font-serif italic mb-6 text-[#D4AF37]">Global Homepage Broadcast</h3>
         <textarea 
@@ -799,15 +768,13 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
       </div>
     </div>
   );
-})()}  </main>
-{/* ORDER MANIFEST MODAL */}
-{/* ORDER MANIFEST MODAL */}
-{/* ORDER MANIFEST MODAL */}
+})()}
+  </main>
+
 {isOrderModalOpen && selectedOrder && (
   <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[110] flex items-end md:items-center justify-center">
     <div className="bg-[#FDFBF7] w-full max-w-2xl md:rounded-[3rem] rounded-t-[3rem] p-6 md:p-12 shadow-2xl h-[90vh] md:h-auto overflow-y-auto flex flex-col">
       
-      {/* HEADER: Client Info & Status Dropdown */}
       <div className="flex justify-between items-start mb-8">
         <div>
           <h3 className="text-3xl font-serif italic">Order Manifest</h3>
@@ -832,7 +799,6 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
         </div>
       </div>
 
-      {/* ITEM LIST */}
       <div className="space-y-4 max-h-[25vh] overflow-y-auto pr-4 mb-8 custom-scrollbar">
         <p className="text-[9px] font-black uppercase text-black/20 mb-2">Inventory Items</p>
         {selectedOrder.order_items?.map((item, idx) => (
@@ -843,7 +809,6 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
         ))}
       </div>
 
-      {/* PERSONAL MESSAGE SECTION (The Corrected Version) */}
       <div className="p-8 bg-black rounded-[2.5rem] text-white shadow-xl mb-8">
         <div className="flex justify-between items-center mb-4">
           <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#D4AF37]">Direct Client Dispatch</h4>
@@ -866,7 +831,6 @@ const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].
         </button>
       </div>
 
-      {/* TOTAL & CLOSE */}
       <div className="mt-auto pt-8 border-t border-black/10 flex justify-between items-center">
         <div>
           <p className="text-[10px] font-black uppercase text-black/40">Manifest Total</p>

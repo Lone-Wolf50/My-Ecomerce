@@ -176,8 +176,8 @@ function Orders() {
                   {/* CARD FOOTER */}
                   <div className="flex flex-col sm:flex-row justify-between items-center pt-8 border-t border-black/[0.05] gap-6">
                     <div className="text-center sm:text-left">
-                      <span className="text-[9px] font-black uppercase text-black/20 tracking-[0.3em] block mb-1 font-sans">Investment Total</span>
-                      <span className="text-3xl font-serif italic text-black">GH₵{order.total_amount?.toLocaleString()}</span>
+                      <span className="text-[9px] font-black uppercase text-black/20 tracking-[0.3em] block mb-1 font-sans">Total</span>
+                      <span className="text-3xl font-serif italic text-black">GH&#8373; {order.total_amount?.toLocaleString()}</span>
                     </div>
 
                     <div className="flex gap-3 w-full sm:w-auto">

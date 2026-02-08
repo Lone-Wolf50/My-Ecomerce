@@ -26,7 +26,7 @@ const StatusTracker = ({ currentStatus, orderId }) => {
     >
       <div className={`w-[3px] h-4 rounded-full animate-pulse ${theme.bar}`}></div>
       <div className="flex flex-col items-start">
-        <span className="text-[7px] font-black uppercase tracking-[0.2em] text-black/30 leading-none mb-1">Live Status</span>
+        <span className="text-[7px] font-black uppercase tracking-[0.2em] text-black/30 leading-none mb-1">Track Status</span>
         <span className={`text-[10px] font-black uppercase tracking-widest ${theme.text} leading-none`}>
           {currentStatus || "PLACED"}
         </span>

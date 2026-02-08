@@ -303,7 +303,7 @@ const AdminDashboard = () => {
   const outgoingCount = orders.filter(o => ['delivered', 'cancelled', 'returned'].includes(o.status?.toLowerCase())).length;
  
   return (
-    <div className="min-h-screen bg-[#FDFBF7] text-black font-sans flex select-none">
+    <div className="min-h-screen bg-[#FDFBF7] text-black font-sans flex">
       <nav className={`
         fixed inset-y-0 left-0 transform ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} 
         md:translate-x-0 md:relative md:flex
@@ -817,6 +817,13 @@ const AdminDashboard = () => {
                 <h3 className="text-3xl font-serif italic">Order Manifest</h3>
                 <p className="text-[10px] font-black uppercase text-black/40 tracking-widest mt-1">
                   Registry ID: {selectedOrder.id.slice(0,8)}...
+                </p>
+                <p className="text-[9px] font-bold text-[#D4AF37] uppercase tracking-wider mt-2">
+                  Placed: {new Date(selectedOrder.created_at).toLocaleDateString('en-GB', { 
+                    day: '2-digit', 
+                    month: 'short', 
+                    year: 'numeric' 
+                  })}
                 </p>
               </div>
               

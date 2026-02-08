@@ -77,11 +77,74 @@ function Orders() {
     }
   };
 
+  const handleReturnOrder = async (orderId) => {
+    const result = await Swal.fire({
+      title: 'INITIATE RETURN?',
+      text: "This will start the return process for your order.",
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#D4AF37',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'YES, RETURN ITEM',
+      background: "#FDFBF7",
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const { error } = await supabase
+          .from('orders')
+          .update({ status: 'returned' })
+          .eq('id', orderId);
+
+        if (error) throw error;
+        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'returned' } : o));
+        Swal.fire({
+          title: 'Return Initiated',
+          text: 'Your return request has been submitted. Our team will contact you shortly.',
+          icon: 'success',
+          background: "#FDFBF7"
+        });
+      } catch (err) {
+        Swal.fire('Error', err.message, 'error');
+      }
+    }
+  };
+
   const handleReorder = (items) => {
     items.forEach(item => { if (item.products) addToCart(item.products); });
     Swal.fire({ title: 'Added to Bag', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
   };
 
+  // Helper function to calculate return eligibility
+  const getReturnStatus = (order) => {
+    const status = order.status?.toLowerCase();
+    
+    if (status !== 'delivered') {
+      return { canReturn: false, message: '', daysRemaining: 0 };
+    }
+
+    // NEW LOGIC: If delivered_at is null, treat it as "Just Delivered" (Date.now())
+    // This prevents old updated_at timestamps from locking the return button.
+    const deliveredAtDate = order.delivered_at 
+      ? new Date(order.delivered_at) 
+      : new Date(); // <--- Change this from order.updated_at to new Date()
+    
+    const currentDate = new Date();
+    
+    const diffTime = currentDate - deliveredAtDate;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    const daysRemaining = 5 - diffDays;
+    const canReturn = daysRemaining > 0;
+
+    return {
+      canReturn: canReturn,
+      message: canReturn 
+        ? `${daysRemaining} day${daysRemaining === 1 ? '' : 's'} left to return` 
+        : 'Not returnable',
+      daysRemaining: Math.max(0, daysRemaining)
+    };
+  };
   const filteredOrders = orders.filter(order => {
     const status = order.status?.toLowerCase();
     if (activeTab === "ongoing") {
@@ -97,11 +160,10 @@ function Orders() {
   );
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] py-12 px-4 md:px-20 font-sans text-black relative overflow-hidden">
+    <div className="min-h-screen bg-[#FDFBF7] py-12 px-4 md:px-20 font-sans text-black relative overflow-hidden select-none">
       <Navbar />
       
       <div className="max-w-4xl mx-auto mt-24 relative z-10">
-        {/* PAGE HEADER */}
         <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-black/5 pb-8">
           <div>
             <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[#D4AF37]">Private Collection</span>
@@ -123,7 +185,6 @@ function Orders() {
           </div>
         </header>
         
-        {/* ORDERS LIST */}
         <div className="flex flex-col gap-8">
           {filteredOrders.length === 0 ? (
             <div className="text-center py-32 bg-white/40 rounded-[3rem] border border-dashed border-black/10">
@@ -133,13 +194,14 @@ function Orders() {
             filteredOrders.map((order) => {
               const items = order.order_items || []; 
               const orderDate = new Date(order.created_at);
+              const returnStatus = getReturnStatus(order);
+              const isDelivered = order.status?.toLowerCase() === 'delivered';
 
               return (
                 <div 
                   key={order.id} 
                   className="group relative p-8 md:p-10 rounded-[3rem] bg-white border border-black/[0.03] shadow-[0_4px_20px_rgba(0,0,0,0.02)] transition-all hover:shadow-2xl hover:shadow-black/5"
                 >
-                  {/* CARD HEADER: Aligned Date and Status */}
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                     <div className="space-y-2">
                       <p className="text-[9px] font-black text-[#D4AF37] uppercase tracking-[0.5em]">Registry ID • {order.id.slice(0, 8)}</p>
@@ -148,11 +210,21 @@ function Orders() {
                       </h2>
                     </div>
                     
-                    {/* Status Tracker - Now properly aligned */}
-                    <StatusTracker currentStatus={order.status} orderId={order.id} />
+                    <div className="flex flex-col items-end gap-2">
+                      <StatusTracker currentStatus={order.status} orderId={order.id} />
+                      
+                      {isDelivered && (
+                        <div className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-wider transition-colors duration-300 ${
+                          returnStatus.canReturn 
+                            ? 'bg-green-50 text-green-600 border border-green-200' 
+                            : 'bg-gray-100 text-gray-400 border border-gray-200'
+                        }`}>
+                          {returnStatus.message}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  {/* ASSET GRID */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12">
                     {items.map((item, idx) => (
                       <div key={idx} className="flex items-center gap-5 p-4 rounded-[1.5rem] bg-[#FDFBF7] border border-black/[0.02] transition-colors hover:bg-white hover:border-black/10">
@@ -173,20 +245,20 @@ function Orders() {
                     ))}
                   </div>
 
-                  {/* CARD FOOTER */}
                   <div className="flex flex-col sm:flex-row justify-between items-center pt-8 border-t border-black/[0.05] gap-6">
                     <div className="text-center sm:text-left">
                       <span className="text-[9px] font-black uppercase text-black/20 tracking-[0.3em] block mb-1 font-sans">Total</span>
                       <span className="text-3xl font-serif italic text-black">GH&#8373; {order.total_amount?.toLocaleString()}</span>
                     </div>
 
-                    <div className="flex gap-3 w-full sm:w-auto">
+                    <div className="flex gap-3 w-full sm:w-auto flex-wrap justify-center sm:justify-end">
                       <button 
                         onClick={() => handleReorder(items)}
                         className="flex-1 sm:flex-none px-8 py-4 rounded-2xl bg-black text-white text-[10px] font-black uppercase tracking-widest hover:bg-[#D4AF37] hover:text-black transition-all active:scale-95 shadow-lg shadow-black/10"
                       >
                         Reorder
                       </button>
+                      
                       {activeTab === "ongoing" && (
                         <button 
                           onClick={() => handleCancelOrder(order.id)}
@@ -194,6 +266,24 @@ function Orders() {
                         >
                           Cancel
                         </button>
+                      )}
+
+                      {isDelivered && (
+                        returnStatus.canReturn ? (
+                          <button 
+                            onClick={() => handleReturnOrder(order.id)}
+                            className="flex-1 sm:flex-none px-8 py-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-black uppercase tracking-widest hover:bg-amber-100 transition-all active:scale-95"
+                          >
+                            Return Item
+                          </button>
+                        ) : (
+                          <button 
+                            disabled
+                            className="flex-1 sm:flex-none px-8 py-4 rounded-2xl bg-gray-100 border border-gray-200 text-gray-400 text-[10px] font-black uppercase tracking-widest cursor-not-allowed"
+                          >
+                            Not Returnable
+                          </button>
+                        )
                       )}
                     </div>
                   </div>

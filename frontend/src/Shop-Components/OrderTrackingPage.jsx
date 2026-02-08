@@ -45,6 +45,26 @@ const OrderTrackingPage = () => {
     fetchOrderDetails();
   }, [Id]);
 
+  // Helper function to calculate return eligibility
+  const getReturnStatus = (order) => {
+    if (!order || order.status?.toLowerCase() !== 'delivered') {
+      return { canReturn: false, message: '', daysRemaining: 0 };
+    }
+
+    const deliveryDate = new Date(order.updated_at);
+    const currentDate = new Date();
+    const daysSinceDelivery = Math.floor((currentDate - deliveryDate) / (1000 * 60 * 60 * 24));
+    const daysRemaining = 5 - daysSinceDelivery;
+
+    return {
+      canReturn: daysRemaining > 0,
+      message: daysRemaining > 0 
+        ? `${daysRemaining} day${daysRemaining === 1 ? '' : 's'} left to return` 
+        : 'Item not returnable',
+      daysRemaining: Math.max(0, daysRemaining)
+    };
+  };
+
   if (loading) return (
     <div className="h-screen bg-[#FDFBF7] flex items-center justify-center font-black text-[10px] tracking-[0.5em] animate-pulse text-[#D4AF37]">
       DECRYPTING_PATH...
@@ -63,6 +83,7 @@ const OrderTrackingPage = () => {
   // SAFE STATUS LOGIC
   const rawStatus = order.status?.toLowerCase() || 'placed';
   const isCancelled = rawStatus === 'cancelled';
+  const returnStatus = getReturnStatus(order);
   
   // Find the index, but default to 0 (placed) if the status is unrecognized
   const foundIndex = stages.indexOf(rawStatus);
@@ -72,8 +93,12 @@ const OrderTrackingPage = () => {
     <div className="min-h-screen bg-[#FDFBF7] text-black pb-20 font-sans">
       <Navbar />
       <div className="max-w-xl mx-auto pt-32 px-8">
-        <button onClick={() => navigate(-1)} className="mb-12 text-[9px] font-black uppercase tracking-widest opacity-30 hover:opacity-100 italic underline underline-offset-8">
-          ← Back to Archives
+        <button 
+          onClick={() => navigate('/')} 
+          className="group mb-12 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black/30 hover:text-black transition-all"
+        >
+          <span className="material-symbols-outlined text-base group-hover:-translate-x-1 transition-transform">arrow_back</span>
+          Return to Home
         </button>
         
         <header className="mb-20">
@@ -103,6 +128,7 @@ const OrderTrackingPage = () => {
             const isPast = idx < currentIndex;
             const isCurrent = idx === currentIndex && !isCancelled;
             const stageColor = colors[stage] || colors.default;
+            const isDeliveredStage = stage === 'delivered' && isCurrent;
             
             return (
               <div key={stage} className={`flex items-start gap-8 transition-all duration-700 ${
@@ -131,20 +157,33 @@ const OrderTrackingPage = () => {
                     {stage}
                   </h3>
                   
-                  {isCurrent && (
+                  {/* Special handling for delivered stage */}
+                  {isDeliveredStage ? (
+                    <div className="space-y-2">
+                      <div className={`px-3 py-1.5 rounded-lg inline-block ${
+                        returnStatus.canReturn 
+                          ? 'bg-green-50 border border-green-200' 
+                          : 'bg-gray-50 border border-gray-200'
+                      }`}>
+                        <p className={`text-[9px] font-bold uppercase tracking-tight ${
+                          returnStatus.canReturn ? 'text-green-600' : 'text-gray-400'
+                        }`}>
+                          {returnStatus.message}
+                        </p>
+                      </div>
+                    </div>
+                  ) : isCurrent && !isDeliveredStage ? (
                     <div className="flex items-center gap-2">
                       <div className={`w-2 h-2 rounded-full ${stageColor.dot} animate-pulse`}></div>
                       <p className={`text-[10px] font-bold uppercase tracking-tight ${stageColor.text}`}>
                         In Progress
                       </p>
                     </div>
-                  )}
-                  
-                  {isPast && (
+                  ) : isPast ? (
                     <p className="text-[9px] font-semibold text-black/40 uppercase tracking-tight">
                       Completed
                     </p>
-                  )}
+                  ) : null}
                 </div>
               </div>
             );

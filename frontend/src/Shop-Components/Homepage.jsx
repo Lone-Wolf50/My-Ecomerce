@@ -142,17 +142,19 @@ function Homepage() {
 		},
 	];
 
+	// Hero Carousel - Improved auto-play with smooth transitions
 	useEffect(() => {
 		const interval = setInterval(() => {
 			setCurrentSlide((prev) => (prev + 1) % carouselSlides.length);
-		}, 5000);
+		}, 6000); // Changed to 6 seconds for better UX
 		return () => clearInterval(interval);
 	}, [carouselSlides.length]);
 
+	// Collection Carousel - Improved auto-play
 	useEffect(() => {
 		const interval = setInterval(() => {
 			setCurrentCollectionSlide((prev) => (prev + 1) % bagCategories.length);
-		}, 4000);
+		}, 5000); // Changed to 5 seconds
 		return () => clearInterval(interval);
 	}, [bagCategories.length]);
 
@@ -290,8 +292,20 @@ function Homepage() {
 			}
 		};
 
+		// Prevent back navigation to login page after successful login
+		const preventBackToLogin = () => {
+			// Replace current state to prevent going back to login
+			window.history.pushState(null, '', window.location.pathname);
+		};
+
+		preventBackToLogin();
+		window.addEventListener('popstate', preventBackToLogin);
 		window.addEventListener("storage", syncAuth);
-		return () => window.removeEventListener("storage", syncAuth);
+		
+		return () => {
+			window.removeEventListener('popstate', preventBackToLogin);
+			window.removeEventListener("storage", syncAuth);
+		};
 	}, []);
 
 	const handleLogout = async () => {
@@ -345,6 +359,20 @@ function Homepage() {
 		const q = searchQuery.toLowerCase();
 		return name.includes(q) || cat.includes(q);
 	});
+
+	// Manual navigation for hero carousel
+	const handlePrevSlide = () => {
+		setCurrentSlide((prev) => (prev - 1 + carouselSlides.length) % carouselSlides.length);
+	};
+
+	const handleNextSlide = () => {
+		setCurrentSlide((prev) => (prev + 1) % carouselSlides.length);
+	};
+
+	// Manual navigation for collection carousel
+	const handleCollectionNav = (index) => {
+		setCurrentCollectionSlide(index);
+	};
 
 	if (loading) {
 		return (
@@ -791,45 +819,51 @@ function Homepage() {
 			</header>
 
 			<main className="max-w-[1440px] mx-auto px-8 pt-24">
-				{/* HERO CAROUSEL */}
+				{/* HERO CAROUSEL - Improved Animations */}
 				<section className="mt-8 mb-16 relative overflow-hidden rounded-[2.5rem] shadow-2xl h-[500px] md:h-[600px]">
-					{carouselSlides.map((slide, index) => (
-						<div
-							key={slide.id}
-							className={`absolute inset-0 transition-all duration-1000 ease-in-out ${
-								index === currentSlide
-									? "opacity-100 translate-x-0"
-									: "opacity-0 translate-x-full"
-							}`}
-							style={{
-								backgroundImage: `linear-gradient(to right, rgba(0,0,0,0.7), rgba(0,0,0,0.3)), url(${slide.image})`,
-								backgroundSize: "cover",
-								backgroundPosition: "center",
-							}}
-						>
-							<div className="absolute inset-0 flex items-center px-8 md:px-16 lg:px-24">
-								<div className="max-w-2xl text-white">
-									<p className="text-[10px] md:text-[12px] font-black uppercase tracking-[0.5em] text-[#D4AF37] mb-4">
-										{slide.subtitle}
-									</p>
-									<h2 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tighter leading-none mb-6">
-										{slide.title}
-									</h2>
-									<p className="text-base md:text-lg text-white/90 mb-8 max-w-xl leading-relaxed">
-										{slide.description}
-									</p>
-									<Link
-										to={`/shop/${slide.category}`}
-										className="inline-block bg-[#D4AF37] text-white px-10 py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest shadow-xl hover:bg-white hover:text-[#D4AF37] transition-all duration-500"
-									>
-										Shop {slide.categoryName}
-									</Link>
+					<div className="relative w-full h-full">
+						{carouselSlides.map((slide, index) => (
+							<div
+								key={slide.id}
+								className={`absolute inset-0 transition-all duration-700 ease-in-out ${
+									index === currentSlide
+										? "opacity-100 scale-100 z-10"
+										: index === (currentSlide - 1 + carouselSlides.length) % carouselSlides.length
+										? "opacity-0 scale-95 z-0"
+										: "opacity-0 scale-105 z-0"
+								}`}
+								style={{
+									backgroundImage: `linear-gradient(to right, rgba(0,0,0,0.7), rgba(0,0,0,0.3)), url(${slide.image})`,
+									backgroundSize: "cover",
+									backgroundPosition: "center",
+								}}
+							>
+								<div className="absolute inset-0 flex items-center px-8 md:px-16 lg:px-24">
+									<div className={`max-w-2xl text-white transition-all duration-700 ${
+										index === currentSlide ? "translate-x-0 opacity-100" : "-translate-x-10 opacity-0"
+									}`}>
+										<p className="text-[10px] md:text-[12px] font-black uppercase tracking-[0.5em] text-[#D4AF37] mb-4">
+											{slide.subtitle}
+										</p>
+										<h2 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tighter leading-none mb-6">
+											{slide.title}
+										</h2>
+										<p className="text-base md:text-lg text-white/90 mb-8 max-w-xl leading-relaxed">
+											{slide.description}
+										</p>
+										<Link
+											to={`/shop/${slide.category}`}
+											className="inline-block bg-[#D4AF37] text-white px-10 py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest shadow-xl hover:bg-white hover:text-[#D4AF37] transition-all duration-500"
+										>
+											Shop {slide.categoryName}
+										</Link>
+									</div>
 								</div>
 							</div>
-						</div>
-					))}
+						))}
+					</div>
 
-					<div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-3 z-10">
+					<div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-3 z-20">
 						{carouselSlides.map((_, index) => (
 							<button
 								key={index}
@@ -837,30 +871,23 @@ function Homepage() {
 								className={`h-2 rounded-full transition-all duration-500 ${
 									index === currentSlide
 										? "w-12 bg-[#D4AF37]"
-										: "w-2 bg-white/50"
+										: "w-2 bg-white/50 hover:bg-white/80"
 								}`}
 							/>
 						))}
 					</div>
 
 					<button
-						onClick={() =>
-							setCurrentSlide(
-								(prev) =>
-									(prev - 1 + carouselSlides.length) % carouselSlides.length,
-							)
-						}
-						className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-md hover:bg-white/40 p-3 rounded-full transition-all z-10"
+						onClick={handlePrevSlide}
+						className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-md hover:bg-white/40 p-3 rounded-full transition-all z-20"
 					>
 						<span className="material-symbols-outlined text-white">
 							chevron_left
 						</span>
 					</button>
 					<button
-						onClick={() =>
-							setCurrentSlide((prev) => (prev + 1) % carouselSlides.length)
-						}
-						className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-md hover:bg-white/40 p-3 rounded-full transition-all z-10"
+						onClick={handleNextSlide}
+						className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-md hover:bg-white/40 p-3 rounded-full transition-all z-20"
 					>
 						<span className="material-symbols-outlined text-white">
 							chevron_right
@@ -868,7 +895,7 @@ function Homepage() {
 					</button>
 				</section>
 
-				{/* FEATURED COLLECTIONS CAROUSEL */}
+				{/* FEATURED COLLECTIONS CAROUSEL - Improved Animations */}
 				<section className="py-20 border-t border-black/5">
 					<h2 className="text-4xl font-black uppercase mb-12 text-black tracking-tighter">
 						Featured Collections
@@ -876,23 +903,29 @@ function Homepage() {
 
 					<div className="relative">
 						<div className="overflow-hidden rounded-[2rem]">
-							<div
-								className="flex transition-transform duration-700 ease-in-out"
-								style={{
-									transform: `translateX(-${currentCollectionSlide * 100}%)`,
-								}}
-							>
-								{bagCategories.map((cat) => (
-									<div key={cat.id} className="min-w-full">
+							<div className="relative h-full">
+								{bagCategories.map((cat, index) => (
+									<div 
+										key={cat.id} 
+										className={`transition-all duration-700 ease-in-out ${
+											index === currentCollectionSlide 
+												? "opacity-100 scale-100 relative" 
+												: "opacity-0 scale-95 absolute inset-0 pointer-events-none"
+										}`}
+									>
 										<div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center p-8 md:p-16 bg-white/40 backdrop-blur-sm border border-black/5 rounded-[2rem]">
-											<div className="aspect-[4/5] rounded-[2rem] overflow-hidden shadow-2xl">
+											<div className={`aspect-[4/5] rounded-[2rem] overflow-hidden shadow-2xl transition-all duration-700 ${
+												index === currentCollectionSlide ? "translate-x-0 opacity-100" : "-translate-x-10 opacity-0"
+											}`}>
 												<div
 													className="w-full h-full bg-cover bg-center transition-transform duration-700 hover:scale-105"
 													style={{ backgroundImage: `url(${cat.image})` }}
 												></div>
 											</div>
 
-											<div className="flex flex-col gap-6">
+											<div className={`flex flex-col gap-6 transition-all duration-700 delay-150 ${
+												index === currentCollectionSlide ? "translate-x-0 opacity-100" : "translate-x-10 opacity-0"
+											}`}>
 												<div>
 													<p className="text-[10px] font-black uppercase tracking-[0.4em] text-[#D4AF37] mb-3">
 														Premium Collection
@@ -924,11 +957,11 @@ function Homepage() {
 							{bagCategories.map((_, index) => (
 								<button
 									key={index}
-									onClick={() => setCurrentCollectionSlide(index)}
+									onClick={() => handleCollectionNav(index)}
 									className={`h-2 rounded-full transition-all duration-500 ${
 										index === currentCollectionSlide
 											? "w-12 bg-[#D4AF37]"
-											: "w-2 bg-black/20"
+											: "w-2 bg-black/20 hover:bg-black/40"
 									}`}
 								/>
 							))}

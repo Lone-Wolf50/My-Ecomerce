@@ -13,6 +13,7 @@ import AuthPage from "./AuthPage.jsx";
 import Orders from "./Orders.jsx"; 
 import Reviews from "./Reviews.jsx";
 import AdminDashboard from "./AdminDashboard.jsx";
+import Support from "./Support.jsx";
 
 // --- 1. CRYPTO POLYFILL ---
 if (typeof window !== "undefined" && !window.crypto.randomUUID) {
@@ -82,9 +83,7 @@ function RoutePages() {
   }, []);
 
   // --- 3. SECURITY ALERT ---
-// --- 3. SECURITY ALERT ---// --- 3. SECURITY ALERT (UPDATED FIX) ---
-// --- UPDATED SECURITY CHECK ---
-useEffect(() => {
+  useEffect(() => {
     const checkSessionSecurity = async () => {
         const currentUserId = sessionStorage.getItem('userUuid');
         const localId = sessionStorage.getItem("current_device_session");
@@ -119,7 +118,7 @@ useEffect(() => {
 
     const interval = setInterval(checkSessionSecurity, 5000); // Checks every 5 seconds
     return () => clearInterval(interval);
-}, []);  // Dependency on navigate ensures it stays activeoved 'session' as a dependency, using storage instead
+  }, []);
 
   if (loading) return (
     <div className="h-screen bg-[#FDFBF7] flex items-center justify-center">
@@ -134,18 +133,18 @@ useEffect(() => {
         <Route path="/shop/:categoryName" element={<CategoryPage />} />
         <Route path="/product/:id" element={<ProductDetail />} />
         <Route path="/reviews" element={<Reviews />} />
+        <Route path="/support" element={<Support />} />
         <Route path="/orders" element={session ? <Orders /> : <Navigate to="/login" replace />} />
-<Route path="/track/:Id" element={session ? <OrderTrackingPage /> : <Navigate to="/login" replace />} />
+        <Route path="/track/:Id" element={session ? <OrderTrackingPage /> : <Navigate to="/login" replace />} />
         <Route path="/login" element={!session ? <AuthPage /> : <Navigate to="/" replace />} />
 
         <Route path="/cart" element={session ? <Cart /> : <Navigate to="/login" replace />} />
         <Route path="/checkout" element={session ? <CheckoutPage /> : <Navigate to="/login" state={{ from: location }} replace />} />
-        <Route path="/orders" element={session ? <Orders /> : <Navigate to="/login" replace />} />
         <Route path="/order-confirmed" element={session ? <OrderConfirmed /> : <Navigate to="/" />} />
-<Route 
-  path="/admin-dashboard" 
-  element={session && sessionStorage.getItem("isAdmin") === "true" ? <AdminDashboard /> : <Navigate to="/login" replace />} 
-/>
+        <Route 
+          path="/admin-dashboard" 
+          element={session && sessionStorage.getItem("isAdmin") === "true" ? <AdminDashboard /> : <Navigate to="/login" replace />} 
+        />
         <Route path="*" element={
           <div className="h-screen bg-[#FDFBF7] flex flex-col items-center justify-center text-center p-6">
             <h1 className="text-[120px] font-serif italic text-[#D4AF37] opacity-20">404</h1>

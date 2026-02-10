@@ -78,7 +78,7 @@ function Homepage() {
 		{
 			id: "crossbody",
 			title: "Crossbody BAGS",
-			image: "/Images/Crossbody2.jpg",
+			image: "/Images/Crossbody3.jpg",
 		},
 		{ id: "underarm", title: "Underarm BAGS", image: "/Images/underarms.jpg" },
 		{ id: "picnic", title: "Summer/Picnic BAGS", image: "/Images/summer.jpg" },
@@ -243,10 +243,27 @@ function Homepage() {
 			if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
 				setIsDropdownOpen(false);
 			}
+			// Close search dropdown when clicking outside
+			if (searchRef.current && !searchRef.current.contains(event.target)) {
+				setSearchQuery("");
+			}
 		};
+
+		const handleScroll = () => {
+			// Close search dropdown when scrolling
+			if (searchQuery) {
+				setSearchQuery("");
+			}
+		};
+
 		document.addEventListener("mousedown", handleClickOutside);
-		return () => document.removeEventListener("mousedown", handleClickOutside);
-	}, []);
+		window.addEventListener("scroll", handleScroll);
+		
+		return () => {
+			document.removeEventListener("mousedown", handleClickOutside);
+			window.removeEventListener("scroll", handleScroll);
+		};
+	}, [searchQuery]);
 
 	useEffect(() => {
 		const initializePage = async () => {
@@ -597,6 +614,15 @@ function Homepage() {
 								Orders
 							</Link>
 						)}
+						
+						<Link
+							className="flex items-center gap-4 text-xs font-black uppercase tracking-widest p-4 rounded-2xl hover:bg-black/5 transition-all"
+							to="/support"
+							onClick={() => setIsMenuOpen(false)}
+						>
+							<span className="material-symbols-outlined">support_agent</span> Support
+						</Link>
+
 						<Link
 							className="flex items-center gap-4 text-xs font-black uppercase tracking-widest p-4 rounded-2xl hover:bg-black/5 transition-all"
 							to="/reviews"
@@ -706,9 +732,9 @@ function Homepage() {
 					<nav className="hidden md:flex items-center gap-6">
 						<Link
 							className="text-[13px] font-bold uppercase tracking-[0.25em] hover:text-[#D4AF37] transition-colors"
-							to="/"
+							to="/support"
 						>
-							Home
+							Support
 						</Link>
 						<Link
 							className="text-[13px] font-bold uppercase tracking-[0.25em] hover:text-[#D4AF37] transition-colors"
@@ -913,8 +939,8 @@ function Homepage() {
 												: "opacity-0 scale-95 absolute inset-0 pointer-events-none"
 										}`}
 									>
-										<div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center p-8 md:p-16 bg-white/40 backdrop-blur-sm border border-black/5 rounded-[2rem]">
-											<div className={`aspect-[4/5] rounded-[2rem] overflow-hidden shadow-2xl transition-all duration-700 ${
+										<div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center p-6 md:p-12 bg-white/40 backdrop-blur-sm border border-black/5 rounded-[2rem]">
+											<div className={`aspect-[3/4] max-h-[400px] rounded-[2rem] overflow-hidden shadow-2xl transition-all duration-700 ${
 												index === currentCollectionSlide ? "translate-x-0 opacity-100" : "-translate-x-10 opacity-0"
 											}`}>
 												<div
@@ -930,10 +956,10 @@ function Homepage() {
 													<p className="text-[10px] font-black uppercase tracking-[0.4em] text-[#D4AF37] mb-3">
 														Premium Collection
 													</p>
-													<h3 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-black mb-4">
+													<h3 className="text-3xl md:text-4xl font-black uppercase tracking-tighter text-black mb-4">
 														{cat.title}
 													</h3>
-													<p className="text-lg text-black/60 leading-relaxed">
+													<p className="text-base text-black/60 leading-relaxed">
 														Discover our exclusive range of handcrafted luxury
 														bags. Each piece tells a story of elegance,
 														sophistication, and timeless style.

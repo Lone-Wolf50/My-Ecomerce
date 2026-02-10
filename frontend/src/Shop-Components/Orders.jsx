@@ -27,9 +27,7 @@ function Orders() {
         .select(`
           *,
           order_items (
-            product_id,
-            quantity,
-            price,
+            product_id, quantity, price,
             products (*) 
           )
         `) 
@@ -49,61 +47,80 @@ function Orders() {
     fetchOrders();
   }, [fetchOrders]);
 
-  const handleCancelOrder = async (orderId) => {
-    const result = await Swal.fire({
+  // Helper to send messages to Admin
+  const sendAdminMessage = async (order, reason, type) => {
+    const storedUuid = sessionStorage.getItem('userUuid');
+    
+    const { error } = await supabase.from('admin_messages').insert([{
+      user_id: storedUuid,
+      user_email: order.customer_email || 'No email provided',
+      user_name: order.customer_name || 'Valued Client',
+      order_id: order.id,
+      message_type: type, 
+      reason: reason,
+      status: 'unread'
+    }]);
+
+    if (error) console.error("Admin Message Error:", error.message);
+  };
+
+  const handleCancelOrder = async (order) => {
+    const { value: reason } = await Swal.fire({
       title: 'CANCEL ORDER?',
-      text: "This will move the order to your cancelled history.",
-      icon: 'warning',
+      input: 'textarea',
+      inputLabel: 'Reason for cancellation',
+      inputPlaceholder: 'Please provide a reason (min 10 characters)...',
+      inputAttributes: { 'aria-label': 'Type your reason here' },
       showCancelButton: true,
       confirmButtonColor: '#000',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'CONFIRM CANCEL',
       background: "#FDFBF7",
+      inputValidator: (value) => {
+        if (!value || value.length < 10) {
+          return 'Please provide a detailed reason (at least 10 characters).';
+        }
+      }
     });
 
-    if (result.isConfirmed) {
+    if (reason) {
       try {
-        const { error } = await supabase
-          .from('orders')
-          .update({ status: 'cancelled' })
-          .eq('id', orderId);
-
+        const { error } = await supabase.from('orders').update({ status: 'cancelled' }).eq('id', order.id);
         if (error) throw error;
-        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'cancelled' } : o));
-        Swal.fire('Cancelled', 'Order moved to history.', 'success');
+        
+        await sendAdminMessage(order, reason, 'cancel');
+        
+        setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'cancelled' } : o));
+        Swal.fire('Cancelled', 'Order cancellation submitted.', 'success');
       } catch (err) {
         Swal.fire('Error', err.message, 'error');
       }
     }
   };
 
-  const handleReturnOrder = async (orderId) => {
-    const result = await Swal.fire({
+  const handleReturnOrder = async (order) => {
+    const { value: reason } = await Swal.fire({
       title: 'INITIATE RETURN?',
-      text: "This will start the return process for your order.",
-      icon: 'question',
+      input: 'textarea',
+      inputLabel: 'Reason for return',
+      inputPlaceholder: 'Tell us why you are returning this item (min 10 characters)...',
       showCancelButton: true,
       confirmButtonColor: '#D4AF37',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'YES, RETURN ITEM',
       background: "#FDFBF7",
+      inputValidator: (value) => {
+        if (!value || value.length < 10) {
+          return 'Reason must be at least 10 characters.';
+        }
+      }
     });
 
-    if (result.isConfirmed) {
+    if (reason) {
       try {
-        const { error } = await supabase
-          .from('orders')
-          .update({ status: 'returned' })
-          .eq('id', orderId);
-
+        const { error } = await supabase.from('orders').update({ status: 'returned' }).eq('id', order.id);
         if (error) throw error;
-        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'returned' } : o));
-        Swal.fire({
-          title: 'Return Initiated',
-          text: 'Your return request has been submitted. Our team will contact you shortly.',
-          icon: 'success',
-          background: "#FDFBF7"
-        });
+
+        await sendAdminMessage(order, reason, 'return');
+
+        setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'returned' } : o));
+        Swal.fire('Initiated', 'Our team will review your return request.', 'success');
       } catch (err) {
         Swal.fire('Error', err.message, 'error');
       }
@@ -115,42 +132,30 @@ function Orders() {
     Swal.fire({ title: 'Added to Bag', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
   };
 
-  // Helper function to calculate return eligibility
   const getReturnStatus = (order) => {
     const status = order.status?.toLowerCase();
-    
-    if (status !== 'delivered') {
-      return { canReturn: false, message: '', daysRemaining: 0 };
-    }
+    if (status !== 'delivered') return { canReturn: false, message: '', daysRemaining: 0 };
 
-    // NEW LOGIC: If delivered_at is null, treat it as "Just Delivered" (Date.now())
-    // This prevents old updated_at timestamps from locking the return button.
-    const deliveredAtDate = order.delivered_at 
-      ? new Date(order.delivered_at) 
-      : new Date(); // <--- Change this from order.updated_at to new Date()
-    
-    const currentDate = new Date();
-    
-    const diffTime = currentDate - deliveredAtDate;
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    // Fallback: If delivered_at is null, we treat "now" as the delivery date
+    const deliveredAtDate = order.delivered_at ? new Date(order.delivered_at) : new Date();
+    const diffDays = Math.floor((new Date() - deliveredAtDate) / (1000 * 60 * 60 * 24));
     
     const daysRemaining = 5 - diffDays;
     const canReturn = daysRemaining > 0;
 
     return {
-      canReturn: canReturn,
-      message: canReturn 
-        ? `${daysRemaining} day${daysRemaining === 1 ? '' : 's'} left to return` 
-        : 'Not returnable',
+      canReturn,
+      message: canReturn ? `${daysRemaining} day${daysRemaining === 1 ? '' : 's'} left to return` : 'Not returnable',
       daysRemaining: Math.max(0, daysRemaining)
     };
   };
+
   const filteredOrders = orders.filter(order => {
     const status = order.status?.toLowerCase();
     if (activeTab === "ongoing") {
-      return status === "pending" || status === "processing" || status === "shipped";
+      return ["pending", "processing", "shipped"].includes(status);
     }
-    return status === "delivered" || status === "cancelled" || status === "returned";
+    return ["delivered", "cancelled", "returned"].includes(status);
   });
 
   if (loading) return (
@@ -162,23 +167,18 @@ function Orders() {
   return (
     <div className="min-h-screen bg-[#FDFBF7] py-12 px-4 md:px-20 font-sans text-black relative overflow-hidden select-none">
       <Navbar />
-      
       <div className="max-w-4xl mx-auto mt-24 relative z-10">
         <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-black/5 pb-8">
           <div>
             <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[#D4AF37]">Private Collection</span>
             <h1 className="text-4xl font-serif italic text-black/90 mt-1">Order Archives</h1>
           </div>
-
           <div className="flex bg-black/[0.03] p-1.5 rounded-full border border-black/5 backdrop-blur-md">
             {['ongoing', 'history'].map((tab) => (
-              <button 
-                key={tab}
-                onClick={() => setActiveTab(tab)}
+              <button key={tab} onClick={() => setActiveTab(tab)}
                 className={`px-8 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all duration-500 ${
                   activeTab === tab ? 'bg-white text-black shadow-xl shadow-black/5' : 'text-black/30 hover:text-black'
-                }`}
-              >
+                }`}>
                 {tab}
               </button>
             ))}
@@ -193,26 +193,20 @@ function Orders() {
           ) : (
             filteredOrders.map((order) => {
               const items = order.order_items || []; 
-              const orderDate = new Date(order.created_at);
               const returnStatus = getReturnStatus(order);
-              const isDelivered = order.status?.toLowerCase() === 'delivered';
+              const status = order.status?.toLowerCase();
+              const isDelivered = status === 'delivered';
+              const canCancel = ["processing", "shipped"].includes(status);
 
               return (
-                <div 
-                  key={order.id} 
-                  className="group relative p-8 md:p-10 rounded-[3rem] bg-white border border-black/[0.03] shadow-[0_4px_20px_rgba(0,0,0,0.02)] transition-all hover:shadow-2xl hover:shadow-black/5"
-                >
+                <div key={order.id} className="group relative p-8 md:p-10 rounded-[3rem] bg-white border border-black/[0.03] shadow-sm transition-all hover:shadow-2xl">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                     <div className="space-y-2">
                       <p className="text-[9px] font-black text-[#D4AF37] uppercase tracking-[0.5em]">Registry ID • {order.id.slice(0, 8)}</p>
-                      <h2 className="text-2xl md:text-3xl font-serif italic text-black/90">
-                        {orderDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
-                      </h2>
+                      <h2 className="text-2xl md:text-3xl font-serif italic text-black/90">{new Date(order.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</h2>
                     </div>
-                    
                     <div className="flex flex-col items-end gap-2">
                       <StatusTracker currentStatus={order.status} orderId={order.id} />
-                      
                       {isDelivered && (
                         <div className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-wider transition-colors duration-300 ${
                           returnStatus.canReturn 
@@ -250,37 +244,33 @@ function Orders() {
                       <span className="text-[9px] font-black uppercase text-black/20 tracking-[0.3em] block mb-1 font-sans">Total</span>
                       <span className="text-3xl font-serif italic text-black">GH&#8373; {order.total_amount?.toLocaleString()}</span>
                     </div>
-
                     <div className="flex gap-3 w-full sm:w-auto flex-wrap justify-center sm:justify-end">
                       <button 
-                        onClick={() => handleReorder(items)}
-                        className="flex-1 sm:flex-none px-8 py-4 rounded-2xl bg-black text-white text-[10px] font-black uppercase tracking-widest hover:bg-[#D4AF37] hover:text-black transition-all active:scale-95 shadow-lg shadow-black/10"
-                      >
+                        onClick={() => handleReorder(items)} 
+                        className="flex-1 sm:flex-none px-8 py-4 rounded-2xl bg-black text-white text-[10px] font-black uppercase tracking-widest hover:bg-[#D4AF37] hover:text-black transition-all active:scale-95 shadow-lg shadow-black/10">
                         Reorder
                       </button>
                       
-                      {activeTab === "ongoing" && (
+                      {canCancel && (
                         <button 
-                          onClick={() => handleCancelOrder(order.id)}
-                          className="flex-1 sm:flex-none px-8 py-4 rounded-2xl border border-black/10 text-black/40 text-[10px] font-black uppercase tracking-widest hover:border-red-500 hover:text-red-500 transition-all active:scale-95"
-                        >
-                          Cancel
+                          onClick={() => handleCancelOrder(order)} 
+                          className="flex-1 sm:flex-none px-8 py-4 rounded-2xl border border-red-200 bg-red-50 text-red-600 text-[10px] font-black uppercase tracking-widest hover:border-red-500 hover:bg-red-100 transition-all active:scale-95">
+                          Cancel Order
                         </button>
                       )}
 
                       {isDelivered && (
                         returnStatus.canReturn ? (
                           <button 
-                            onClick={() => handleReturnOrder(order.id)}
-                            className="flex-1 sm:flex-none px-8 py-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-black uppercase tracking-widest hover:bg-amber-100 transition-all active:scale-95"
-                          >
+                            onClick={() => handleReturnOrder(order)} 
+                            className="flex-1 sm:flex-none px-8 py-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-black uppercase tracking-widest hover:bg-amber-100 transition-all active:scale-95">
                             Return Item
                           </button>
                         ) : (
                           <button 
-                            disabled
+                            disabled 
                             className="flex-1 sm:flex-none px-8 py-4 rounded-2xl bg-gray-100 border border-gray-200 text-gray-400 text-[10px] font-black uppercase tracking-widest cursor-not-allowed"
-                          >
+                            title="Return period has expired">
                             Not Returnable
                           </button>
                         )

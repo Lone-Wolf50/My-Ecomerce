@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from "../Database-Server/Superbase-client.js";
 import Swal from 'sweetalert2';
-import { Menu, X, Package, ShoppingBag, PlusCircle, BarChart3, LogOut } from 'lucide-react';
+import { Menu, X, Package, ShoppingBag, PlusCircle, BarChart3, LogOut, Mail } from 'lucide-react';
+import AdminInbox from './AdminInbox.jsx';
 
 const AdminDashboard = () => {
   // Persist activeTab and orderSubTab in sessionStorage
@@ -326,6 +327,7 @@ const AdminDashboard = () => {
             {[
               { id: 'inventory', label: 'Inventory', icon: <Package size={18}/> },
               { id: 'orders', label: 'Client Requests', icon: <ShoppingBag size={18}/> },
+              { id: 'inbox', label: 'Inbox', icon: <Mail size={18}/> },
               { id: 'add', label: 'Add Product', icon: <PlusCircle size={18}/> },
               { id: 'stats', label: 'Analytics', icon: <BarChart3 size={18}/> }
             ].map((item) => (
@@ -646,166 +648,200 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {activeTab === 'stats' && (() => {
-          const totalValue = products.reduce((acc, p) => acc + (Number(p.price) || 0), 0);
-          const categories = [...new Set(products.map(p => p.category))];
-          
-          const totalRevenue = orders.filter(o => o.status?.toLowerCase() === 'delivered')
-            .reduce((acc, o) => acc + (Number(o.total_amount) || 0), 0);
-            
-          const pendingRevenue = orders.filter(o => ['pending', 'processing', 'shipped'].includes(o.status?.toLowerCase()))
-            .reduce((acc, o) => acc + (Number(o.total_amount) || 0), 0);
+        {activeTab === 'inbox' && <AdminInbox />}
+{activeTab === 'stats' && (() => {
+  const totalValue = products.reduce((acc, p) => acc + (Number(p.price) || 0), 0);
+  const categories = [...new Set(products.map(p => p.category))];
+  
+  const totalRevenue = orders.filter(o => o.status?.toLowerCase() === 'delivered')
+    .reduce((acc, o) => acc + (Number(o.total_amount) || 0), 0);
+    
+  const pendingRevenue = orders.filter(o => ['pending', 'processing', 'shipped'].includes(o.status?.toLowerCase()))
+    .reduce((acc, o) => acc + (Number(o.total_amount) || 0), 0);
 
-          const getChartData = () => {
-            if (chartPeriod === 'Daily') {
-              const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-              return days.map((day, index) => ({
-                name: day,
-                amount: orders
-                  .filter(o => new Date(o.created_at).getDay() === index)
-                  .reduce((acc, o) => acc + (Number(o.total_amount) || 0), 0)
-              }));
-            }
-            if (chartPeriod === 'Yearly') {
-              const currentYear = new Date().getFullYear();
-              const years = [currentYear - 2, currentYear - 1, currentYear];
-              return years.map(year => ({
-                name: year.toString(),
-                amount: orders
-                  .filter(o => new Date(o.created_at).getFullYear() === year)
-                  .reduce((acc, o) => acc + (Number(o.total_amount) || 0), 0)
-              }));
-            }
-            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            return months.map((month, index) => ({
-              name: month,
-              amount: orders
-                .filter(o => new Date(o.created_at).getMonth() === index)
-                .reduce((acc, o) => acc + (Number(o.total_amount) || 0), 0)
-            }));
-          };
+  const barColors = [
+    'linear-gradient(180deg, #FFD700, #D4AF37)', 
+    'linear-gradient(180deg, #818CF8, #6366F1)', 
+    'linear-gradient(180deg, #F472B6, #EC4899)', 
+    'linear-gradient(180deg, #34D399, #10B981)', 
+    'linear-gradient(180deg, #FBBF24, #F59E0B)', 
+    'linear-gradient(180deg, #60A5FA, #3B82F6)', 
+    'linear-gradient(180deg, #A78BFA, #8B5CF6)', 
+    'linear-gradient(180deg, #F87171, #EF4444)', 
+    'linear-gradient(180deg, #22D3EE, #06B6D4)', 
+    'linear-gradient(180deg, #A3E635, #84CC16)', 
+    'linear-gradient(180deg, #FB7185, #F43F5E)', 
+    'linear-gradient(180deg, #94A3B8, #64748B)', 
+  ];
 
-          const activeChartData = getChartData();
-          const maxAmount = Math.max(...activeChartData.map(d => d.amount), 100);
-          const periodTotal = activeChartData.reduce((acc, curr) => acc + curr.amount, 0);
+  const getChartData = () => {
+    if (chartPeriod === 'Daily') {
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      return days.map((day, index) => ({
+        name: day,
+        amount: orders
+          .filter(o => new Date(o.created_at).getDay() === index)
+          .reduce((acc, o) => acc + (Number(o.total_amount) || 0), 0)
+      }));
+    }
+    if (chartPeriod === 'Yearly') {
+      const currentYear = new Date().getFullYear();
+      const years = [currentYear - 2, currentYear - 1, currentYear];
+      return years.map(year => ({
+        name: year.toString(),
+        amount: orders
+          .filter(o => new Date(o.created_at).getFullYear() === year)
+          .reduce((acc, o) => acc + (Number(o.total_amount) || 0), 0)
+      }));
+    }
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months.map((month, index) => ({
+      name: month,
+      amount: orders
+        .filter(o => new Date(o.created_at).getMonth() === index)
+        .reduce((acc, o) => acc + (Number(o.total_amount) || 0), 0)
+    }));
+  };
 
-          return (
-            <div className="space-y-6 md:space-y-12 animate-in zoom-in-95 duration-500">
-              <h2 className="text-3xl md:text-4xl font-serif italic">Analytics</h2>
+  const activeChartData = getChartData();
+  const maxAmount = Math.max(...activeChartData.map(d => d.amount), 100);
+  const periodTotal = activeChartData.reduce((acc, curr) => acc + curr.amount, 0);
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="p-10 bg-black text-white rounded-[3rem] shadow-2xl relative overflow-hidden">
-                  <div className="relative z-10">
-                    <div className="flex justify-between items-center mb-8">
-                      <span className="text-[12px] font-black uppercase tracking-widest text-white/40">Financial Pulse</span>
-                      <div className="p-2 bg-white/10 rounded-full"><BarChart3 size={20} className="text-[#D4AF37]"/></div>
-                    </div>
-                    <div className="space-y-6">
-                      <div>
-                        <p className="text-[10px] font-black uppercase text-[#D4AF37] mb-1">Cleared Revenue</p>
-                        <p className="text-4xl font-serif italic">GH₵ {totalRevenue.toLocaleString()}</p>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-[10px] font-black uppercase tracking-tighter">
-                          <span className="text-white/40">Pending: GH₵ {pendingRevenue.toLocaleString()}</span>
-                          <span className="text-[#D4AF37]">Flow Ratio</span>
-                        </div>
-                        <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-[#D4AF37] transition-all duration-1000" 
-                            style={{ width: `${(totalRevenue + pendingRevenue) > 0 ? (totalRevenue / (totalRevenue + pendingRevenue)) * 100 : 0}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-[#D4AF37]/10 rounded-full blur-3xl"></div>
-                </div>
+  return (
+    <div className="space-y-6 md:space-y-12 animate-in fade-in duration-700">
+      <h2 className="text-3xl md:text-4xl font-serif italic">Analytics</h2>
 
-                <div className="p-10 bg-white border border-black/5 rounded-[3rem] flex flex-col justify-between shadow-sm">
-                  <div>
-                    <div className="flex justify-between items-start">
-                      <span className="text-[12px] font-black uppercase tracking-widest text-black/30">Vault Density</span>
-                      <div className="px-3 py-1 bg-black/5 rounded-full text-[10px] font-black uppercase">
-                        Value: GH₵ {(totalValue / 1000).toFixed(1)}k
-                      </div>
-                    </div>
-                    <p className="text-4xl font-serif italic mt-4">{products.length} <span className="text-sm font-sans not-italic text-black/40 ml-2">Total Assets</span></p>
-                  </div>
-                  <div className="flex flex-wrap gap-2 mt-8">
-                    {categories.map(cat => (
-                      <span key={cat} className="px-4 py-2 bg-black text-white rounded-full text-[9px] font-black uppercase tracking-wider">
-                        {cat}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+      {/* Financial Cards Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="p-10 bg-black text-white rounded-[3rem] shadow-2xl relative overflow-hidden">
+          <div className="relative z-10">
+            <div className="flex justify-between items-center mb-8">
+              <span className="text-[12px] font-black uppercase tracking-widest text-white/40">Financial Pulse</span>
+              <div className="p-2 bg-white/10 rounded-full"><BarChart3 size={20} className="text-[#D4AF37]"/></div>
+            </div>
+            <div className="space-y-6">
+              <div>
+                <p className="text-[10px] font-black uppercase text-[#D4AF37] mb-1">Cleared Revenue</p>
+                <p className="text-4xl font-serif italic">GH₵ {totalRevenue.toLocaleString()}</p>
               </div>
-
-              <div className="mt-12 p-10 bg-black text-white rounded-[3rem] shadow-2xl relative overflow-hidden">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-4 relative z-20">
-                  <div>
-                    <h3 className="text-2xl font-serif italic text-[#D4AF37]">{chartPeriod} Trends</h3>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Total: GH₵ {periodTotal.toLocaleString()}</p>
-                  </div>
-                  <div className="flex bg-white/5 p-1.5 rounded-2xl border border-white/10 relative z-30">
-                    {['Daily', 'Monthly', 'Yearly'].map((t) => (
-                      <button 
-                        key={t} 
-                        onClick={() => setChartPeriod(t)}
-                        className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${chartPeriod === t ? 'bg-[#D4AF37] text-black shadow-lg' : 'text-white/40 hover:text-white'}`}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-[10px] font-black uppercase tracking-tighter">
+                  <span className="text-white/40">Pending: GH₵ {pendingRevenue.toLocaleString()}</span>
+                  <span className="text-[#D4AF37]">Flow Ratio</span>
                 </div>
-
-                <div className="flex items-end justify-between gap-2 md:gap-4 h-64 px-2 relative z-10">
-                  {activeChartData.map((data, i) => {
-                    const barHeight = maxAmount > 0 ? (data.amount / maxAmount) * 100 : 0;
-                    const displayHeight = Math.max(barHeight, data.amount > 0 ? 8 : 0);
-                    
-                    return (
-                      <div key={i} className="flex-1 flex flex-col items-center gap-4 group">
-                        <div className="relative w-full flex justify-center items-end h-full">
-                          <div className="absolute -top-8 opacity-0 group-hover:opacity-100 transition-all bg-white text-black text-[9px] font-black px-2 py-1 rounded-lg z-20 whitespace-nowrap">
-                            GH₵{data.amount.toLocaleString()}
-                          </div>
-                          <div 
-                            className="w-full max-w-[20px] bg-[#D4AF37] rounded-t-full transition-all duration-1000 ease-out opacity-60 group-hover:opacity-100"
-                            style={{ height: `${displayHeight}%` }}
-                          ></div>
-                        </div>
-                        <span className="text-[9px] font-black uppercase text-white/20 group-hover:text-[#D4AF37]">
-                          {data.name}
-                        </span>
-                      </div>
-                    );
-                  })}
+                <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-[#D4AF37] transition-all duration-1000" 
+                    style={{ width: `${(totalRevenue + pendingRevenue) > 0 ? (totalRevenue / (totalRevenue + pendingRevenue)) * 100 : 0}%` }}
+                  ></div>
                 </div>
-                <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/5 rounded-full blur-[100px] -mr-32 -mt-32"></div>
-              </div>
-
-              <div className="max-w-xl p-10 bg-white border border-black/5 rounded-[3rem] shadow-sm">
-                <h3 className="text-[27px] font-serif italic mb-6 text-[#D4AF37]">Global Homepage Broadcast</h3>
-                <textarea 
-                  value={broadcastMsg}
-                  onChange={(e) => setBroadcastMsg(e.target.value)}
-                  className="w-full bg-black/5 border-none p-4 rounded-2xl text-[15px] focus:ring-1 focus:ring-[#D4AF37] outline-none min-h-[100px]"
-                  placeholder="Tell your clients something important..."
-                />
-                <button 
-                  onClick={handleUpdateBroadcast}
-                  disabled={loading}
-                  className="mt-6 w-full bg-black text-white py-4 rounded-full text-[13px] font-black uppercase tracking-widest hover:bg-[#D4AF37] transition-all"
-                >
-                  {loading ? "Transmitting..." : "Send Message"}
-                </button>
               </div>
             </div>
-          );
-        })()}
+          </div>
+        </div>
+
+        <div className="p-10 bg-white border border-black/5 rounded-[3rem] flex flex-col justify-between shadow-sm">
+          <div>
+            <div className="flex justify-between items-start">
+              <span className="text-[12px] font-black uppercase tracking-widest text-black/30">Vault Density</span>
+              <div className="px-3 py-1 bg-black/5 rounded-full text-[10px] font-black uppercase">
+                Value: GH₵ {(totalValue / 1000).toFixed(1)}k
+              </div>
+            </div>
+            <p className="text-4xl font-serif italic mt-4">{products.length} <span className="text-sm font-sans not-italic text-black/40 ml-2">Total Assets</span></p>
+          </div>
+          <div className="flex flex-wrap gap-2 mt-8">
+            {categories.map(cat => (
+              <span key={cat} className="px-4 py-2 bg-black text-white rounded-full text-[9px] font-black uppercase tracking-wider">
+                {cat}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* 🚀 PROFESSIONAL FLAT BAR CHART */}
+      <div className="mt-12 p-10 bg-white border border-black/5 rounded-[4rem] shadow-xl relative overflow-hidden min-h-[550px] flex flex-col">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-16 px-4 pt-4">
+          <div className="space-y-1">
+            <h3 className="text-3xl font-serif italic text-black leading-tight">{chartPeriod} Performance</h3>
+            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-black/30">Gross Volume: GH₵ {periodTotal.toLocaleString()}</p>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <div className="flex bg-gray-100/80 p-1.5 rounded-2xl border border-black/5 mr-4 min-w-max">
+              {['Daily', 'Monthly', 'Yearly'].map((t) => (
+                <button 
+                  key={t} 
+                  onClick={() => setChartPeriod(t)}
+                  className={`px-7 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${chartPeriod === t ? 'bg-black text-white shadow-xl' : 'text-black/30 hover:text-black hover:bg-black/5'}`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* BARS AREA */}
+        <div className="flex-1 overflow-x-auto">
+          <div className="flex items-end gap-6 md:gap-8 px-8 pb-6 min-w-max h-full">
+            {activeChartData.map((data, i) => {
+              const barHeight = (data.amount / maxAmount) * 100;
+              const displayHeight = Math.max(barHeight, data.amount > 0 ? 8 : 2); 
+              
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center gap-6 group">
+                  <div className="relative w-full flex justify-center items-end h-72">
+                    
+                    {/* Tooltip */}
+                    <div className="absolute -top-12 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-black text-white text-[10px] font-black px-4 py-2 rounded-md z-30 whitespace-nowrap shadow-2xl">
+                      GH₵{data.amount.toLocaleString()}
+                    </div>
+                    
+                    {/* THE FLAT BAR */}
+                    <div 
+                      className="w-full max-w-[45px] rounded-sm shadow-sm transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:brightness-110"
+                      style={{ 
+                        height: `${displayHeight}%`,
+                        backgroundImage: barColors[i % 12],
+                        opacity: data.amount > 0 ? 1 : 0.25 
+                      }}
+                    >
+                      <div className="w-full h-full bg-black/5"></div>
+                    </div>
+                  </div>
+                  
+                  <span className="text-[11px] font-black uppercase tracking-tighter text-black/40 group-hover:text-black transition-colors">
+                    {data.name}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Global Broadcast */}
+      <div className="max-w-xl p-10 bg-white border border-black/5 rounded-[3rem] shadow-sm">
+        <h3 className="text-[27px] font-serif italic mb-6 text-[#D4AF37]">Global Homepage Broadcast</h3>
+        <textarea 
+          value={broadcastMsg}
+          onChange={(e) => setBroadcastMsg(e.target.value)}
+          className="w-full bg-black/5 border-none p-4 rounded-2xl text-[15px] focus:ring-1 focus:ring-[#D4AF37] outline-none min-h-[100px]"
+          placeholder="Tell your clients something important..."
+        />
+        <button 
+          onClick={handleUpdateBroadcast}
+          disabled={loading}
+          className="mt-6 w-full bg-black text-white py-4 rounded-full text-[13px] font-black uppercase tracking-widest hover:bg-[#D4AF37] transition-all"
+        >
+          {loading ? "Transmitting..." : "Send Message"}
+        </button>
+      </div>
+    </div>
+  );
+})()}
       </main>
 
       {isOrderModalOpen && selectedOrder && (

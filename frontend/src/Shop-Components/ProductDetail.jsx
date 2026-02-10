@@ -111,61 +111,64 @@ const ProductDetail = () => {
 
             <main
                 key={id}
-                className="max-w-[1440px] mx-auto px-6 lg:px-12 pt-40 pb-12 animate-in fade-in duration-700"
+                className="max-w-[1440px] mx-auto px-6 lg:px-12 pt-32 pb-12 animate-in fade-in duration-700"
             >
-                <div className="flex flex-col lg:flex-row gap-10 lg:h-[75vh] items-stretch mb-24">
-                    {/* Image Box */}
-                    <div className="w-full lg:w-[60%] bg-white/40 backdrop-blur-xl rounded-[3rem] border border-black/5 flex items-center justify-center p-8 lg:p-16 shadow-2xl shadow-black/5 overflow-hidden">
+                {/* Unified Product Container */}
+                <div className="flex flex-col lg:flex-row gap-12 items-start mb-24 min-h-[80vh] lg:min-h-[75vh]">
+                    {/* Image Box - Flexible height */}
+                    <div className="w-full lg:w-[55%] bg-white/40 backdrop-blur-xl rounded-[3rem] border border-black/5 flex items-center justify-center p-8 lg:p-16 shadow-2xl shadow-black/5 overflow-hidden self-stretch">
                         <img
                             src={product.image}
                             alt={product.name}
-                            className="max-h-full max-w-full object-contain animate-in zoom-in-95 duration-1000 drop-shadow-2xl"
+                            className="w-full h-full max-h-[600px] object-contain animate-in zoom-in-95 duration-1000 drop-shadow-2xl"
                         />
                     </div>
 
-                    {/* Content Box */}
-                    <div className="w-full lg:w-[40%] flex flex-col justify-center max-w-[420px] mx-auto lg:ml-auto lg:mr-0">
-                        <p className="text-[15px] font-black text-primary uppercase tracking-[0.6em] mb-3">
-                            {product.series}
-                        </p>
-                        <h1 className="text-4xl lg:text-6xl font-black text-black-solid uppercase mb-4 tracking-tighter leading-[0.9] italic">
-                            {product.name}
-                        </h1>
-                        <p className="text-2xl font-black text-primary mb-8">
-                            GH&#8373;{product.price?.toLocaleString()}
-                        </p>
-
-                        <div className="border-t border-black/10 pt-8 mb-10">
-                            <p className="text-black-solid/60 text-[21px] leading-relaxed font-light mb-8">
-                                {product.description}
+                    {/* Content Box - Flexible height with proper constraints */}
+                    <div className="w-full lg:w-[45%] flex flex-col justify-center self-stretch">
+                        <div className="max-w-[480px] mx-auto lg:ml-0 lg:mr-auto w-full">
+                            <p className="text-[15px] font-black text-primary uppercase tracking-[0.6em] mb-3">
+                                {product.series}
+                            </p>
+                            <h1 className="text-4xl lg:text-6xl font-black text-black-solid uppercase mb-4 tracking-tighter leading-[0.9] italic">
+                                {product.name}
+                            </h1>
+                            <p className="text-2xl font-black text-primary mb-8">
+                                GH&#8373;{product.price?.toLocaleString()}
                             </p>
 
-                            <div className="flex gap-12">
-                                <div className="flex flex-col gap-1">
-                                    <p className="text-[16px] uppercase font-black text-black-solid/20 tracking-[0.2em]">
-                                        Material
-                                    </p>
-                                    <p className="text-[20px] font-bold text-black-solid/70">
-                                        {product.material}
-                                    </p>
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                    <p className="text-[16px] uppercase font-black text-black-solid/20 tracking-[0.2em]">
-                                        Origin
-                                    </p>
-                                    <p className="text-[20px] font-bold text-black-solid/70">
-                                        {product.origin}
-                                    </p>
+                            <div className="border-t border-black/10 pt-8 mb-10">
+                                <p className="text-black-solid/60 text-[18px] leading-relaxed font-light mb-8">
+                                    {product.description}
+                                </p>
+
+                                <div className="flex gap-12 mb-8">
+                                    <div className="flex flex-col gap-1">
+                                        <p className="text-[14px] uppercase font-black text-black-solid/20 tracking-[0.2em]">
+                                            Material
+                                        </p>
+                                        <p className="text-[18px] font-bold text-black-solid/70">
+                                            {product.material}
+                                        </p>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <p className="text-[14px] uppercase font-black text-black-solid/20 tracking-[0.2em]">
+                                            Origin
+                                        </p>
+                                        <p className="text-[18px] font-bold text-black-solid/70">
+                                            {product.origin}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <button
-                            onClick={() => addToCart(product)}
-                            className="w-full bg-black-solid text-white py-6 text-[13px] font-black uppercase tracking-[0.4em] hover:bg-primary transition-all duration-500 rounded-2xl shadow-xl shadow-black/10 active:scale-[0.98]"
-                        >
-                            Add to Bag
-                        </button>
+                            <button
+                                onClick={() => addToCart(product)}
+                                className="w-full bg-black-solid text-white py-6 text-[13px] font-black uppercase tracking-[0.4em] hover:bg-primary transition-all duration-500 rounded-2xl shadow-xl shadow-black/10 active:scale-[0.98]"
+                            >
+                                Add to Bag
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -174,7 +177,7 @@ const ProductDetail = () => {
                     <section className="border-t border-black/10 pt-20">
                         <div className="flex flex-col items-center mb-12">
                             <h3 className="text-[10px] font-black tracking-[0.5em] text-black-solid uppercase mb-2">
-                                Explore Related Produccts
+                                Explore Related Products
                             </h3>
                             <div className="h-1 w-12 bg-primary rounded-full"></div>
                         </div>
@@ -185,8 +188,9 @@ const ProductDetail = () => {
                         </div>
                     </section>
                 )}
-                <Footer />
+                 <Footer />
             </main>
+           
         </div>
     );
 };

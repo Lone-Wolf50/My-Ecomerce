@@ -103,7 +103,7 @@ app.post("/send-otp", async (req, res) => {
       from: `Security Team <${process.env.GMAIL_USER}>`,
       to: email,
       subject: "Verification Protocol: Your OTP Code",
-      text: `Your OTP is ${otp}. This code expires in 5 minutes.`
+      text: `Your OTP is ${otp}. This code expires in 2 minutes.`
     });
     res.json({ success: true, message: "OTP sent" });
   } catch (err) {

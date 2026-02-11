@@ -113,14 +113,23 @@ const AdminDashboard = () => {
   }, []);
 
   const fetchBroadcast = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('site_notifications')
-      .select('message')
-      .eq('id', 1)
-      .single();
-    if (!error && data) setBroadcastMsg(data.message);
-  }, []);
+  const { data, error } = await supabase
+    .from('site_notifications')
+    .select('message')
+    .eq('id','550e8400-e29b-41d4-a716-446655440000')
+    .maybeSingle(); // Use maybeSingle() instead of single()
 
+  if (error) {
+    console.error("Error fetching:", error.message);
+    return;
+  }
+
+  if (data) {
+    setBroadcastMsg(data.message);
+  } else {
+    setBroadcastMsg("No active broadcast"); // Handle the 0 rows case gracefully
+  }
+}, []);
   useEffect(() => {
     fetchProducts();
     fetchOrders();

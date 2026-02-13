@@ -3,14 +3,19 @@ import nodemailer from "nodemailer";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
+import axios from "axios";
+import crypto from "crypto"; 
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, "../.env") });
+// Fallback to local .env
 dotenv.config();
 
 const app = express();
 app.use(express.json());
+
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 
 const allowedOrigins = [
   "http://localhost:3000",
@@ -40,43 +45,136 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// --- NEW: ORDER COMPLETION EMAIL ENDPOINT ---
-app.post("/send-status-update", async (req, res) => {
-  const { email, customerName, orderId, totalAmount } = req.body;
+// --- 1. PAYSTACK WEBHOOK (Critical for SDK Support) ---
+app.post("/paystack-webhook", async (req, res) => {
+    // Verify the event actually came from Paystack
+    const hash = crypto.createHmac('sha512', PAYSTACK_SECRET_KEY)
+                       .update(JSON.stringify(req.body))
+                       .digest('hex');
+    
+    if (hash !== req.headers['x-paystack-signature']) {
+        return res.status(401).send('Unauthorized');
+    }
 
-  if (!email) {
-    return res.status(400).json({ success: false, error: "Recipient email missing" });
-  }
+    const event = req.body;
+
+    if (event.event === "charge.success") {
+        const { reference, amount, customer, metadata } = event.data;
+        
+        // Convert back from Pesewas to GHS for your records/emails
+        const amountPaid = amount / 100;
+
+        console.log(`💰 Payment Verified: GH₵ ${amountPaid} (Ref: ${reference})`);
+
+        // Update your database here using Supabase to mark as 'paid'
+        // This is safer than doing it only on the frontend!
+
+        try {
+            await sendEmailNotification(
+                customer.email, 
+                metadata?.customer_name || 'Valued Client', 
+                reference, 
+                amountPaid
+            );
+        } catch (err) {
+            console.error("Email Error:", err);
+        }
+    }
+    
+    // Always send 200 OK back to Paystack quickly
+    res.sendStatus(200);
+});
+// --- 2. PAYSTACK: INITIALIZE PAYMENT ---
+app.post("/initialize-payment", async (req, res) => {
+  const { email, amount, metadata } = req.body;
 
   try {
-    await transporter.sendMail({
-      from: `"The Vault Archive" <${process.env.GMAIL_USER}>`,
-      to: email,
-      subject: `Order Sealed & Dispatched: #${orderId.slice(0, 8)}`,
-      html: `
-        <div style="font-family: serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 40px; color: #000; background-color: #FDFBF7;">
-          <h2 style="font-style: italic; color: #D4AF37; text-align: center;">Order Confirmed</h2>
-          <hr style="border: 0; border-top: 1px solid #000; opacity: 0.1;" />
-          <p>Greetings <strong>${customerName || 'Valued Client'}</strong>,</p>
-          <p>Your request has been processed and your assets are officially sealed for dispatch.</p>
-          
-          <div style="background: #fff; padding: 20px; border-radius: 20px; border: 1px solid rgba(0,0,0,0.05); margin: 20px 0;">
-            <p style="margin: 5px 0; font-size: 12px; text-transform: uppercase; color: #888;">Order ID</p>
-            <p style="margin: 0; font-weight: bold;">#${orderId}</p>
+    const response = await axios.post(
+      "https://api.paystack.co/transaction/initialize",
+      {
+        email,
+        amount: Math.round(amount * 100), 
+        metadata,
+        callback_url: "https://my-ecomerce-gygn.vercel.app/order-confirmed",
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error("❌ Paystack Init Error:", error.response?.data || error.message);
+    res.status(500).json({ success: false, error: "Payment initialization failed" });
+  }
+});
+
+// --- 3. PAYSTACK: VERIFY PAYMENT ---
+app.get("/verify-payment/:reference", async (req, res) => {
+  const { reference } = req.params;
+
+  try {
+    const response = await axios.get(
+      `https://api.paystack.co/transaction/verify/${reference}`,
+      {
+        headers: {
+          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+        },
+      }
+    );
+
+    if (response.data.data.status === "success") {
+      res.json({ success: true, data: response.data.data });
+    } else {
+      res.json({ success: false, message: "Transaction not successful" });
+    }
+  } catch (error) {
+    console.error("❌ Paystack Verification Error:", error.response?.data || error.message);
+    res.status(500).json({ success: false, error: "Verification failed" });
+  }
+});
+
+// --- 4. EMAIL LOGIC (Reusable Function) ---
+async function sendEmailNotification(email, customerName, orderId, totalAmount) {
+    return transporter.sendMail({
+        from: `"The Vault Archive" <${process.env.GMAIL_USER}>`,
+        to: email,
+        subject: `Order Sealed & Dispatched: #${orderId.slice(0, 8)}`,
+        html: `
+          <div style="font-family: serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 40px; color: #000; background-color: #FDFBF7;">
+            <h2 style="font-style: italic; color: #D4AF37; text-align: center;">Order Confirmed</h2>
+            <hr style="border: 0; border-top: 1px solid #000; opacity: 0.1;" />
+            <p>Greetings <strong>${customerName}</strong>,</p>
+            <p>Your request has been processed and your assets are officially sealed for dispatch.</p>
             
-            <p style="margin: 15px 0 5px 0; font-size: 12px; text-transform: uppercase; color: #888;">Total Secured Value</p>
-            <p style="margin: 0; font-weight: bold; color: #D4AF37; font-size: 20px;">GH₵ ${totalAmount?.toLocaleString()}</p>
+            <div style="background: #fff; padding: 20px; border-radius: 20px; border: 1px solid rgba(0,0,0,0.05); margin: 20px 0;">
+              <p style="margin: 5px 0; font-size: 12px; text-transform: uppercase; color: #888;">Order ID</p>
+              <p style="margin: 0; font-weight: bold;">#${orderId}</p>
+              
+              <p style="margin: 15px 0 5px 0; font-size: 12px; text-transform: uppercase; color: #888;">Total Secured Value</p>
+              <p style="margin: 0; font-weight: bold; color: #D4AF37; font-size: 20px;">GH₵ ${totalAmount?.toLocaleString()}</p>
+            </div>
+  
+            <p style="font-size: 14px; line-height: 1.6;">Our curators are ensuring your masterpiece arrives in pristine condition.</p>
+            
+            <footer style="margin-top: 40px; text-align: center; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: #aaa;">
+              Archive Security Team | The Vault
+            </footer>
           </div>
-
-          <p style="font-size: 14px; line-height: 1.6;">Our curators are ensuring your masterpiece arrives in pristine condition. You will receive a notification upon delivery.</p>
-          
-          <footer style="margin-top: 40px; text-align: center; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: #aaa;">
-            Archive Security Team | The Vault
-          </footer>
-        </div>
-      `
+        `
     });
+}
 
+// Route for manual status update (frontend triggered)
+app.post("/send-status-update", async (req, res) => {
+  const { email, customerName, orderId, totalAmount } = req.body;
+  if (!email) return res.status(400).json({ success: false, error: "Recipient email missing" });
+
+  try {
+    await sendEmailNotification(email, customerName, orderId, totalAmount);
     console.log(`📧 Dispatch confirmation sent to: ${email}`);
     res.json({ success: true, message: "Completion email sent" });
   } catch (err) {
@@ -85,7 +183,7 @@ app.post("/send-status-update", async (req, res) => {
   }
 });
 
-// --- EXISTING OTP LOGIC (Unchanged) ---
+// --- 5. OTP LOGIC ---
 const otpStore = {};
 function generateOTP(length = 6) {
   return Array.from({ length }, () => Math.floor(Math.random() * 10)).join("");

@@ -140,7 +140,7 @@ app.get("/verify-payment/:reference", async (req, res) => {
 // --- 4. EMAIL LOGIC (Reusable Function) ---
 async function sendEmailNotification(email, customerName, orderId, totalAmount) {
     return transporter.sendMail({
-        from: `"The Vault Archive" <${process.env.GMAIL_USER}>`,
+        from: `"JL BAGS" <${process.env.GMAIL_USER}>`,
         to: email,
         subject: `Order Sealed & Dispatched: #${orderId.slice(0, 8)}`,
         html: `
@@ -154,14 +154,14 @@ async function sendEmailNotification(email, customerName, orderId, totalAmount) 
               <p style="margin: 5px 0; font-size: 12px; text-transform: uppercase; color: #888;">Order ID</p>
               <p style="margin: 0; font-weight: bold;">#${orderId}</p>
               
-              <p style="margin: 15px 0 5px 0; font-size: 12px; text-transform: uppercase; color: #888;">Total Secured Value</p>
+              <p style="margin: 15px 0 5px 0; font-size: 12px; text-transform: uppercase; color: #888;">Total Amount </p>
               <p style="margin: 0; font-weight: bold; color: #D4AF37; font-size: 20px;">GH₵ ${totalAmount?.toLocaleString()}</p>
             </div>
   
             <p style="font-size: 14px; line-height: 1.6;">Our curators are ensuring your masterpiece arrives in pristine condition.</p>
             
             <footer style="margin-top: 40px; text-align: center; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: #aaa;">
-              Archive Security Team | The Vault
+                Archive Security Team | JL BAGS.
             </footer>
           </div>
         `

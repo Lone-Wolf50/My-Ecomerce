@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import path from "path";
 import axios from "axios";
 import crypto from "crypto"; 
+import escapeHtml from "escape-html";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -139,20 +140,23 @@ app.get("/verify-payment/:reference", async (req, res) => {
 
 // --- 4. EMAIL LOGIC (Reusable Function) ---
 async function sendEmailNotification(email, customerName, orderId, totalAmount) {
-    return transporter.sendMail({
+   
+  const safeName = escapeHtml(customerName || 'Valued Client');
+    const safeOrderId = escapeHtml(orderId);
+  return transporter.sendMail({
         from: `"JL BAGS" <${process.env.GMAIL_USER}>`,
         to: email,
-        subject: `Order Sealed & Dispatched: #${orderId.slice(0, 8)}`,
+        subject: `Order Sealed & Dispatched: #${safeOrderId.slice(0, 8)}`,
         html: `
           <div style="font-family: serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 40px; color: #000; background-color: #FDFBF7;">
             <h2 style="font-style: italic; color: #D4AF37; text-align: center;">Order Confirmed</h2>
             <hr style="border: 0; border-top: 1px solid #000; opacity: 0.1;" />
-            <p>Greetings <strong>${customerName}</strong>,</p>
+            <p>Greetings <strong>${safeName}</strong>,</p>
             <p>Your request has been processed and your assets are officially sealed for dispatch.</p>
             
             <div style="background: #fff; padding: 20px; border-radius: 20px; border: 1px solid rgba(0,0,0,0.05); margin: 20px 0;">
               <p style="margin: 5px 0; font-size: 12px; text-transform: uppercase; color: #888;">Order ID</p>
-              <p style="margin: 0; font-weight: bold;">#${orderId}</p>
+              <p style="margin: 0; font-weight: bold;">#${safeOrderId}</p>
               
               <p style="margin: 15px 0 5px 0; font-size: 12px; text-transform: uppercase; color: #888;">Total Amount </p>
               <p style="margin: 0; font-weight: bold; color: #D4AF37; font-size: 20px;">GH₵ ${totalAmount?.toLocaleString()}</p>
@@ -179,7 +183,10 @@ app.post("/send-status-update", async (req, res) => {
     res.json({ success: true, message: "Completion email sent" });
   } catch (err) {
     console.error("❌ Email Dispatch Error:", err);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ 
+      success: false, 
+      error: "We encountered an issue sending the email. Please try again later." 
+    });
   }
 });
 

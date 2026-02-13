@@ -89,10 +89,17 @@ const AdminDashboard = () => {
     }
   };
 
-  const initialForm = {
-    name: '', price: '', description: '', category: '',
-    material: '', origin: '', series: '', image: ''
-  };
+ const initialForm = {
+  name: '', 
+  price: '', 
+  previous_price: '', // Add this line
+  description: '', 
+  category: '',
+  material: '', 
+  origin: '', 
+  series: '', 
+  image: ''
+};
   const [form, setForm] = useState(initialForm);
 
   const fetchProducts = useCallback(async () => {
@@ -231,11 +238,15 @@ const AdminDashboard = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.image) return Swal.fire("Missing Asset", "Please upload an image first.", "warning");
-    setLoading(true);
-    try {
-      const payload = { ...form, price: parseFloat(form.price) };
-      if (editingId) {
+  if (!form.image) return Swal.fire("Missing Asset", "Please upload an image first.", "warning");
+  setLoading(true);
+  try {
+    // Modify payload to handle optional previous_price
+    const payload = { 
+      ...form, 
+      price: parseFloat(form.price),
+      previous_price: form.previous_price ? parseFloat(form.previous_price) : null 
+    };if (editingId) {
         const { error } = await supabase.from('products').update(payload).eq('id', editingId);
         if (error) throw error;
         toast("Registry Updated");
@@ -420,6 +431,11 @@ const AdminDashboard = () => {
                   <div className="w-full flex justify-between md:block">
                     <span className="md:hidden text-[10px] font-black text-black/30 uppercase">Price</span>
                     <span className="text-[15px] font-bold text-[#D4AF37]">GH&#8373;{p.price?.toLocaleString()}</span>
+                    {p.previous_price && (
+      <span className="text-[12px] text-black/30 line-through">
+        GH&#8373;{p.previous_price.toLocaleString()}
+      </span>
+    )}
                   </div>
 
                   <div className="w-full flex justify-between md:block">
@@ -571,7 +587,17 @@ const AdminDashboard = () => {
                 <label className="text-[13px] md:text-[15px] font-black uppercase tracking-widest text-black/40">Price (GH₵)</label>
                 <input required type="number" step="0.01" className="w-full bg-transparent border-b border-black/20 p-2 focus:border-[#D4AF37] outline-none font-bold" value={form.price} onChange={e => setForm({...form, price: e.target.value})} />
               </div>
-
+<div className="w-full">
+  <label className="text-[13px] md:text-[15px] font-black uppercase tracking-widest text-black/40">Previous Price (Optional)</label>
+  <input 
+    type="number" 
+    step="0.01" 
+    placeholder="Was GH₵..."
+    className="w-full bg-transparent border-b border-black/20 p-2 focus:border-[#D4AF37] outline-none font-bold text-black/40" 
+    value={form.previous_price || ''} 
+    onChange={e => setForm({...form, previous_price: e.target.value})} 
+  />
+</div>
               <div className="w-full">
                 <label className="text-[13px] md:text-[15px] font-black uppercase tracking-widest text-black/40">Category</label>
                 <input required className="w-full bg-transparent border-b border-black/20 p-2 focus:border-[#D4AF37] outline-none font-bold" value={form.category} onChange={e => setForm({...form, category: e.target.value})} />

@@ -126,50 +126,61 @@ const ProductDetail = () => {
 
                     {/* Content Box - Flexible height with proper constraints */}
                     <div className="w-full lg:w-[45%] flex flex-col justify-center self-stretch">
-                        <div className="max-w-[480px] mx-auto lg:ml-0 lg:mr-auto w-full">
-                            <p className="text-[15px] font-black text-primary uppercase tracking-[0.6em] mb-3">
-                                {product.series}
-                            </p>
-                            <h1 className="text-4xl lg:text-6xl font-black text-black-solid uppercase mb-4 tracking-tighter leading-[0.9] italic">
-                                {product.name}
-                            </h1>
-                            <p className="text-2xl font-black text-primary mb-8">
-                                GH&#8373;{product.price?.toLocaleString()}
-                            </p>
+    <div className="max-w-[480px] mx-auto lg:ml-0 lg:mr-auto w-full">
+        <p className="text-[15px] font-black text-primary uppercase tracking-[0.6em] mb-3">
+            {product.series}
+        </p>
+        <h1 className="text-4xl lg:text-6xl font-black text-black-solid uppercase mb-4 tracking-tighter leading-[0.9] italic">
+            {product.name}
+        </h1>
 
-                            <div className="border-t border-black/10 pt-8 mb-10">
-                                <p className="text-black-solid/60 text-[18px] leading-relaxed font-light mb-8">
-                                    {product.description}
-                                </p>
+        {/* Updated Price Section */}
+        <div className="flex flex-col mb-8">
+            {product.previous_price && (
+              <span className="text-[16px] font-bold text-black-solid/40 line-through decoration-[2px] decoration-primary/70 mb-1">
+        GH&#8373;{product.previous_price.toLocaleString()}
+    </span>
+            )}
+            <p className="text-2xl font-black text-primary">
+                GH&#8373;{product.price?.toLocaleString()}
+            </p>
 
-                                <div className="flex gap-12 mb-8">
-                                    <div className="flex flex-col gap-1">
-                                        <p className="text-[14px] uppercase font-black text-black-solid/20 tracking-[0.2em]">
-                                            Material
-                                        </p>
-                                        <p className="text-[18px] font-bold text-black-solid/70">
-                                            {product.material}
-                                        </p>
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                        <p className="text-[14px] uppercase font-black text-black-solid/20 tracking-[0.2em]">
-                                            Origin
-                                        </p>
-                                        <p className="text-[18px] font-bold text-black-solid/70">
-                                            {product.origin}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
+       
+        </div>
 
-                            <button
-                                onClick={() => addToCart(product)}
-                                className="w-full bg-black-solid text-white py-6 text-[13px] font-black uppercase tracking-[0.4em] hover:bg-primary transition-all duration-500 rounded-2xl shadow-xl shadow-black/10 active:scale-[0.98]"
-                            >
-                                Add to Bag
-                            </button>
-                        </div>
-                    </div>
+        <div className="border-t border-black/10 pt-8 mb-10">
+            <p className="text-black-solid/60 text-[18px] leading-relaxed font-light mb-8">
+                {product.description}
+            </p>
+
+            <div className="flex gap-12 mb-8">
+                <div className="flex flex-col gap-1">
+                    <p className="text-[14px] uppercase font-black text-black-solid/20 tracking-[0.2em]">
+                        Material
+                    </p>
+                    <p className="text-[18px] font-bold text-black-solid/70">
+                        {product.material}
+                    </p>
+                </div>
+                <div className="flex flex-col gap-1">
+                    <p className="text-[14px] uppercase font-black text-black-solid/20 tracking-[0.2em]">
+                        Origin
+                    </p>
+                    <p className="text-[18px] font-bold text-black-solid/70">
+                        {product.origin}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <button
+            onClick={() => addToCart(product)}
+            className="w-full bg-black-solid text-white py-6 text-[13px] font-black uppercase tracking-[0.4em] hover:bg-primary transition-all duration-500 rounded-2xl shadow-xl shadow-black/10 active:scale-[0.98]"
+        >
+            Add to Bag
+        </button>
+    </div>
+</div>
                 </div>
 
                 {/* Related Products */}

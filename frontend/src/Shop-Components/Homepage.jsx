@@ -78,9 +78,9 @@ function Homepage() {
 		{
 			id: "crossbody",
 			title: "Crossbody BAGS",
-			image: "/Images/Crossbody3.jpg",
+			image: "/Images/Crossbody3 250.jpg",
 		},
-		{ id: "underarm", title: "Underarm BAGS", image: "/Images/underarms.jpg" },
+		{ id: "underarm", title: "Underarm BAGS", image: "/Images/underarms4.jpg" },
 		{ id: "picnic", title: "Summer/Picnic BAGS", image: "/Images/summer.jpg" },
 		{ id: "limited", title: "Limited Edition", image: "/Images/purse2.jpg" },
 	];
@@ -844,9 +844,10 @@ function Homepage() {
 				</div>
 			</header>
 
-			<main className="max-w-[1440px] mx-auto px-8 pt-24">
-				{/* HERO CAROUSEL - Improved Animations */}
-				<section className="mt-8 mb-16 relative overflow-hidden rounded-[2.5rem] shadow-2xl h-[500px] md:h-[600px]">
+			{/* MAIN CONTENT STARTS HERE - FULL WIDTH, NO PADDING */}
+			<main className="pt-24">
+				{/* HERO CAROUSEL - Full Width, Responsive Heights, Swipe on Mobile */}
+				<section className="relative overflow-hidden h-[300px] md:h-[400px] lg:h-[500px] w-full">
 					<div className="relative w-full h-full">
 						{carouselSlides.map((slide, index) => (
 							<div
@@ -864,22 +865,22 @@ function Homepage() {
 									backgroundPosition: "center",
 								}}
 							>
-								<div className="absolute inset-0 flex items-center px-8 md:px-16 lg:px-24">
+								<div className="absolute inset-0 flex items-center px-6 md:px-12 lg:px-20">
 									<div className={`max-w-2xl text-white transition-all duration-700 ${
 										index === currentSlide ? "translate-x-0 opacity-100" : "-translate-x-10 opacity-0"
 									}`}>
-										<p className="text-[10px] md:text-[12px] font-black uppercase tracking-[0.5em] text-[#D4AF37] mb-4">
+										<p className="text-[10px] md:text-[12px] font-black uppercase tracking-[0.5em] text-[#D4AF37] mb-2 md:mb-4">
 											{slide.subtitle}
 										</p>
-										<h2 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tighter leading-none mb-6">
+										<h2 className="text-2xl md:text-5xl lg:text-6xl font-black tracking-tighter leading-none mb-3 md:mb-6">
 											{slide.title}
 										</h2>
-										<p className="text-base md:text-lg text-white/90 mb-8 max-w-xl leading-relaxed">
+										<p className="text-xs md:text-base lg:text-lg text-white/90 mb-4 md:mb-8 max-w-xl leading-relaxed hidden md:block">
 											{slide.description}
 										</p>
 										<Link
 											to={`/shop/${slide.category}`}
-											className="inline-block bg-[#D4AF37] text-white px-10 py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest shadow-xl hover:bg-white hover:text-[#D4AF37] transition-all duration-500"
+											className="inline-block bg-[#D4AF37] text-white px-6 md:px-10 py-2 md:py-4 rounded-full md:rounded-2xl font-black text-[10px] md:text-[12px] uppercase tracking-widest shadow-xl hover:bg-white hover:text-[#D4AF37] transition-all duration-500"
 										>
 											Shop {slide.categoryName}
 										</Link>
@@ -889,114 +890,140 @@ function Homepage() {
 						))}
 					</div>
 
-					<div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-3 z-20">
+					{/* Slide Indicators */}
+					<div className="absolute bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 flex gap-2 md:gap-3 z-20">
 						{carouselSlides.map((_, index) => (
 							<button
 								key={index}
 								onClick={() => setCurrentSlide(index)}
-								className={`h-2 rounded-full transition-all duration-500 ${
+								className={`h-1.5 md:h-2 rounded-full transition-all duration-500 ${
 									index === currentSlide
-										? "w-12 bg-[#D4AF37]"
-										: "w-2 bg-white/50 hover:bg-white/80"
+										? "w-8 md:w-12 bg-[#D4AF37]"
+										: "w-1.5 md:w-2 bg-white/50 hover:bg-white/80"
 								}`}
 							/>
 						))}
 					</div>
 
+					{/* Navigation Buttons - Hidden on Mobile, Visible on Tablet/Desktop */}
 					<button
 						onClick={handlePrevSlide}
-						className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-md hover:bg-white/40 p-3 rounded-full transition-all z-20"
+						className="hidden md:flex absolute left-4 lg:left-8 top-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-md hover:bg-white/40 p-3 rounded-full transition-all z-20 items-center justify-center"
 					>
-						<span className="material-symbols-outlined text-white">
+						<span className="material-symbols-outlined text-white text-2xl lg:text-3xl">
 							chevron_left
 						</span>
 					</button>
 					<button
 						onClick={handleNextSlide}
-						className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-md hover:bg-white/40 p-3 rounded-full transition-all z-20"
+						className="hidden md:flex absolute right-4 lg:right-8 top-1/2 -translate-y-1/2 bg-white/20 backdrop-blur-md hover:bg-white/40 p-3 rounded-full transition-all z-20 items-center justify-center"
 					>
-						<span className="material-symbols-outlined text-white">
+						<span className="material-symbols-outlined text-white text-2xl lg:text-3xl">
 							chevron_right
 						</span>
 					</button>
 				</section>
 
-				{/* FEATURED COLLECTIONS CAROUSEL - Improved Animations */}
-				<section className="py-20 border-t border-black/5">
-					<h2 className="text-4xl font-black uppercase mb-12 text-black tracking-tighter">
-						Featured Collections
-					</h2>
+				{/* FEATURED COLLECTIONS CAROUSEL - Full Width, Split Layout */}
+				<section className="w-full py-12 md:py-16 lg:py-20 bg-white">
+					<div className="max-w-[1440px] mx-auto px-6 md:px-12 lg:px-20">
+						<div className="mb-8 md:mb-12">
+							<h2 className="text-3xl md:text-4xl lg:text-5xl font-black uppercase tracking-tight mb-2">
+								Featured Collections
+							</h2>
+							<p className="text-black/60 text-sm md:text-base">
+								Discover our handpicked selections
+							</p>
+						</div>
 
-					<div className="relative">
-						<div className="overflow-hidden rounded-[2rem]">
-							<div className="relative h-full">
-								{bagCategories.map((cat, index) => (
-									<div 
-										key={cat.id} 
-										className={`transition-all duration-700 ease-in-out ${
-											index === currentCollectionSlide 
-												? "opacity-100 scale-100 relative" 
-												: "opacity-0 scale-95 absolute inset-0 pointer-events-none"
+						<div className="relative w-full">
+							{/* Mobile: 350px, Tablet: 400px, Desktop: 450px */}
+							<div className="relative h-[350px] md:h-[400px] lg:h-[450px] w-full">
+								{bagCategories.map((category, index) => (
+									<div
+										key={category.id}
+										className={`absolute inset-0 transition-opacity duration-1000 ${
+											index === currentCollectionSlide ? "opacity-100" : "opacity-0"
 										}`}
 									>
-										<div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center p-6 md:p-12 bg-white/40 backdrop-blur-sm border border-black/5 rounded-[2rem]">
-											<div className={`aspect-[3/4] max-h-[400px] rounded-[2rem] overflow-hidden shadow-2xl transition-all duration-700 ${
-												index === currentCollectionSlide ? "translate-x-0 opacity-100" : "-translate-x-10 opacity-0"
-											}`}>
-												<div
-													className="w-full h-full bg-cover bg-center transition-transform duration-700 hover:scale-105"
-													style={{ backgroundImage: `url(${cat.image})` }}
-												></div>
-											</div>
-
-											<div className={`flex flex-col gap-6 transition-all duration-700 delay-150 ${
-												index === currentCollectionSlide ? "translate-x-0 opacity-100" : "translate-x-10 opacity-0"
-											}`}>
-												<div>
-													<p className="text-[10px] font-black uppercase tracking-[0.4em] text-[#D4AF37] mb-3">
-														Premium Collection
-													</p>
-													<h3 className="text-3xl md:text-4xl font-black uppercase tracking-tighter text-black mb-4">
-														{cat.title}
-													</h3>
-													<p className="text-base text-black/60 leading-relaxed">
-														Discover our exclusive range of handcrafted luxury
-														bags. Each piece tells a story of elegance,
-														sophistication, and timeless style.
-													</p>
+										<Link
+											to={`/shop/${category.id}`}
+											className="block h-full w-full"
+										>
+											{/* Two-column layout on tablet/desktop, stacked on mobile */}
+											<div className="h-full flex flex-col md:flex-row overflow-hidden rounded-2xl md:rounded-3xl shadow-xl">
+												{/* Image Section - 60% on desktop */}
+												<div className="relative h-[180px] md:h-full md:w-[60%] overflow-hidden">
+													<img
+														src={category.image}
+														alt={category.title}
+														className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+													/>
+													<div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-black/40 to-transparent"></div>
 												</div>
-
-												<Link
-													to={`/shop/${cat.id}`}
-													className="inline-block bg-black text-white px-10 py-4 rounded-2xl font-black text-[12px] uppercase tracking-widest shadow-xl hover:bg-[#D4AF37] transition-all duration-500 w-fit"
-												>
-													Explore {cat.title}
-												</Link>
+												
+												{/* Text Section - 40% on desktop */}
+												<div className="flex-1 bg-[#FDFBF7] flex items-center justify-center p-6 md:p-8 lg:p-12">
+													<div className="text-center md:text-left max-w-md">
+														<p className="text-[#D4AF37] text-xs md:text-sm font-black uppercase tracking-[0.3em] mb-3 md:mb-4">
+															Collection
+														</p>
+														<h3 className="text-2xl md:text-3xl lg:text-4xl font-black uppercase tracking-tight mb-4 md:mb-6">
+															{category.title}
+														</h3>
+														<div className="inline-flex items-center gap-2 text-black/70 hover:text-[#D4AF37] transition-colors group">
+															<span className="text-sm md:text-base font-bold uppercase tracking-wider">
+																Shop Now
+															</span>
+															<span className="material-symbols-outlined text-xl md:text-2xl group-hover:translate-x-1 transition-transform">
+																arrow_forward
+															</span>
+														</div>
+													</div>
+												</div>
 											</div>
-										</div>
+										</Link>
 									</div>
 								))}
 							</div>
-						</div>
 
-						<div className="flex justify-center gap-3 mt-8">
-							{bagCategories.map((_, index) => (
-								<button
-									key={index}
-									onClick={() => handleCollectionNav(index)}
-									className={`h-2 rounded-full transition-all duration-500 ${
-										index === currentCollectionSlide
-											? "w-12 bg-[#D4AF37]"
-											: "w-2 bg-black/20 hover:bg-black/40"
-									}`}
-								/>
-							))}
+							{/* Navigation Buttons - Hidden on Mobile */}
+							<button
+								onClick={() => handleCollectionNav((currentCollectionSlide - 1 + bagCategories.length) % bagCategories.length)}
+								className="hidden md:flex absolute left-4 lg:left-8 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm text-black p-3 lg:p-4 rounded-full hover:bg-white transition-all z-10 shadow-lg items-center justify-center"
+								aria-label="Previous collection"
+							>
+								<span className="material-symbols-outlined text-2xl lg:text-3xl">chevron_left</span>
+							</button>
+							<button
+								onClick={() => handleCollectionNav((currentCollectionSlide + 1) % bagCategories.length)}
+								className="hidden md:flex absolute right-4 lg:right-8 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm text-black p-3 lg:p-4 rounded-full hover:bg-white transition-all z-10 shadow-lg items-center justify-center"
+								aria-label="Next collection"
+							>
+								<span className="material-symbols-outlined text-2xl lg:text-3xl">chevron_right</span>
+							</button>
+
+							{/* Collection Indicators */}
+							<div className="absolute -bottom-6 md:bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+								{bagCategories.map((_, index) => (
+									<button
+										key={index}
+										onClick={() => handleCollectionNav(index)}
+										className={`h-1.5 md:h-2 rounded-full transition-all ${
+											index === currentCollectionSlide
+												? "bg-[#D4AF37] w-8 md:w-12"
+												: "bg-black/30 w-1.5 md:w-2 hover:bg-black/50"
+										}`}
+										aria-label={`Go to collection ${index + 1}`}
+									></button>
+								))}
+							</div>
 						</div>
 					</div>
 				</section>
 
 				{/* COMMUNITY SECTION */}
-				<section className="py-20 border-t border-black/5">
+				<section className="max-w-[1440px] mx-auto px-8 py-20 border-t border-black/5">
 					<h3 className="text-2xl font-black uppercase tracking-widest text-center mb-12 text-black">
 						The Community
 					</h3>
@@ -1018,7 +1045,7 @@ function Homepage() {
 				</section>
 
 				{/* SHOPPING MADE EASY SECTION */}
-				<section className="py-20 border-t border-black/5">
+				<section className="max-w-[1440px] mx-auto px-8 py-20 border-t border-black/5">
 					<div className="text-center mb-16">
 						<h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter text-black mb-4">
 							Shopping Made Easy

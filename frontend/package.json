@@ -18,7 +18,6 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-hot-toast": "^2.6.0",
-    "react-paystack": "^6.0.0",
     "react-router": "^7.12.0",
     "react-router-dom": "^7.12.0",
     "sweetalert2": "^11.26.17"

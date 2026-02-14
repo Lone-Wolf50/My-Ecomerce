@@ -35,15 +35,12 @@ export default function ProductCard({ product }) {
           </p>
           
           <button 
-    onClick={(e) => {
-        e.preventDefault(); // Prevent Link navigation if button is inside Link
-        addToCart(product);
-    }}
-    className="flex items-center justify-center gap-1.5 px-4 md:px-5 py-2 md:py-2.5 bg-black-solid hover:bg-primary text-white text-[9px] md:text-[10px] font-black uppercase tracking-wider transition-all duration-500 rounded-full shadow-md hover:shadow-lg active:scale-95"
->
-    <span className="hidden md:inline">Add</span>
-    <span className="material-symbols-outlined text-sm md:text-base">add_shopping_cart</span>
-</button>
+            onClick={() => addToCart(product)}
+            className="flex items-center justify-center gap-1.5 px-4 md:px-5 py-2 md:py-2.5 bg-black-solid hover:bg-primary text-white text-[9px] md:text-[10px] font-black uppercase tracking-wider transition-all duration-500 rounded-full shadow-md hover:shadow-lg active:scale-95"
+          >
+            <span className="hidden md:inline">Add</span>
+            <span className="material-symbols-outlined text-sm md:text-base">add_shopping_cart</span>
+          </button>
         </div>
       </div>
     </div>

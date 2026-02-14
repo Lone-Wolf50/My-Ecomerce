@@ -5,7 +5,7 @@ import { supabase } from "../Database-Server/Superbase-client.js";
 import Footer from "./Footer.jsx";
 import Swal from "sweetalert2";
 import { Toaster, toast } from "react-hot-toast";
-
+import logo from '../assets/profile.png';
 function Homepage() {
 	const [isMenuOpen, setIsMenuOpen] = useState(false);
 	const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -672,11 +672,23 @@ function Homepage() {
 			{/* HEADER WITH SEARCH IN NAVBAR */}
 			<header className="fixed top-0 left-0 w-full z-50 bg-[#FDFBF7]/80 backdrop-blur-xl border-b border-black/5">
 				<div className="max-w-[1440px] mx-auto flex items-center justify-between px-8 py-6 gap-8">
-					<h1
-						className="text-2xl font-black tracking-widest cursor-pointer"
-						onClick={() => navigate("/")}
-					>
-						LUXE
+				<h1
+  className="flex items-center gap-3 cursor-pointer"
+  onClick={() => navigate("/")}
+>
+						 <img
+    src={logo}
+    alt="Janina Luxury Bags Logo"
+    className="h-10 md:h-12 w-auto rounded-sm shadow-sm"
+  />  
+  <div className="flex flex-col leading-tight">
+    <span className="text-sm md:text-base font-black tracking-[0.2em] text-black-solid">
+      JANINA
+    </span>
+    <span className="text-[9px] md:text-[10px] tracking-[0.1em] text-primary uppercase">
+      Luxury Bags
+    </span>
+  </div>
 					</h1>
 
 					{/* DESKTOP SEARCH BAR */}

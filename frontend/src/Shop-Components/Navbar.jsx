@@ -2,7 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import useCart from './useCart'; 
 
 // Assuming your logo is in the public folder or assets
-import logo from '../assets/profile.jpg'; 
+import logo from '../assets/profile.png'; 
 
 function Navbar() {
     const { cartCount } = useCart();

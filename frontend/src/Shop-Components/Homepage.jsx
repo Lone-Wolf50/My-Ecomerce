@@ -395,7 +395,7 @@ function Homepage() {
 		return (
 			<div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
 				<div className="text-[#D4AF37] font-black uppercase tracking-[0.5em] animate-pulse">
-					LUXE...
+					JANINA LUXURY BAGS...
 				</div>
 			</div>
 		);

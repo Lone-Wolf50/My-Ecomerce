@@ -12,7 +12,7 @@ function Cart() {
         <div className="min-h-screen bg-cream text-black-solid selection:bg-primary/30 select-none">
             <Navbar />
             
-            <main className="max-w-[1440px] mx-auto px-4 md:px-8 lg:px-12 pt-32 md:pt-40 pb-20">
+            <main className="max-w-[1440px] mx-auto px-4 md:px-8 lg:px-12 pt-16 md:pt-20 pb-20">
                 
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6 border-b border-black/10 pb-8 md:pb-12 mb-8 md:mb-16">

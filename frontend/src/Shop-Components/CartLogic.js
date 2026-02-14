@@ -31,8 +31,8 @@ export const addItemToCart = (cart, product) => {
  */
 export const updateItemQuantity = (cart, id, newQuantity) => {
     return cart.map(item => {
+        // Convert both to strings to ensure they match
         if (String(item.id) === String(id)) {
-            // Safety: Never allow less than 1 item
             const validatedQty = Math.max(1, newQuantity);
             return { ...item, quantity: validatedQty };
         }

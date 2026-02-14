@@ -847,7 +847,7 @@ function Homepage() {
 			{/* MAIN CONTENT STARTS HERE - FULL WIDTH, NO PADDING */}
 			<main className="pt-24">
 				{/* HERO CAROUSEL - Full Width, Responsive Heights, Swipe on Mobile */}
-				<section className="relative overflow-hidden h-[300px] md:h-[400px] lg:h-[500px] w-full">
+				<section className="relative overflow-hidden h-[300px] md:h-[450px] lg:h-[550px] w-full">
 					<div className="relative w-full h-full">
 						{carouselSlides.map((slide, index) => (
 							<div
@@ -865,7 +865,7 @@ function Homepage() {
 									backgroundPosition: "center",
 								}}
 							>
-								<div className="absolute inset-0 flex items-center px-6 md:px-12 lg:px-20">
+								<div className="absolute inset-0 flex items-center px-6 md:px-24 lg:px-32">
 									<div className={`max-w-2xl text-white transition-all duration-700 ${
 										index === currentSlide ? "translate-x-0 opacity-100" : "-translate-x-10 opacity-0"
 									}`}>

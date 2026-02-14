@@ -81,20 +81,22 @@ const fetchCloudCart = useCallback(async (email) => {
             const uuid = await getUserUuid(email);
             if (!uuid) return;
 
-            const { data, error } = await supabase
-                .from('active_sessions_cart')
-                .select(`quantity, product_id, image, price`)
-                .eq('user_id', uuid);
+           const { data, error } = await supabase
+    .from('active_sessions_cart')
+    .select(`quantity, product_id, image, price, name, category`)  // ← Add these
+    .eq('user_id', uuid);
 
             if (error) throw error;
 
             if (data) {
-                const cloudItems = data.map(item => ({
-                    id: item.product_id,
-                    quantity: item.quantity,
-                    image: item.image,
-                    price: item.price
-                }));
+               const cloudItems = data.map(item => ({
+    id: item.product_id,
+    quantity: item.quantity,
+    image: item.image,
+    price: item.price,
+    name: item.name,        // ← Add
+    category: item.category // ← Add
+}));
 
                 // STRICTURE CHECK: Does the new data actually differ from current state?
                 setCart(current => {
@@ -154,13 +156,15 @@ const fetchCloudCart = useCallback(async (email) => {
             if (!uuid) return;
 
             // Prepare the item for the database
-            const cartItem = {
-                user_id: uuid,
-                product_id: product.id,
-                quantity: product.quantity || 1,
-                image: product.image,
-                price: product.price
-            };
+          const cartItem = {
+    user_id: uuid,
+    product_id: product.id,
+    quantity: product.quantity || 1,
+    image: product.image,
+    price: product.price,
+    name: product.name,        // ← Add
+    category: product.category // ← Add
+};
 
             // Use upsert so that if the item exists, it just updates quantity
             const { error } = await supabase
@@ -190,25 +194,34 @@ const fetchCloudCart = useCallback(async (email) => {
         }
     };
 
-    const updateQuantity = async (id, delta) => {
-        const newCart = updateItemQuantity(cart, id, delta);
-        setCart(newCart);
-        
-        const userEmail = sessionStorage.getItem('userEmail');
-        if (userEmail) {
-            const uuid = await getUserUuid(userEmail);
-            const item = newCart.find(i => i.id === id);
-            
-            if (uuid && item) {
-                await supabase.from('active_sessions_cart')
-                    .update({ quantity: item.quantity })
-                    .eq('user_id', uuid)
-                    .eq('product_id', id);
-            } else if (uuid && !item) {
-                await removeFromCart(id);
-            }
+  const updateQuantity = async (id, change) => {
+    const currentItem = cart.find(i => String(i.id) === String(id));
+    if (!currentItem) return;
+
+    // ✅ Convert delta into absolute quantity
+    const newAbsoluteQuantity = currentItem.quantity + change;
+
+    const newCart = updateItemQuantity(cart, id, newAbsoluteQuantity);
+
+    // 🔥 This was missing before
+    setCart(newCart);
+
+    const userEmail = sessionStorage.getItem('userEmail');
+    if (userEmail && userEmail !== "null") {
+        const uuid = await getUserUuid(userEmail);
+        const item = newCart.find(i => String(i.id) === String(id));
+
+        if (uuid && item) {
+            await supabase
+                .from('active_sessions_cart')
+                .update({ quantity: item.quantity })
+                .eq('user_id', uuid)
+                .eq('product_id', id);
         }
-    };
+    }
+};
+
+
 
     const clearCart = async () => {
         setCart([]);

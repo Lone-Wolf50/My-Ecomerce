@@ -43,7 +43,7 @@ const ConnectingScreen = ({ adminName }) => (
         </div>
         <div>
           <p className="text-[9px] font-black uppercase tracking-[0.5em] text-black/25 mb-2">Connecting</p>
-          <h3 className="text-xl font-serif italic text-black">Reaching our concierge…</h3>
+          <h3 className="text-xl font-serif italic text-black">Reaching our Support…</h3>
           <p className="text-[11px] text-black/35 mt-2 max-w-xs mx-auto leading-relaxed">
             Our specialist has been notified. Please hold — they'll be with you shortly.
           </p>
@@ -69,7 +69,7 @@ const ResolvedScreen = ({ onClose }) => (
         <p className="text-[9px] font-black uppercase tracking-[0.4em] text-emerald-500 mb-2">Session Closed</p>
         <h3 className="text-xl font-serif italic text-black">Chat Resolved</h3>
         <p className="text-[12px] text-black/40 mt-2 max-w-xs mx-auto leading-relaxed">
-          Our concierge has marked this session as resolved. We hope we were able to help!
+          Our support team has marked this session as resolved. We hope we were able to help!
         </p>
       </div>
       <button
@@ -227,7 +227,7 @@ const SupportLiveChat = ({ user, onClose }) => {
           </div>
           <div>
             <p className="text-[10px] font-black uppercase tracking-widest text-black/70">
-              {adminName || 'Luxe Concierge'}
+              {adminName || 'Luxe Support'}
             </p>
             <div className="flex items-center gap-1.5 mt-0.5">
               <div className={`w-1.5 h-1.5 rounded-full ${resolved ? 'bg-emerald-400' : isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400 animate-pulse'}`} />
@@ -253,10 +253,10 @@ const SupportLiveChat = ({ user, onClose }) => {
             <div className="max-w-[75%]">
               <div className="flex items-center gap-2 mb-1.5">
                 <div className="w-6 h-6 rounded-lg bg-[#0A0A0A] flex items-center justify-center"><Shield size={11} className="text-[#D4AF37]" /></div>
-                <span className="text-[8px] font-black uppercase tracking-wider text-black/30">{adminName || 'Concierge'}</span>
+                <span className="text-[8px] font-black uppercase tracking-wider text-black/30">{adminName || 'Assistant'}</span>
               </div>
               <div className="bg-white border border-black/[0.07] px-5 py-3.5 rounded-[1.5rem] rounded-tl-lg shadow-sm">
-                <p className="text-[13px] text-black/65 leading-relaxed italic">"Hello, I'm {adminName || 'your concierge'}. How may I assist you today?"</p>
+                <p className="text-[13px] text-black/65 leading-relaxed italic">"Hello, I'm {adminName || 'your Assistant'}. How may I assist you today?"</p>
               </div>
             </div>
           </div>

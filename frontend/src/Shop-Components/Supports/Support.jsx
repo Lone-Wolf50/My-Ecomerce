@@ -30,7 +30,7 @@ const MENU_ITEMS = [
     id: 'live',
     icon: MessageCircle,
     title: 'Live Support',
-    desc: 'Connect with a concierge specialist in real time.',
+    desc: 'Connect with our specialist in real time.',
     accent: 'bg-emerald-50 border-emerald-100 text-emerald-600',
     dot: 'bg-emerald-400',
   },

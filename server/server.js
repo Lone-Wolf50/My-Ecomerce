@@ -1,25 +1,18 @@
 import express       from "express";
 import nodemailer     from "nodemailer";
 import cors          from "cors";
-import dotenv        from "dotenv";
-import path          from "path";
 import axios         from "axios";
 import crypto        from "crypto";
 import escapeHtml    from "escape-html";
 import helmet        from "helmet";
 import rateLimit     from "express-rate-limit";
-import { fileURLToPath } from "url";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.join(__dirname, "../.env") });
-dotenv.config();
 
 // ── Validate required env vars on startup ──────────────────────
 const REQUIRED_ENV = ["PAYSTACK_SECRET_KEY", "GMAIL_USER", "GMAIL_PASS", "ADMIN_SECRET_TOKEN", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"];
 for (const key of REQUIRED_ENV) {
   if (!process.env[key]) {
     console.error(`FATAL: Missing required env var: ${key}`);
-    process.exit(1);
+    // NOTE: process.exit() removed — it would kill the Vercel serverless runtime on cold start
   }
 }
 
@@ -43,6 +36,9 @@ const app = express();
 app.use(helmet());
 app.use(express.json({ limit: "10kb" }));
 
+// Needed for express-rate-limit to work correctly behind Vercel's proxy
+app.set("trust proxy", 1);
+
 // ── CORS ───────────────────────────────────────────────────────
 const allowedOrigins = [
   ...(IS_DEV ? ["http://localhost:3000", "http://localhost:5173"] : []),
@@ -58,6 +54,9 @@ app.use(cors({
   methods: ["GET", "POST"],
   credentials: true,
 }));
+
+// Handle CORS preflight for all routes
+app.options("*", cors());
 
 // ── Rate limiters ───────────────────────────────────────────────
 const globalLimiter = rateLimit({
@@ -837,7 +836,6 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ success: false, error: "An unexpected error occurred." });
 });
 
-const PORT = parseInt(process.env.PORT || "3001", 10);
-app.listen(PORT, () => {
-  log.info(`Server running on port ${PORT}`);
-});
+// ── Vercel serverless export ───────────────────────────────────
+// Vercel calls this exported handler for every request instead of app.listen()
+export default app;

@@ -5,224 +5,157 @@ import Navbar from './Navbar';
 import Footer from './Footer';
 
 function Cart() {
-    const { cart, removeFromCart, updateQuantity, cartTotal } = useCart();
-    const navigate = useNavigate();
+  const { cart, removeFromCart, updateQuantity, cartTotal } = useCart();
+  const navigate = useNavigate();
 
-    return (
-        <div className="min-h-screen bg-cream text-black-solid selection:bg-primary/30 select-none">
-            <Navbar />
-            
-            <main className="max-w-[1440px] mx-auto px-4 md:px-8 lg:px-12 pt-16 md:pt-20 pb-20">
-                
-                {/* Header Section */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6 border-b border-black/10 pb-8 md:pb-12 mb-8 md:mb-16">
-                    <div className="flex items-center gap-4 md:gap-8">
-                        <button 
-                            onClick={() => navigate(-1)}
-                            className="group flex items-center justify-center size-10 md:size-12 rounded-full border border-black/10 hover:border-primary/50 transition-all duration-500 bg-white/40 backdrop-blur-sm shrink-0"
-                        >
-                            <span className="material-symbols-outlined text-xl md:text-2xl text-black-solid/80 group-hover:text-primary group-hover:-translate-x-1 transition-all duration-300">
-                                arrow_back_ios_new
-                            </span>
-                        </button>
+  return (
+    <div className="min-h-screen bg-[#F7F5F0] text-black select-none">
+      <Navbar />
 
-                        <h1 className="text-3xl md:text-6xl lg:text-8xl font-black tracking-tighter uppercase italic leading-none">
-                            The <span className="text-primary">Cart</span>
-                        </h1>
-                    </div>
-                    <p className="text-[11px] md:text-[13px] font-black uppercase tracking-[0.3em] md:tracking-[0.4em] text-black-solid/30">
-                        {cart.length} {cart.length === 1 ? 'item' : 'items'}
-                    </p>
-                </div>
+      <main className="max-w-[1440px] mx-auto px-5 md:px-10 lg:px-16 pt-10 pb-32 md:pb-24">
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12 lg:gap-20">
-                    {/* Items List */}
-                    <div className="lg:col-span-8 space-y-4 md:space-y-6">
-                        {cart.length === 0 ? (
-                            <div className="py-20 md:py-40 flex flex-col items-center justify-center border border-black/5 bg-white/40 backdrop-blur-xl rounded-3xl md:rounded-[3rem] shadow-xl shadow-black/5">
-                                <span className="material-symbols-outlined text-5xl md:text-7xl text-primary/20 mb-4 md:mb-6">shopping_bag</span>
-                                <p className="text-black-solid/30 uppercase tracking-[0.3em] md:tracking-[0.5em] text-[9px] md:text-[10px] font-black mb-6 md:mb-10">Your cart is empty</p>
-                                <Link to="/" className="bg-black-solid text-white px-8 md:px-12 py-4 md:py-5 rounded-2xl font-black text-[10px] md:text-[11px] uppercase tracking-[0.25em] md:tracking-[0.3em] hover:bg-primary transition-all duration-500 shadow-xl">
-                                    Continue Shopping
-                                </Link>
-                            </div>
-                        ) : (
-                            cart.map((item) => (
-                                <div key={item.id} className="group relative bg-white/50 backdrop-blur-xl border border-black/5 rounded-2xl md:rounded-3xl shadow-lg shadow-black/5 transition-all duration-500 hover:border-primary/20 hover:shadow-xl overflow-hidden">
-                                    
-                                    {/* Mobile Layout */}
-                                    <div className="md:hidden">
-                                        <div className="relative">
-                                            <div className="aspect-[16/9] bg-cream p-4 flex items-center justify-center border-b border-black/5">
-                                                <img 
-                                                    src={item.image} 
-                                                    alt={item.name} 
-                                                    className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-700" 
-                                                />
-                                            </div>
-                                            <button 
-                                                onClick={() => removeFromCart(item.id)}
-                                                className="absolute top-3 right-3 size-8 flex items-center justify-center rounded-full bg-white/80 backdrop-blur-sm text-black-solid/60 hover:bg-red-500 hover:text-white transition-all shadow-md"
-                                            >
-                                                <span className="material-symbols-outlined text-lg">close</span>
-                                            </button>
-                                        </div>
-
-                                        <div className="p-4 space-y-4">
-                                            <div>
-                                                <h3 className="text-xl font-black tracking-tight uppercase text-black-solid leading-tight group-hover:text-primary transition-colors">
-                                                    {item.name}
-                                                </h3>
-                                                <p className="text-[11px] uppercase tracking-[0.3em] text-primary font-black mt-1.5">
-                                                    {item.category}
-                                                </p>
-                                            </div>
-
-                                            <div className="flex items-center justify-between gap-4 pt-4 border-t border-black/5">
-                                                <div className="flex flex-col gap-2">
-                                                    <span className="text-[10px] uppercase tracking-wider font-black text-black-solid/50">Qty</span>
-                                                    <div className="flex items-center bg-black-solid rounded-full px-4 py-2 gap-4 shadow-md">
-                                                        <button 
-                                                            onClick={() => updateQuantity(item.id, -1)}
-                                                            disabled={item.quantity <= 1}
-                                                            className="text-white hover:text-primary transition-colors font-black disabled:opacity-30"
-                                                        >
-                                                            <span className="material-symbols-outlined text-sm">remove</span>
-                                                        </button>
-                                                        <span className="text-sm font-black text-white tabular-nums min-w-[16px] text-center">
-                                                            {item.quantity}
-                                                        </span>
-                                                        <button 
-                                                            onClick={() => updateQuantity(item.id, 1)}
-                                                            className="text-white hover:text-primary transition-colors font-black"
-                                                        >
-                                                            <span className="material-symbols-outlined text-sm">add</span>
-                                                        </button>
-                                                    </div>
-                                                </div>
-
-                                                <div className="text-right">
-                                                    <p className="text-[10px] text-black-solid/40 uppercase tracking-wider font-black mb-1">Total</p>
-                                                    <p className="text-2xl font-black italic tracking-tighter text-black-solid">
-                                                        GH₵{(item.price * item.quantity).toLocaleString()}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Tablet/Desktop Layout */}
-                                    <div className="hidden md:flex gap-6 lg:gap-8 p-5 lg:p-6">
-                                        <div className="w-32 lg:w-48 aspect-[3/4] bg-cream rounded-2xl overflow-hidden p-4 lg:p-6 flex items-center justify-center shrink-0 border border-black/5 shadow-inner">
-                                            <img 
-                                                src={item.image} 
-                                                alt={item.name} 
-                                                className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-1000" 
-                                            />
-                                        </div>
-
-                                        <div className="flex flex-col justify-between flex-grow">
-                                            <div>
-                                                <div className="flex justify-between items-start gap-4">
-                                                    <div className="flex-1">
-                                                        <h3 className="text-2xl lg:text-3xl font-black tracking-tighter uppercase text-black-solid leading-none group-hover:text-primary transition-colors">
-                                                            {item.name}
-                                                        </h3>
-                                                        <p className="text-[12px] lg:text-[14px] uppercase tracking-[0.3em] lg:tracking-[0.4em] text-primary font-black mt-2 lg:mt-3">
-                                                            {item.category}
-                                                        </p>
-                                                    </div>
-                                                    <button 
-                                                        onClick={() => removeFromCart(item.id)}
-                                                        className="size-9 lg:size-10 flex items-center justify-center rounded-full bg-black-solid/5 text-black-solid/60 hover:bg-red-500 hover:text-white transition-all"
-                                                    >
-                                                        <span className="material-symbols-outlined text-lg lg:text-xl">close</span>
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex items-end justify-between gap-6 mt-6 lg:mt-8 pt-5 lg:pt-6 border-t border-black/5">
-                                                <div className="flex flex-col gap-2">
-                                                    <span className="text-[11px] lg:text-[13px] uppercase tracking-[0.25em] font-black text-black-solid/60">Quantity</span>
-                                                    <div className="flex items-center bg-black-solid rounded-full px-5 lg:px-6 py-2.5 lg:py-3 gap-6 lg:gap-8 shadow-xl shadow-black/10">
-                                                        <button 
-                                                            onClick={() => updateQuantity(item.id, -1)}
-                                                            disabled={item.quantity <= 1}
-                                                            className="text-white hover:text-primary transition-colors font-black disabled:opacity-30"
-                                                        >
-                                                            <span className="material-symbols-outlined text-sm">remove</span>
-                                                        </button>
-                                                        <span className="text-sm font-black text-white tabular-nums min-w-[12px] text-center">
-                                                            {item.quantity}
-                                                        </span>
-                                                        <button 
-                                                            onClick={() => updateQuantity(item.id, 1)}
-                                                            className="text-white hover:text-primary transition-colors font-black"
-                                                        >
-                                                            <span className="material-symbols-outlined text-sm">add</span>
-                                                        </button>
-                                                    </div>
-                                                </div>
-
-                                                <div className="text-right">
-                                                    <p className="text-[13px] lg:text-[15px] text-black-solid/30 uppercase tracking-[0.25em] lg:tracking-[0.3em] font-black mb-1">Subtotal</p>
-                                                    <p className="text-3xl lg:text-4xl font-black italic tracking-tighter text-black-solid">
-                                                        GH₵{(item.price * item.quantity).toLocaleString()}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-
-                    {/* Order Summary Sidebar */}
-                    <div className="lg:col-span-4">
-                        <div className="lg:sticky lg:top-32 bg-white/60 border border-black/5 backdrop-blur-3xl p-6 md:p-8 lg:p-10 rounded-3xl md:rounded-[3.5rem] shadow-2xl shadow-black/5">
-                            <h2 className="text-[13px] md:text-[15px] font-black uppercase tracking-[0.3em] md:tracking-[0.4em] text-primary mb-6 md:mb-10 pb-3 md:pb-4 border-b border-black/10">
-                                Order Summary
-                            </h2>
-                            
-                            <div className="space-y-4 md:space-y-6 mb-8 md:mb-12">
-                                <div className="flex justify-between text-black-solid/40 uppercase tracking-wider text-[11px] md:text-[12px] font-black">
-                                    <span>Subtotal</span>
-                                    <span className="text-black-solid font-black">GH₵{cartTotal.toLocaleString()}</span>
-                                </div>
-                                <div className="flex justify-between text-black-solid/40 uppercase tracking-wider text-[11px] md:text-[12px] font-black">
-                                    <span>Shipping</span>
-                                    <span className="text-primary font-black">Free</span>
-                                </div>
-                            </div>
-
-                            <div className="pt-6 md:pt-8 mb-8 md:mb-12 border-t border-black/10">
-                                <p className="text-[11px] md:text-[13px] font-black uppercase tracking-[0.3em] md:tracking-[0.4em] text-black-solid/50 mb-2">Grand Total</p>
-                                <span className="text-4xl md:text-5xl lg:text-6xl font-black italic tracking-tighter text-black-solid">
-                                    GH₵{cartTotal.toLocaleString()}
-                                </span>
-                            </div>
-
-                            <button 
-                                disabled={cart.length === 0}
-                                onClick={() => navigate('/checkout')} 
-                                className="w-full bg-black-solid text-white py-4 md:py-5 lg:py-6 rounded-2xl font-black text-[11px] md:text-[12px] uppercase tracking-[0.3em] md:tracking-[0.4em] hover:bg-primary transition-all duration-500 shadow-xl shadow-black/10 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
-                            >
-                                Proceed to Checkout
-                            </button>
-
-                            <div className="mt-6 md:mt-8 flex flex-col items-center gap-2 opacity-20">
-                                <span className="material-symbols-outlined text-lg md:text-xl">verified_user</span>
-                                <p className="text-[9px] md:text-[10px] uppercase tracking-[0.2em] font-black text-center">Secure Payment</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </main>
-
-            <Footer />
+        {/* Header */}
+        <div className="flex items-end justify-between border-b border-black/[0.08] pb-8 mb-10">
+          <div className="flex items-center gap-5">
+            <button onClick={() => navigate(-1)}
+              className="group w-11 h-11 rounded-2xl border border-black/[0.08] bg-white hover:border-[#D4AF37]/50 hover:bg-[#D4AF37]/5 transition-all flex items-center justify-center shrink-0"
+            >
+              <span className="material-symbols-outlined text-[20px] text-black/40 group-hover:text-[#D4AF37] group-hover:-translate-x-0.5 transition-all">arrow_back_ios_new</span>
+            </button>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-black/25 mb-1">Review Selection</p>
+              <h1 className="text-5xl md:text-6xl font-black tracking-tighter uppercase italic leading-none">Your Cart</h1>
+            </div>
+          </div>
+          <p className="text-[11px] font-black uppercase tracking-[0.35em] text-black/25 hidden md:block">
+            {cart.length} {cart.length === 1 ? 'piece' : 'pieces'}
+          </p>
         </div>
-    );
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14">
+
+          {/* Items */}
+          <div className="lg:col-span-7 space-y-4">
+            {cart.length === 0 ? (
+              <div className="py-28 flex flex-col items-center justify-center bg-white rounded-[2.5rem] border border-black/[0.05] shadow-sm">
+                <div className="w-20 h-20 rounded-[1.5rem] bg-black/[0.04] flex items-center justify-center mb-6">
+                  <span className="material-symbols-outlined text-4xl text-black/15">shopping_bag</span>
+                </div>
+                <p className="text-black/25 uppercase tracking-[0.4em] text-[11px] font-black mb-8">Your cart is empty</p>
+                <Link to="/"
+                  className="bg-black text-white px-10 py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.3em] hover:bg-[#D4AF37] transition-all shadow-lg"
+                >
+                  Continue Shopping
+                </Link>
+              </div>
+            ) : (
+              cart.map((item) => (
+                <div key={item.id}
+                  className="group flex gap-5 bg-white rounded-[2rem] border border-black/[0.05] p-5 hover:border-[#D4AF37]/25 hover:shadow-lg hover:shadow-black/[0.04] transition-all duration-300"
+                >
+                  <Link to={`/product/${item.id}`} className="shrink-0">
+                    <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl bg-[#F7F5F0] overflow-hidden border border-black/[0.04]">
+                      <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    </div>
+                  </Link>
+
+                  <div className="flex-1 flex flex-col justify-between min-w-0 py-0.5">
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#D4AF37] mb-1">{item.category}</p>
+                        <h3 className="font-black text-[16px] md:text-[18px] uppercase tracking-tight leading-tight truncate">{item.name}</h3>
+                      </div>
+                      <button onClick={() => removeFromCart(item.id)}
+                        className="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl bg-black/[0.04] text-black/30 hover:bg-red-50 hover:text-red-500 transition-all"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">close</span>
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="flex items-center bg-black rounded-full overflow-hidden shadow-md">
+                        <button onClick={() => updateQuantity(item.id, -1)} disabled={item.quantity <= 1}
+                          className="w-10 h-10 flex items-center justify-center text-white hover:text-[#D4AF37] transition-colors disabled:opacity-25"
+                        >
+                          <span className="material-symbols-outlined text-[17px]">remove</span>
+                        </button>
+                        <span className="w-8 text-center text-[14px] font-black text-white tabular-nums">{item.quantity}</span>
+                        <button onClick={() => updateQuantity(item.id, 1)}
+                          className="w-10 h-10 flex items-center justify-center text-white hover:text-[#D4AF37] transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[17px]">add</span>
+                        </button>
+                      </div>
+
+                      <div className="text-right">
+                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-black/25 mb-0.5">Subtotal</p>
+                        <p className="text-2xl md:text-3xl font-black italic tracking-tighter">GH₵{(item.price * item.quantity).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Summary */}
+          <div className="lg:col-span-5">
+            <div className="lg:sticky lg:top-28 bg-[#0A0A0A] text-white rounded-[2.5rem] p-8 md:p-10 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37]/5 rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-40 h-40 bg-[#D4AF37]/3 rounded-full -translate-x-1/2 translate-y-1/2 pointer-events-none" />
+
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-8 pb-6 border-b border-white/[0.08]">
+                  <h2 className="text-[11px] font-black uppercase tracking-[0.4em] text-[#D4AF37]">Order Summary</h2>
+                  <span className="text-[11px] font-black uppercase text-white/20">{cart.length} items</span>
+                </div>
+
+                {cart.length > 0 && (
+                  <div className="space-y-3 mb-7">
+                    {cart.map(item => (
+                      <div key={item.id} className="flex justify-between items-center">
+                        <span className="text-[12px] font-bold text-white/50 uppercase tracking-tight truncate max-w-[60%]">{item.name}</span>
+                        <span className="text-[12px] font-black text-white/70">GH₵{(item.price * item.quantity).toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="space-y-3 mb-8 border-t border-white/[0.08] pt-6">
+                  <div className="flex justify-between text-[12px] font-black uppercase tracking-wider">
+                    <span className="text-white/35">Subtotal</span>
+                    <span className="text-white/70">GH₵{cartTotal.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-[12px] font-black uppercase tracking-wider">
+                    <span className="text-white/35">Shipping</span>
+                    <span className="text-[#D4AF37]">Calculated at Delivery</span>
+                  </div>
+                </div>
+
+                <div className="pt-6 mb-8 border-t border-white/[0.08]">
+                  <p className="text-[10px] font-black uppercase tracking-[0.35em] text-white/25 mb-2">Grand Total</p>
+                  <span className="text-5xl md:text-6xl font-black italic tracking-tighter text-white">GH₵{cartTotal.toLocaleString()}</span>
+                </div>
+
+                <button disabled={cart.length === 0} onClick={() => navigate('/checkout')}
+                  className="w-full bg-[#D4AF37] text-black py-5 rounded-2xl font-black text-[12px] uppercase tracking-[0.35em] hover:brightness-110 transition-all active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed shadow-xl shadow-[#D4AF37]/20"
+                >
+                  Proceed to Checkout
+                </button>
+
+                <div className="mt-6 flex items-center justify-center gap-2 opacity-25">
+                  <span className="material-symbols-outlined text-[16px]">verified_user</span>
+                  <p className="text-[10px] uppercase tracking-[0.25em] font-black">Secured & Encrypted</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <Footer />
+    </div>
+  );
 }
 
 export default Cart;

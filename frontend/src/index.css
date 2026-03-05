@@ -156,14 +156,10 @@ body {
     display: flex;
 }
 
-main {
-    height: 100vh;
-    overflow-y: auto;
-}
+/* Removed: main scroll container was causing all pages to share one scroll position */
 
 .serif-title {
     font-family: "Cormorant Garamond", serif;
 }
 
 /* Add to your CSS file */
-

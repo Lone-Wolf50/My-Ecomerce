@@ -1,128 +1,196 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import logo from "../assets/profile.png";
 
-function Footer() {
-  const [activeInfo, setActiveInfo] = useState(null);
+const COLS = {
+  collections: [
+    { label: "New Arrivals",    path: "/shop/new"      },
+    { label: "Crossbody Bags",  path: "/shop/crossbody"},
+    { label: "Underarm Bags",   path: "/shop/underarm" },
+    { label: "Summer / Picnic", path: "/shop/picnic"   },
+    { label: "Limited Edition", path: "/shop/limited"  },
+  ],
+  service: [
+    { label: "My Orders",  path: "/orders"  },
+    { label: "Track Order",path: "/orders"  },
+    { label: "Support",    path: "/support" },
+    { label: "Reviews",    path: "/reviews" },
+    { label: "Sign In",    path: "/login"   },
+  ],
+};
 
-  const footerSections = [
-    {
-      id: "collections",
-      title: "Collections",
-      type: "link", 
-      links: [
-        { name: "New Arrivals", path: "/shop/new" },
-        { name: "Bestsellers", path: "/shop/popular" },
-        { name: "Limited Edition", path: "/shop/limited" },
-      ],
-    },
-    {
-      id: "assistance",
-      title: "Assistance",
-      type: "info", 
-      links: [
-        { name: "Track Order", info: "Check your order status in the 'My Orders' section of your account." },
-        { name: "Shipping", info: "We deliver within 2-3 business days. Insured worldwide." },
-        { name: "Returns", info: "We offer a 5-day collection service from your home for all returns and exchanges." },
-      ],
-    },
-    {
-      id: "corporate",
-      title: "Corporate",
-      type: "info", 
-      links: [
-        { name: "The Maison", info: "Founded in 2012. Our Product combines traditional craft with modern tech." },
-        { name: "Sustainability", info: "Our leather is sourced from gold-rated tanneries with 0% water waste targets." },
-        { name: "Privacy", info: "Your data is stored on private Swiss servers and is never shared with third parties." },
-      ],
-    },
-  ];
+export default function Footer() {
+  const [email, setEmail]       = useState("");
+  const [submitted, setSubmitted] = useState(false);
 
-  const handleInteraction = (name) => {
-    setActiveInfo(activeInfo === name ? null : name);
+  const handleJoin = (e) => {
+    e.preventDefault();
+    if (email.trim()) { setSubmitted(true); setEmail(""); }
   };
 
   return (
-    <footer className="relative w-full mt-16 md:mt-24 overflow-hidden">
-      {/* Dynamic Background */}
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_10%_20%,#7000ff10,transparent_40%),radial-gradient(circle_at_90%_80%,#ff3d0010,transparent_40%)] animate-pulse" />
-      
-      {/* Glass Container */}
-      <div className="w-full bg-white/10 backdrop-blur-[60px] backdrop-saturate-150 border-t border-white/30 py-10 md:py-16">
-        
-        <div className="max-w-[1440px] mx-auto px-6 md:px-8 lg:px-16">
-          {/* Main Content */}
-          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-8 md:gap-12 lg:gap-16">
-            
-            {/* Brand Logo - Compact on Mobile */}
-            <div className="lg:w-1/4">
-              <h2 className="text-2xl md:text-3xl font-black tracking-[0.4em] italic text-black-solid">LUXE</h2>
-              <p className="mt-2 md:mt-4 text-[11px] md:text-[13px] text-black-solid/40 font-bold uppercase tracking-[0.25em] md:tracking-[0.3em]">
-                Excellence in every stitch.
-              </p>
+    <footer className="relative mt-16 md:mt-24 bg-[#080808] text-white overflow-hidden">
+
+      {/* Ambient glows */}
+      <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[280px] bg-[#C9A227]/7 rounded-full blur-[130px]" />
+      <div className="pointer-events-none absolute bottom-0 right-[-8%] w-[420px] h-[420px] bg-[#C9A227]/5 rounded-full blur-[90px]" />
+
+      {/* Top gold accent line */}
+      <div className="w-full h-px bg-gradient-to-r from-transparent via-[#C9A227]/55 to-transparent" />
+
+      <div className="relative z-10 max-w-[1440px] mx-auto px-6 md:px-12 lg:px-20">
+
+        {/* ── MAIN CONTENT ──────────────────────────────────── */}
+        <div className="py-14 md:py-20 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.8fr_1fr_1fr_1.2fr] gap-10 lg:gap-14">
+
+          {/* ── Brand + newsletter ─── */}
+          <div className="flex flex-col gap-7 sm:col-span-2 lg:col-span-1">
+            {/* Logo */}
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl overflow-hidden border border-white/[0.12] shadow-lg">
+                <img src={logo} alt="Janina" className="w-full h-full object-cover" />
+              </div>
+              <div>
+                <p className="text-[15px] font-black tracking-[0.22em] text-white leading-none">JANINA</p>
+                <p className="text-[8px] tracking-[0.2em] text-[#C9A227] font-bold mt-0.5">Luxury Bags · Ghana</p>
+              </div>
             </div>
 
-            {/* Navigation Grid - Responsive */}
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10 lg:gap-12">
-              {footerSections.map((section) => (
-                <div key={section.id} className="flex flex-col gap-4 md:gap-5">
-                  <h4 className="font-black text-[11px] md:text-[13px] uppercase tracking-[0.4em] md:tracking-[0.5em] text-primary/60 border-b border-black/5 pb-2">
-                    {section.title}
-                  </h4>
-                  <ul className="flex flex-col gap-3 md:gap-4">
-                    {section.links.map((link) => (
-                      <li 
-                        key={link.name} 
-                        className="relative group"
-                        onMouseEnter={() => section.type === "info" && setActiveInfo(link.name)}
-                        onMouseLeave={() => setActiveInfo(null)}
-                        onClick={() => section.type === "info" && handleInteraction(link.name)}
-                      >
-                        {section.type === "link" ? (
-                          <Link 
-                            to={link.path}
-                            className="text-[12px] md:text-[13px] text-black-solid/50 font-bold uppercase tracking-[0.2em] hover:text-primary transition-colors"
-                          >
-                            {link.name}
-                          </Link>
-                        ) : (
-                          <div className="flex flex-col cursor-pointer">
-                            <span className={`text-[12px] md:text-[13px] font-bold uppercase tracking-[0.2em] transition-all duration-300 ${activeInfo === link.name ? 'text-primary translate-x-1' : 'text-black-solid/50'}`}>
-                              {link.name}
-                            </span>
-                            
-                            {/* Info Dropdown - Compact on Mobile */}
-                            <div className={`overflow-hidden transition-all duration-500 ease-in-out ${activeInfo === link.name ? 'max-h-40 opacity-100 mt-2 md:mt-3' : 'max-h-0 opacity-0'}`}>
-                              <div className="p-3 md:p-4 bg-white/30 backdrop-blur-3xl border border-white/40 rounded-lg shadow-xl">
-                                <p className="text-[11px] md:text-[12px] leading-relaxed text-black-solid/70 font-bold italic tracking-wide">
-                                  {link.info}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
+            <p className="text-[13px] text-white/42 leading-relaxed max-w-[300px] font-medium">
+              Handcrafted luxury bags curated for the remarkable. Every stitch, a statement. Every piece, a legacy.
+            </p>
+
+            {/* Newsletter */}
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.42em] text-white/28 mb-3">The Vault — Insider Access</p>
+              {submitted ? (
+                <div className="flex items-center gap-2.5 text-emerald-400">
+                  <span className="material-symbols-outlined text-[20px]">check_circle</span>
+                  <span className="text-[12px] font-black uppercase tracking-wider">You're in the vault.</span>
                 </div>
+              ) : (
+                <form onSubmit={handleJoin} className="flex gap-2">
+                  <input
+                    type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    className="flex-1 h-11 bg-white/[0.06] border border-white/[0.1] rounded-xl px-4 text-[13px] font-bold text-white placeholder:text-white/18 outline-none focus:border-[#C9A227]/50 transition-colors"
+                  />
+                  <button type="submit"
+                    className="h-11 px-5 bg-[#C9A227] text-white rounded-xl text-[11px] font-black uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all shrink-0 shadow-lg shadow-[#C9A227]/20"
+                  >
+                    Join
+                  </button>
+                </form>
+              )}
+            </div>
+
+            {/* Social */}
+            <div className="flex items-center gap-3">
+              {[
+                { icon: "photo_camera", label: "Instagram" },
+                { icon: "chat",         label: "WhatsApp"  },
+                { icon: "language",     label: "Website"   },
+              ].map(({ icon, label }) => (
+                <button key={icon} aria-label={label}
+                  className="w-10 h-10 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center hover:bg-[#C9A227]/20 hover:border-[#C9A227]/40 transition-all group"
+                >
+                  <span className="material-symbols-outlined text-[18px] text-white/30 group-hover:text-[#C9A227] transition-colors">{icon}</span>
+                </button>
               ))}
             </div>
           </div>
 
-          {/* Bottom Bar - Compact on Mobile */}
-          <div className="mt-10 md:mt-16 lg:mt-20 pt-6 md:pt-8 lg:pt-10 border-t border-black/[0.03] flex flex-col sm:flex-row justify-between items-center gap-4 md:gap-6">
-            <p className="text-[9px] md:text-[11px] uppercase tracking-[0.5em] md:tracking-[0.8em] text-black-solid/20 font-black">
-              © 2026 LUXE S.p.A.
-            </p>
-            <div className="flex gap-4 md:gap-6 lg:gap-7 grayscale opacity-12">
-                <span className="text-[10px] md:text-[12px] uppercase tracking-[0.3em] md:tracking-[0.4em]">Milan</span>
-                <span className="text-[10px] md:text-[12px] uppercase tracking-[0.3em] md:tracking-[0.4em]">Paris</span>
-                <span className="text-[10px] md:text-[12px] uppercase tracking-[0.3em] md:tracking-[0.4em]">NYC</span>
+          {/* ── Collections ─────────── */}
+          <div>
+            <h4 className="text-[10px] font-black uppercase tracking-[0.48em] text-[#C9A227] mb-5 pb-3 border-b border-white/[0.06]">
+              Collections
+            </h4>
+            <ul className="space-y-3">
+              {COLS.collections.map(({ label, path }) => (
+                <li key={label}>
+                  <Link to={path}
+                    className="text-[13px] font-bold text-white/40 hover:text-white hover:pl-1.5 uppercase tracking-wide transition-all duration-200"
+                  >
+                    {label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* ── Service ─────────────── */}
+          <div>
+            <h4 className="text-[10px] font-black uppercase tracking-[0.48em] text-[#C9A227] mb-5 pb-3 border-b border-white/[0.06]">
+              Service
+            </h4>
+            <ul className="space-y-3">
+              {COLS.service.map(({ label, path }) => (
+                <li key={label}>
+                  <Link to={path}
+                    className="text-[13px] font-bold text-white/40 hover:text-white hover:pl-1.5 uppercase tracking-wide transition-all duration-200"
+                  >
+                    {label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* ── Promise + trust ─────── */}
+          <div>
+            <h4 className="text-[10px] font-black uppercase tracking-[0.48em] text-[#C9A227] mb-5 pb-3 border-b border-white/[0.06]">
+              Our Promise
+            </h4>
+            <ul className="space-y-3 mb-7">
+              {[
+                "5-Day Free Returns",
+                "Authenticity Certified",
+                "Complimentary Shipping",
+                "Insured Packaging",
+                "Secure Payments",
+              ].map((txt) => (
+                <li key={txt} className="flex items-center gap-2.5">
+                  <span className="material-symbols-outlined text-[15px] text-[#C9A227]/65 shrink-0">check_circle</span>
+                  <span className="text-[12px] font-bold text-white/40 uppercase tracking-wide">{txt}</span>
+                </li>
+              ))}
+            </ul>
+
+            {/* Trust badges */}
+            <div className="space-y-2.5 pt-5 border-t border-white/[0.06]">
+              {[
+                { icon: "verified_user", text: "256-bit Encryption"  },
+                { icon: "lock",          text: "Private & Secure"    },
+                { icon: "credit_card",   text: "Powered by Paystack" },
+              ].map(({ icon, text }) => (
+                <div key={icon} className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[14px] text-white/18">{icon}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white/18">{text}</span>
+                </div>
+              ))}
             </div>
           </div>
+        </div>
+
+        {/* ── BOTTOM BAR ─────────────────────────────────────── */}
+        <div className="border-t border-white/[0.05] py-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-[10px] uppercase tracking-[0.55em] font-black text-white/18">
+            © 2026 Janina Luxury Bags · Accra, Ghana
+          </p>
+          <div className="flex items-center gap-5 md:gap-7">
+            {["Privacy Policy", "Terms of Use", "Cookies"].map((item) => (
+              <span key={item}
+                className="text-[10px] uppercase tracking-widest font-bold text-white/15 hover:text-white/40 transition-colors cursor-pointer"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
+          <p className="text-[9px] uppercase tracking-[0.3em] font-black text-white/12">
+            Crafted with precision
+          </p>
         </div>
       </div>
     </footer>
   );
 }
-
-export default Footer;

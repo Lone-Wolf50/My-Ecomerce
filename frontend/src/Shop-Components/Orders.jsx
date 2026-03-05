@@ -1,290 +1,445 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../Database-Server/Superbase-client.js";
-import Navbar from "./Navbar.jsx";
-import useCart from "./useCart"; 
-import Swal from 'sweetalert2';
-import StatusTracker from "./StatusTracker"; 
+import {
+  Package, ChevronRight, Clock, Truck, CheckCircle, XCircle,
+  RotateCcw, ShoppingBag, ArrowLeft, AlertTriangle,
+} from "lucide-react";
 
-function Orders() {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("ongoing"); 
-  const navigate = useNavigate();
-  const { addToCart } = useCart();
+const STATUS_CONFIG = {
+  pending:    { label: "Pending",   color: "text-amber-600",   bg: "bg-amber-50",    border: "border-amber-200",   icon: Clock       },
+  processing: { label: "Crafting",  color: "text-blue-600",    bg: "bg-blue-50",     border: "border-blue-200",    icon: Package     },
+  shipped:    { label: "Shipped",   color: "text-purple-600",  bg: "bg-purple-50",   border: "border-purple-200",  icon: Truck       },
+  delivered:  { label: "Delivered", color: "text-emerald-600", bg: "bg-emerald-50",  border: "border-emerald-200", icon: CheckCircle },
+  cancelled:  { label: "Cancelled", color: "text-red-500",     bg: "bg-red-50",      border: "border-red-200",     icon: XCircle     },
+  returned:   { label: "Returned",  color: "text-gray-500",    bg: "bg-gray-50",     border: "border-gray-200",    icon: RotateCcw   },
+};
 
-  const fetchOrders = useCallback(async () => {
-    try {
-      setLoading(true);
-      const storedUuid = sessionStorage.getItem('userUuid');
-      if (!storedUuid) {
-        navigate("/login");
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("orders")
-        .select(`
-          *,
-          order_items (
-            product_id, quantity, price,
-            products (*) 
-          )
-        `) 
-        .eq("user_id", storedUuid)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setOrders(data || []);
-    } catch (err) {
-      console.error("❌ Fetch error:", err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [navigate]);
+/* ── Premium live 5-day return countdown ─────────────────── */
+function ReturnCountdown({ deliveredAt, onReturn, isReturning }) {
+  const [timeLeft, setTimeLeft] = useState(null);
 
   useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
-
-  // Helper to send messages to Admin
-  const sendAdminMessage = async (order, reason, type) => {
-    const storedUuid = sessionStorage.getItem('userUuid');
-    
-    const { error } = await supabase.from('admin_messages').insert([{
-      user_id: storedUuid,
-      user_email: order.customer_email || 'No email provided',
-      user_name: order.customer_name || 'Valued Client',
-      order_id: order.id,
-      message_type: type, 
-      reason: reason,
-      status: 'unread'
-    }]);
-
-    if (error) console.error("Admin Message Error:", error.message);
-  };
-
-  const handleCancelOrder = async (order) => {
-    const { value: reason } = await Swal.fire({
-      title: 'CANCEL ORDER?',
-      input: 'textarea',
-      inputLabel: 'Reason for cancellation',
-      inputPlaceholder: 'Please provide a reason (min 10 characters)...',
-      inputAttributes: { 'aria-label': 'Type your reason here' },
-      showCancelButton: true,
-      confirmButtonColor: '#000',
-      background: "#FDFBF7",
-      inputValidator: (value) => {
-        if (!value || value.length < 10) {
-          return 'Please provide a detailed reason (at least 10 characters).';
-        }
-      }
-    });
-
-    if (reason) {
-      try {
-        const { error } = await supabase.from('orders').update({ status: 'cancelled' }).eq('id', order.id);
-        if (error) throw error;
-        
-        await sendAdminMessage(order, reason, 'cancel');
-        
-        setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'cancelled' } : o));
-        Swal.fire('Cancelled', 'Order cancellation submitted.', 'success');
-      } catch (err) {
-        Swal.fire('Error', err.message, 'error');
-      }
-    }
-  };
-
-  const handleReturnOrder = async (order) => {
-    const { value: reason } = await Swal.fire({
-      title: 'INITIATE RETURN?',
-      input: 'textarea',
-      inputLabel: 'Reason for return',
-      inputPlaceholder: 'Tell us why you are returning this item (min 10 characters)...',
-      showCancelButton: true,
-      confirmButtonColor: '#D4AF37',
-      background: "#FDFBF7",
-      inputValidator: (value) => {
-        if (!value || value.length < 10) {
-          return 'Reason must be at least 10 characters.';
-        }
-      }
-    });
-
-    if (reason) {
-      try {
-        const { error } = await supabase.from('orders').update({ status: 'returned' }).eq('id', order.id);
-        if (error) throw error;
-
-        await sendAdminMessage(order, reason, 'return');
-
-        setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'returned' } : o));
-        Swal.fire('Initiated', 'Our team will review your return request.', 'success');
-      } catch (err) {
-        Swal.fire('Error', err.message, 'error');
-      }
-    }
-  };
-
-  const handleReorder = (items) => {
-    items.forEach(item => { if (item.products) addToCart(item.products); });
-    Swal.fire({ title: 'Added to Bag', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
-  };
-
-  const getReturnStatus = (order) => {
-    const status = order.status?.toLowerCase();
-    if (status !== 'delivered') return { canReturn: false, message: '', daysRemaining: 0 };
-
-    // Fallback: If delivered_at is null, we treat "now" as the delivery date
-    const deliveredAtDate = order.delivered_at ? new Date(order.delivered_at) : new Date();
-    const diffDays = Math.floor((new Date() - deliveredAtDate) / (1000 * 60 * 60 * 24));
-    
-    const daysRemaining = 5 - diffDays;
-    const canReturn = daysRemaining > 0;
-
-    return {
-      canReturn,
-      message: canReturn ? `${daysRemaining} day${daysRemaining === 1 ? '' : 's'} left to return` : 'Not returnable',
-      daysRemaining: Math.max(0, daysRemaining)
+    if (!deliveredAt) return;
+    const calc = () => {
+      const deadline = new Date(new Date(deliveredAt).getTime() + 5 * 24 * 60 * 60 * 1000);
+      const msLeft   = deadline - Date.now();
+      if (msLeft <= 0) { setTimeLeft(null); return; }
+      const totalSecs  = Math.floor(msLeft / 1000);
+      const days       = Math.floor(totalSecs / 86400);
+      const hours      = Math.floor((totalSecs % 86400) / 3600);
+      const mins       = Math.floor((totalSecs % 3600) / 60);
+      const secs       = totalSecs % 60;
+      setTimeLeft({ days, hours, mins, secs, totalSecs, deadline });
     };
-  };
+    calc();
+    // Update every second for live ticking
+    const id = setInterval(calc, 1000);
+    return () => clearInterval(id);
+  }, [deliveredAt]);
 
-  const filteredOrders = orders.filter(order => {
-    const status = order.status?.toLowerCase();
-    if (activeTab === "ongoing") {
-      return ["pending", "processing", "shipped"].includes(status);
-    }
-    return ["delivered", "cancelled", "returned"].includes(status);
-  });
+  if (!timeLeft) return null;
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#FDFBF7]">
-      <p className="text-[10px] font-black uppercase tracking-[0.5em] text-[#D4AF37] animate-pulse">ACCESSING_VAULT...</p>
-    </div>
-  );
+  const urgent = timeLeft.days === 0 && timeLeft.hours < 6;
+  const pct    = Math.max(0, Math.min(100, (timeLeft.totalSecs / (5 * 24 * 3600)) * 100));
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] py-12 px-4 md:px-20 font-sans text-black relative overflow-hidden select-none">
-      <Navbar />
-      <div className="max-w-4xl mx-auto mt-24 relative z-10">
-        <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-black/5 pb-8">
-          <div>
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[#D4AF37]">Private Collection</span>
-            <h1 className="text-4xl font-serif italic text-black/90 mt-1">Order Archives</h1>
-          </div>
-          <div className="flex bg-black/[0.03] p-1.5 rounded-full border border-black/5 backdrop-blur-md">
-            {['ongoing', 'history'].map((tab) => (
-              <button key={tab} onClick={() => setActiveTab(tab)}
-                className={`px-8 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all duration-500 ${
-                  activeTab === tab ? 'bg-white text-black shadow-xl shadow-black/5' : 'text-black/30 hover:text-black'
-                }`}>
-                {tab}
-              </button>
-            ))}
-          </div>
-        </header>
-        
-        <div className="flex flex-col gap-8">
-          {filteredOrders.length === 0 ? (
-            <div className="text-center py-32 bg-white/40 rounded-[3rem] border border-dashed border-black/10">
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-20 italic underline underline-offset-8">No records found in this sector</p>
+    <div className={`mt-4 rounded-2xl overflow-hidden border transition-all ${
+      urgent
+        ? "bg-gradient-to-br from-orange-50 to-red-50 border-orange-200"
+        : "bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-200"
+    }`}>
+      {/* Progress bar at top */}
+      <div className={`h-1 w-full ${urgent ? "bg-orange-100" : "bg-emerald-100"}`}>
+        <div
+          className={`h-full transition-all duration-1000 ${urgent ? "bg-gradient-to-r from-orange-400 to-red-500" : "bg-gradient-to-r from-emerald-400 to-teal-500"}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+
+      <div className="px-4 py-4">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${urgent ? "bg-orange-100" : "bg-emerald-100"}`}>
+              <span className={`text-[14px] ${urgent ? "animate-pulse" : ""}`}>⏱</span>
             </div>
-          ) : (
-            filteredOrders.map((order) => {
-              const items = order.order_items || []; 
-              const returnStatus = getReturnStatus(order);
-              const status = order.status?.toLowerCase();
-              const isDelivered = status === 'delivered';
-              const canCancel = ["processing", "shipped"].includes(status);
+            <div>
+              <p className={`text-[8px] font-black uppercase tracking-[0.4em] ${urgent ? "text-orange-700" : "text-emerald-700"}`}>
+                Return Window
+              </p>
+              <p className={`text-[9px] font-bold ${urgent ? "text-orange-500" : "text-emerald-500"}`}>
+                {urgent ? "⚠ Expires very soon" : "5-day free return policy"}
+              </p>
+            </div>
+          </div>
+        </div>
 
-              return (
-                <div key={order.id} className="group relative p-8 md:p-10 rounded-[3rem] bg-white border border-black/[0.03] shadow-sm transition-all hover:shadow-2xl">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                    <div className="space-y-2">
-                      <p className="text-[9px] font-black text-[#D4AF37] uppercase tracking-[0.5em]">Registry ID • {order.id.slice(0, 8)}</p>
-                      <h2 className="text-2xl md:text-3xl font-serif italic text-black/90">{new Date(order.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</h2>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <StatusTracker currentStatus={order.status} orderId={order.id} />
-                      {isDelivered && (
-                        <div className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-wider transition-colors duration-300 ${
-                          returnStatus.canReturn 
-                            ? 'bg-green-50 text-green-600 border border-green-200' 
-                            : 'bg-gray-100 text-gray-400 border border-gray-200'
-                        }`}>
-                          {returnStatus.message}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+        {/* Live clock tiles */}
+        <div className="flex items-center gap-2 mb-4">
+          {[
+            { val: String(timeLeft.days).padStart(2, "0"),  label: "days"  },
+            { val: String(timeLeft.hours).padStart(2, "0"), label: "hours" },
+            { val: String(timeLeft.mins).padStart(2, "0"),  label: "mins"  },
+            { val: String(timeLeft.secs).padStart(2, "0"),  label: "secs"  },
+          ].map(({ val, label }, i) => (
+            <React.Fragment key={label}>
+              <div className={`flex-1 rounded-xl text-center py-2.5 px-1 ${
+                urgent ? "bg-orange-100/60" : "bg-emerald-100/60"
+              }`}>
+                <p className={`text-[20px] font-black font-mono leading-none tabular-nums ${
+                  urgent ? "text-orange-700" : "text-emerald-700"
+                }`}>{val}</p>
+                <p className={`text-[7px] font-black uppercase tracking-widest mt-0.5 ${
+                  urgent ? "text-orange-500/70" : "text-emerald-500/70"
+                }`}>{label}</p>
+              </div>
+              {i < 3 && (
+                <span className={`text-[18px] font-black pb-2 ${urgent ? "text-orange-400" : "text-emerald-400"}`}>:</span>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12">
-                    {items.map((item, idx) => (
-                      <div key={idx} className="flex items-center gap-5 p-4 rounded-[1.5rem] bg-[#FDFBF7] border border-black/[0.02] transition-colors hover:bg-white hover:border-black/10">
-                        <div className="w-16 h-16 rounded-2xl bg-white p-1 border border-black/5 overflow-hidden shadow-sm flex-shrink-0">
-                          {item.products?.image ? (
-                            <img src={item.products.image} alt="" className="w-full h-full object-cover rounded-xl" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-[8px] font-black text-black/20">N/A</div>
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[11px] font-black uppercase tracking-wider text-black/80 truncate">{item.products?.name || "Bespoke Artifact"}</p>
-                          <p className="text-[10px] font-bold text-black/40 mt-1 uppercase tracking-tighter">
-                            Qty: {item.quantity} — <span className="text-[#D4AF37]">GH₵{item.price.toLocaleString()}</span>
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row justify-between items-center pt-8 border-t border-black/[0.05] gap-6">
-                    <div className="text-center sm:text-left">
-                      <span className="text-[9px] font-black uppercase text-black/20 tracking-[0.3em] block mb-1 font-sans">Total</span>
-                      <span className="text-3xl font-serif italic text-black">GH&#8373; {order.total_amount?.toLocaleString()}</span>
-                    </div>
-                    <div className="flex gap-3 w-full sm:w-auto flex-wrap justify-center sm:justify-end">
-                      <button 
-                        onClick={() => handleReorder(items)} 
-                        className="flex-1 sm:flex-none px-8 py-4 rounded-2xl bg-black text-white text-[10px] font-black uppercase tracking-widest hover:bg-[#D4AF37] hover:text-black transition-all active:scale-95 shadow-lg shadow-black/10">
-                        Reorder
-                      </button>
-                      
-                      {canCancel && (
-                        <button 
-                          onClick={() => handleCancelOrder(order)} 
-                          className="flex-1 sm:flex-none px-8 py-4 rounded-2xl border border-red-200 bg-red-50 text-red-600 text-[10px] font-black uppercase tracking-widest hover:border-red-500 hover:bg-red-100 transition-all active:scale-95">
-                          Cancel Order
-                        </button>
-                      )}
-
-                      {isDelivered && (
-                        returnStatus.canReturn ? (
-                          <button 
-                            onClick={() => handleReturnOrder(order)} 
-                            className="flex-1 sm:flex-none px-8 py-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-black uppercase tracking-widest hover:bg-amber-100 transition-all active:scale-95">
-                            Return Item
-                          </button>
-                        ) : (
-                          <button 
-                            disabled 
-                            className="flex-1 sm:flex-none px-8 py-4 rounded-2xl bg-gray-100 border border-gray-200 text-gray-400 text-[10px] font-black uppercase tracking-widest cursor-not-allowed"
-                            title="Return period has expired">
-                            Not Returnable
-                          </button>
-                        )
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
+        {/* Deadline note + return button */}
+        <div className="flex items-center justify-between">
+          <p className={`text-[9px] font-bold ${urgent ? "text-orange-500/70" : "text-emerald-500/70"}`}>
+            Deadline: {new Date(timeLeft.deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+          </p>
+          <button
+            onClick={(e) => { e.stopPropagation(); onReturn(); }}
+            disabled={isReturning}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50 shadow-sm ${
+              urgent
+                ? "bg-gradient-to-r from-orange-500 to-red-500 hover:brightness-110"
+                : "bg-gradient-to-r from-emerald-500 to-teal-600 hover:brightness-110"
+            }`}
+          >
+            {isReturning
+              ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              : <RotateCcw size={11} />}
+            Return Item
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-export default Orders;
+/* ── Delivered Thank-You Banner ─────────────────────────────── */
+function DeliveredBanner({ order }) {
+  return (
+    <div className="mt-3 rounded-2xl overflow-hidden border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50">
+      <div className="h-0.5 bg-gradient-to-r from-emerald-400 to-teal-500 w-full" />
+      <div className="px-4 py-4 flex items-start gap-3">
+        <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0 mt-0.5">
+          <CheckCircle size={16} className="text-emerald-600" />
+        </div>
+        <div>
+          <p className="text-[9px] font-black uppercase tracking-[0.4em] text-emerald-700 mb-1">
+            Delivered — Thank You
+          </p>
+          <p className="text-[11px] text-emerald-700/80 font-medium leading-relaxed">
+            Your piece has arrived. Thank you for choosing <strong>Janina Luxury Bags</strong> — 
+            wear it with pride. A confirmation was sent to your email.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+function ShippedNotice({ order }) {
+  return (
+    <div className="mt-3 flex items-start gap-3 p-3.5 rounded-2xl bg-purple-50 border border-purple-200">
+      <div className="w-7 h-7 rounded-xl bg-purple-100 flex items-center justify-center shrink-0 mt-0.5">
+        <Truck size={13} className="text-purple-600" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[9px] font-black uppercase tracking-widest text-purple-700 mb-0.5">
+          Your order is on its way!
+        </p>
+        <p className="text-[10px] font-medium text-purple-600/80 leading-relaxed">
+          A shipping confirmation was sent to your email. You can cancel below if needed — a return will be arranged on delivery.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export default function Orders() {
+  const [orders, setOrders]       = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState(null);
+  const [cancelling, setCancelling] = useState(null);
+  const [returning, setReturning]   = useState(null);
+  const navigate = useNavigate();
+
+  const userEmail = sessionStorage.getItem("userEmail");
+  const userId    = sessionStorage.getItem("userUuid");
+
+  const fetchOrders = useCallback(async () => {
+    setLoading(true); setError(null);
+    try {
+      let query = supabase
+        .from("orders").select("*, order_items(*)")
+        .order("created_at", { ascending: false });
+      if (userId)         query = query.eq("user_id", userId);
+      else if (userEmail) query = query.eq("customer_email", userEmail);
+      else { setError("Not logged in"); setLoading(false); return; }
+      const { data, error: err } = await query;
+      if (err) setError(err.message);
+      else setOrders(data || []);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  }, [userId, userEmail]);
+
+  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+  /* Real-time subscription for order status updates */
+  useEffect(() => {
+    if (!userId && !userEmail) return;
+    const channel = supabase
+      .channel("orders-realtime")
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "orders",
+      }, (payload) => {
+        const updated = payload.new;
+        // Update local state live
+        setOrders(prev => prev.map(o => o.id === updated.id ? { ...o, ...updated } : o));
+      })
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [userId, userEmail]);
+
+  const handleCancel = async (e, order) => {
+    e.stopPropagation();
+    const isShipped = order.status === "shipped";
+    const confirmed = window.confirm(
+      isShipped
+        ? `Cancel order #${String(order.id).slice(0,8).toUpperCase()}?\n\nNote: Your item is already in transit. Cancellation will be processed upon return to sender.`
+        : `Cancel order #${String(order.id).slice(0,8).toUpperCase()}? This cannot be undone.`
+    );
+    if (!confirmed) return;
+    setCancelling(order.id);
+    const { error } = await supabase.from("orders").update({ status: "cancelled" }).eq("id", order.id);
+    if (!error) fetchOrders();
+    setCancelling(null);
+  };
+
+  const handleReturn = async (order) => {
+    const confirmed = window.confirm(`Request a return for order #${String(order.id).slice(0,8).toUpperCase()}?`);
+    if (!confirmed) return;
+    setReturning(order.id);
+    const { error } = await supabase.from("orders").update({ status: "returned" }).eq("id", order.id);
+    if (!error) fetchOrders();
+    setReturning(null);
+  };
+
+  const formatDate = (iso) => {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  };
+  const formatCurrency = (amount) =>
+    `GH₵${Number(amount || 0).toLocaleString("en-GH", { minimumFractionDigits: 2 })}`;
+
+  /* ── Loading ── */
+  if (loading) return (
+    <div className="min-h-screen bg-[#F7F5F0] flex items-center justify-center">
+      <div className="w-8 h-8 border-[3px] border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  /* ── Error ── */
+  if (error) return (
+    <div className="min-h-screen bg-[#F7F5F0] flex flex-col items-center justify-center gap-4 p-6">
+      <p className="text-[12px] font-black uppercase tracking-widest text-red-400">{error}</p>
+      <button onClick={fetchOrders} className="px-6 py-3 rounded-full bg-black text-white text-[11px] font-black uppercase tracking-widest hover:bg-[#C9A227] transition-all">Try Again</button>
+    </div>
+  );
+
+  /* ── Empty ── */
+  if (orders.length === 0) return (
+    <div className="min-h-screen bg-[#F7F5F0] flex flex-col items-center justify-center gap-6 p-6 text-center">
+      <div className="w-20 h-20 rounded-3xl bg-black/[0.04] flex items-center justify-center">
+        <ShoppingBag size={32} className="text-black/20" />
+      </div>
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-[0.35em] text-black/25 mb-2">Order History</p>
+        <h2 className="text-2xl font-serif italic text-black mb-2">No orders yet</h2>
+        <p className="text-[12px] text-black/35 font-medium">Your crafted pieces will appear here once ordered.</p>
+      </div>
+      <Link to="/" className="px-8 py-3.5 rounded-full bg-[#0A0A0A] text-white text-[11px] font-black uppercase tracking-widest hover:bg-[#C9A227] transition-all">
+        Explore Collection
+      </Link>
+    </div>
+  );
+
+  /* ── Orders list ── */
+  return (
+    <div className="min-h-screen bg-[#F7F5F0] pb-28 md:pb-10">
+
+      {/* Header */}
+      <div className="max-w-2xl mx-auto px-5 pt-8 pb-6">
+        {/* ← Back button */}
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2.5 mb-6 group"
+        >
+          <div className="w-9 h-9 rounded-full border border-black/[0.1] bg-white flex items-center justify-center shadow-sm group-hover:bg-black group-hover:border-black transition-all duration-200">
+            <ArrowLeft size={14} className="text-black/50 group-hover:text-white transition-colors" />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-black/35 group-hover:text-black transition-colors">Back</span>
+        </button>
+
+        <p className="text-[10px] font-black uppercase tracking-[0.38em] text-black/22 mb-1">Your History</p>
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <h1 className="text-4xl font-serif italic text-black">Orders</h1>
+            <p className="text-[12px] text-black/40 font-medium mt-1">{orders.length} order{orders.length !== 1 ? "s" : ""}</p>
+          </div>
+          <button
+            onClick={fetchOrders}
+            className="flex items-center gap-1.5 h-9 px-4 mb-1 rounded-xl border border-black/[0.08] bg-white text-[9px] font-black uppercase tracking-widest text-black/40 hover:text-black hover:border-black/20 transition-all shrink-0"
+          >
+            <RotateCcw size={12} />
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* List */}
+      <div className="max-w-2xl mx-auto px-5 space-y-3">
+        {orders.map((order) => {
+          const cfg   = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
+          const Icon  = cfg.icon;
+          const items = order.order_items || [];
+          const preview = items[0];
+
+          /* Cancel: visible on pending, processing, shipped */
+          const canCancel = ["pending", "processing", "shipped"].includes(order.status);
+
+          /* Return: only delivered, within 5 days — use delivered_at or updated_at as fallback */
+          const isDelivered = order.status === "delivered";
+          const deliveredAt = order.delivered_at || (isDelivered ? order.updated_at : null);
+          const returnDeadline = deliveredAt
+            ? new Date(new Date(deliveredAt).getTime() + 5 * 24 * 60 * 60 * 1000)
+            : null;
+          const showReturn = isDelivered && deliveredAt && returnDeadline && returnDeadline > new Date();
+
+          return (
+            <div
+              key={order.id}
+              onClick={() => navigate(`/track/${order.id}`)}
+              className="bg-white rounded-3xl border border-black/[0.06] p-5 shadow-sm cursor-pointer hover:shadow-md hover:border-[#D4AF37]/25 transition-all duration-200 active:scale-[0.99]"
+            >
+              {/* Top row */}
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-black/25 mb-0.5">Order</p>
+                  <p className="text-[13px] font-black text-black leading-none">
+                    #{String(order.id).slice(0, 8).toUpperCase()}
+                  </p>
+                  <p className="text-[10px] text-black/35 font-medium mt-1">{formatDate(order.created_at)}</p>
+                </div>
+                <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${cfg.color} ${cfg.bg} ${cfg.border}`}>
+                  <Icon size={11} /> {cfg.label}
+                </span>
+              </div>
+
+              {/* Items preview */}
+              {items.length > 0 && (
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="flex -space-x-2">
+                    {items.slice(0, 3).map((item, i) => (
+                      <div key={i} className="w-12 h-12 rounded-xl border-2 border-white bg-[#F0EDE7] overflow-hidden shadow-sm" style={{ zIndex: 3-i }}>
+                        {item.image
+                          ? <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                          : <div className="w-full h-full flex items-center justify-center"><Package size={16} className="text-black/20" /></div>}
+                      </div>
+                    ))}
+                    {items.length > 3 && (
+                      <div className="w-12 h-12 rounded-xl border-2 border-white bg-[#F0EDE7] flex items-center justify-center shadow-sm">
+                        <span className="text-[10px] font-black text-black/35">+{items.length - 3}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] font-black text-black truncate">
+                      {preview?.name || "Item"}
+                      {items.length > 1 && <span className="text-black/35"> +{items.length - 1} more</span>}
+                    </p>
+                    <p className="text-[10px] text-black/35 font-medium mt-0.5">
+                      {items.reduce((s, i) => s + (i.quantity || 1), 0)} item{items.reduce((s, i) => s + (i.quantity || 1), 0) !== 1 ? "s" : ""}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Bottom row */}
+              <div className="flex items-center justify-between pt-3 border-t border-black/[0.05]">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-black/25 mb-0.5">Total</p>
+                  <p className="text-[16px] font-black text-black">{formatCurrency(order.total_amount)}</p>
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-[#D4AF37]">
+                  Track Order <ChevronRight size={13} />
+                </div>
+              </div>
+
+              {/* ── Shipped notice (email was sent) ── */}
+              {order.status === "shipped" && (
+                <div onClick={e => e.stopPropagation()}>
+                  <ShippedNotice order={order} />
+                </div>
+              )}
+
+              {/* ── Delivered thank-you banner ── */}
+              {isDelivered && (
+                <div onClick={e => e.stopPropagation()}>
+                  <DeliveredBanner order={order} />
+                </div>
+              )}
+
+              {/* ── Cancel button (pending / processing / shipped) ── */}
+              {canCancel && (
+                <div className="mt-3" onClick={e => e.stopPropagation()}>
+                  <button
+                    onClick={(e) => handleCancel(e, order)}
+                    disabled={cancelling === order.id}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl border border-red-200 bg-red-50 text-red-500 text-[10px] font-black uppercase tracking-widest hover:bg-red-100 active:scale-[0.98] transition-all disabled:opacity-50"
+                  >
+                    {cancelling === order.id
+                      ? <div className="w-3 h-3 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                      : <XCircle size={13} />}
+                    {order.status === "shipped" ? "Cancel Order — In Transit" : "Cancel Order"}
+                  </button>
+                  {order.status === "shipped" && (
+                    <p className="flex items-center justify-center gap-1 text-center text-[9px] text-black/30 font-medium mt-1.5">
+                      <AlertTriangle size={9} />
+                      Item already shipped — return will be arranged
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* ── Premium Return countdown (delivered, within 5 days) ── */}
+              {showReturn && (
+                <div onClick={e => e.stopPropagation()}>
+                  <ReturnCountdown
+                    deliveredAt={order.delivered_at}
+                    onReturn={() => handleReturn(order)}
+                    isReturning={returning === order.id}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

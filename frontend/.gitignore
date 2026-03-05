@@ -23,3 +23,101 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+still there is an [{
+
+	"resource": "/c:/Users/user/Desktop/My React/my-shop/frontend/src/Shop-Components/Admin/AdminSidebar.jsx",
+
+	"owner": "eslint3",
+
+	"code": {
+
+		"value": "no-unused-vars",
+
+		"target": {
+
+			"$mid": 1,
+
+			"path": "/docs/latest/rules/no-unused-vars",
+
+			"scheme": "https",
+
+			"authority": "eslint.org"
+
+		}
+
+	},
+
+	"severity": 8,
+
+	"message": "'Icon' is defined but never used.",
+
+	"source": "eslint",
+
+	"startLineNumber": 65,
+
+	"startColumn": 35,
+
+	"endLineNumber": 65,
+
+	"endColumn": 39,
+
+	"modelVersionId": 21,
+
+	"tags": [
+
+		1
+
+	],
+
+	"origin": "extHost1"
+
+},{
+
+	"resource": "/c:/Users/user/Desktop/My React/my-shop/frontend/src/Shop-Components/Admin/AdminSidebar.jsx",
+
+	"owner": "eslint3",
+
+	"code": {
+
+		"value": "no-unused-vars",
+
+		"target": {
+
+			"$mid": 1,
+
+			"path": "/docs/latest/rules/no-unused-vars",
+
+			"scheme": "https",
+
+			"authority": "eslint.org"
+
+		}
+
+	},
+
+	"severity": 8,
+
+	"message": "'Icon' is defined but never used.",
+
+	"source": "eslint",
+
+	"startLineNumber": 158,
+
+	"startColumn": 37,
+
+	"endLineNumber": 158,
+
+	"endColumn": 41,
+
+	"modelVersionId": 21,
+
+	"tags": [
+
+		1
+
+	],
+
+	"origin": "extHost1"
+
+}]cant you change the code that will work ethically if this the error persisting . also the homepage where the featured product is is the container for pc and tab is too long and the text on the hompege let it be visibile instead of making them faint let it look very professional and premium. also the our collections too on pc and tab i dont expect them to take full width unlike mobie categorize them  very well premiumly and professional

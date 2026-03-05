@@ -3,217 +3,206 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from "../Database-Server/Superbase-client.js";
 import Navbar from "./Navbar.jsx";
 
+const STAGES = ['placed', 'pending', 'processing', 'shipped', 'delivered'];
+
+const STAGE_CONFIG = {
+  placed:     { label: 'Order Placed',  icon: 'receipt_long',            color: 'text-gray-500',    dot: 'bg-gray-400',    ring: 'ring-gray-400/20',    bar: 'bg-gray-400'    },
+  pending:    { label: 'Confirmed',     icon: 'verified',                color: 'text-amber-600',   dot: 'bg-amber-400',   ring: 'ring-amber-400/25',   bar: 'bg-amber-400'   },
+  processing: { label: 'Processing', icon: 'precision_manufacturing', color: 'text-blue-500',    dot: 'bg-blue-400',    ring: 'ring-blue-400/25',    bar: 'bg-blue-400'    },
+  shipped:    { label: 'Shipped',    icon: 'local_shipping',          color: 'text-violet-500',  dot: 'bg-violet-400',  ring: 'ring-violet-400/25',  bar: 'bg-violet-400'  },
+  delivered:  { label: 'Delivered',     icon: 'inventory',               color: 'text-emerald-600', dot: 'bg-emerald-400', ring: 'ring-emerald-400/25', bar: 'bg-emerald-400' },
+  cancelled:  { label: 'Cancelled',     icon: 'cancel',                  color: 'text-red-500',     dot: 'bg-red-400',     ring: 'ring-red-400/25',     bar: 'bg-red-400'     },
+};
+
 const OrderTrackingPage = () => {
-  const { Id } = useParams(); 
+  const { Id } = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // The sequence you requested
-  const stages = ["placed", "pending", "processing", "shipped", "delivered"];
-
-  // Color scheme for each stage
-  const colors = {
-    placed: { text: "text-gray-600", bar: "bg-gray-400", dot: "bg-gray-400", ring: "ring-gray-400/20" },
-    pending: { text: "text-amber-600", bar: "bg-amber-400", dot: "bg-amber-400", ring: "ring-amber-400/20" },
-    processing: { text: "text-blue-600", bar: "bg-blue-400", dot: "bg-blue-400", ring: "ring-blue-400/20" },
-    shipped: { text: "text-purple-600", bar: "bg-purple-400", dot: "bg-purple-400", ring: "ring-purple-400/20" },
-    delivered: { text: "text-green-600", bar: "bg-green-400", dot: "bg-green-400", ring: "ring-green-400/20" },
-    cancelled: { text: "text-red-600", bar: "bg-red-400", dot: "bg-red-400", ring: "ring-red-400/20" },
-    default: { text: "text-gray-400", bar: "bg-gray-200", dot: "bg-gray-200", ring: "ring-gray-200/20" }
-  };
-
   useEffect(() => {
-    async function fetchOrderDetails() {
-      if (!Id || Id === "undefined") return setLoading(false);
+    async function fetchOrder() {
+      if (!Id || Id === 'undefined') return setLoading(false);
       try {
         setLoading(true);
         const { data, error } = await supabase
-          .from('orders')
-          .select(`*, order_items (*, products (*))`)
-          .eq('id', Id)
-          .maybeSingle();
-        
+          .from('orders').select(`*, order_items (*, products (*))`)
+          .eq('id', Id).maybeSingle();
         if (error) throw error;
         setOrder(data);
-      } catch (err) {
-        console.error("🚨 Fetch error:", err.message);
-      } finally {
-        setLoading(false);
-      }
+      } catch (err) { console.error(err.message); }
+      finally { setLoading(false); }
     }
-    fetchOrderDetails();
+    fetchOrder();
   }, [Id]);
 
-  // Helper function to calculate return eligibility
-  const getReturnStatus = (order) => {
-    if (!order || order.status?.toLowerCase() !== 'delivered') {
-      return { canReturn: false, message: '', daysRemaining: 0 };
-    }
-
-    const deliveryDate = new Date(order.updated_at);
-    const currentDate = new Date();
-    const daysSinceDelivery = Math.floor((currentDate - deliveryDate) / (1000 * 60 * 60 * 24));
-    const daysRemaining = 5 - daysSinceDelivery;
-
-    return {
-      canReturn: daysRemaining > 0,
-      message: daysRemaining > 0 
-        ? `${daysRemaining} day${daysRemaining === 1 ? '' : 's'} left to return` 
-        : 'Item not returnable',
-      daysRemaining: Math.max(0, daysRemaining)
-    };
+  const getReturnStatus = (o) => {
+    if (!o || o.status?.toLowerCase() !== 'delivered') return { canReturn: false, message: '', daysRemaining: 0 };
+    const days = Math.floor((new Date() - new Date(o.updated_at)) / 864e5);
+    const rem = 5 - days;
+    return { canReturn: rem > 0, message: rem > 0 ? `${rem} day${rem !== 1 ? 's' : ''} left to return` : 'Return window closed', daysRemaining: Math.max(0, rem) };
   };
 
   if (loading) return (
-    <div className="h-screen bg-[#FDFBF7] flex items-center justify-center font-black text-[10px] tracking-[0.5em] animate-pulse text-[#D4AF37]">
-      DECRYPTING_PATH...
+    <div className="min-h-screen bg-[#F7F5F0] flex items-center justify-center">
+      <div className="text-center space-y-3">
+        <div className="w-9 h-9 border-[3px] border-[#D4AF37] border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-[10px] font-black uppercase tracking-[0.5em] text-[#D4AF37] animate-pulse">Decrypting path…</p>
+      </div>
     </div>
   );
 
   if (!order) return (
-    <div className="h-screen bg-[#FDFBF7] flex flex-col items-center justify-center gap-6">
-      <p className="text-[10px] font-black uppercase tracking-widest opacity-30">Archive Entry Not Found</p>
-      <button onClick={() => navigate(-1)} className="bg-black text-white px-10 py-4 rounded-full text-[10px] font-black uppercase tracking-widest">
+    <div className="min-h-screen bg-[#F7F5F0] flex flex-col items-center justify-center gap-6 px-5">
+      <div className="w-16 h-16 rounded-[1.25rem] bg-black/[0.04] flex items-center justify-center mb-2">
+        <span className="material-symbols-outlined text-3xl text-black/20">search_off</span>
+      </div>
+      <p className="text-[12px] font-black uppercase tracking-widest text-black/25">Archive entry not found</p>
+      <button onClick={() => navigate(-1)}
+        className="bg-black text-white px-10 py-4 rounded-full text-[11px] font-black uppercase tracking-widest hover:bg-[#D4AF37] transition-all"
+      >
         Go Back
       </button>
     </div>
   );
 
-  // SAFE STATUS LOGIC
-  const rawStatus = order.status?.toLowerCase() || 'placed';
-  const isCancelled = rawStatus === 'cancelled';
-  const returnStatus = getReturnStatus(order);
-  
-  // Find the index, but default to 0 (placed) if the status is unrecognized
-  const foundIndex = stages.indexOf(rawStatus);
+  const rawStatus    = order.status?.toLowerCase() || 'placed';
+  const isCancelled  = rawStatus === 'cancelled';
+  const foundIndex   = STAGES.indexOf(rawStatus);
   const currentIndex = foundIndex === -1 ? 0 : foundIndex;
+  const returnStatus = getReturnStatus(order);
+  const currentCfg   = STAGE_CONFIG[rawStatus] || STAGE_CONFIG.placed;
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] text-black pb-20 font-sans">
+    <div className="min-h-screen bg-[#F7F5F0] pb-32 md:pb-20 select-none">
       <Navbar />
-      <div className="max-w-xl mx-auto pt-32 px-8">
-        <button 
-          onClick={() => navigate('/')} 
-          className="group mb-12 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black/30 hover:text-black transition-all"
+
+      <div className="max-w-lg mx-auto pt-8 px-5">
+
+        {/* Back */}
+        <button onClick={() => navigate('/orders')}
+          className="group mb-10 flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-black/25 hover:text-black transition-colors"
         >
-          <span className="material-symbols-outlined text-base group-hover:-translate-x-1 transition-transform">arrow_back</span>
-          Return to Home
+          <span className="material-symbols-outlined text-[16px] group-hover:-translate-x-1 transition-transform">arrow_back</span>
+          Back to Orders
         </button>
-        
-        <header className="mb-20">
-          <span className="text-[10px] font-black uppercase tracking-[0.5em] text-[#D4AF37]">Live Logistic Sequence</span>
-          <h1 className="text-4xl font-serif italic mt-2 text-black/90">Asset #{order.id.slice(0,8)}</h1>
+
+        {/* Header */}
+        <div className="mb-10">
+          <p className="text-[10px] font-black uppercase tracking-[0.5em] text-[#D4AF37] mb-2">Live Logistics</p>
+          <h1 className="text-4xl md:text-5xl font-serif italic text-black/90 leading-tight">
+            Asset #{order.id.slice(0, 8)}
+          </h1>
+          <p className="text-[12px] font-bold text-black/30 uppercase tracking-wider mt-2">
+            {new Date(order.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
+          </p>
           {isCancelled && (
-            <div className="mt-4 px-4 py-2 bg-red-50 border border-red-100 inline-block rounded-lg">
-              <p className="text-red-600 text-[9px] font-black uppercase tracking-widest">Status: Terminated / Cancelled</p>
+            <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-200 rounded-xl">
+              <span className="material-symbols-outlined text-red-500 text-[18px]">cancel</span>
+              <p className="text-red-600 text-[10px] font-black uppercase tracking-widest">Order Terminated</p>
             </div>
           )}
-        </header>
+        </div>
 
-        {/* VERTICAL TIMELINE - Professional Version */}
-        <div className="relative space-y-14 pl-6 mb-20">
-          {/* Background Track (The faint line) */}
-          <div className="absolute left-[19px] top-3 bottom-3 w-[2px] bg-black/[0.08]"></div>
-          
-          {/* Active Progress Line - Uses current stage color */}
+        {/* Current status hero */}
+        {!isCancelled && (
+          <div className="mb-10 p-6 rounded-[2rem] bg-white border border-black/[0.05] shadow-sm flex items-center gap-5">
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0`}
+              style={{ background: 'rgba(0,0,0,0.04)' }}
+            >
+              <span className={`material-symbols-outlined text-[28px] ${currentCfg.color}`}>{currentCfg.icon}</span>
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-black/25 mb-1">Current Status</p>
+              <p className={`text-[20px] font-black uppercase tracking-tight ${currentCfg.color}`}>{currentCfg.label}</p>
+              {rawStatus !== 'delivered' && (
+                <div className="flex items-center gap-1.5 mt-1">
+                  <div className={`w-1.5 h-1.5 rounded-full ${currentCfg.dot} animate-pulse`} />
+                  <span className="text-[10px] font-bold text-black/30 uppercase tracking-wide">In Progress</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Vertical timeline */}
+        <div className="relative pl-12 space-y-9 mb-14">
+          <div className="absolute left-[15px] top-4 bottom-4 w-[2px] bg-black/[0.06] rounded-full" />
           {!isCancelled && (
-            <div 
-              className={`absolute left-[19px] top-3 w-[2px] transition-all duration-1000 ease-out ${colors[rawStatus]?.bar || colors.default.bar}`}
-              style={{ height: `${(currentIndex / (stages.length - 1)) * 100}%` }}
-            ></div>
+            <div className={`absolute left-[15px] top-4 w-[2px] rounded-full transition-all duration-1000 ${currentCfg.bar}`}
+              style={{ height: `${(currentIndex / (STAGES.length - 1)) * 92}%` }}
+            />
           )}
 
-          {stages.map((stage, idx) => {
-            const isPast = idx < currentIndex;
+          {STAGES.map((stage, idx) => {
+            const cfg       = STAGE_CONFIG[stage] || STAGE_CONFIG.placed;
+            const isPast    = idx < currentIndex;
             const isCurrent = idx === currentIndex && !isCancelled;
-            const stageColor = colors[stage] || colors.default;
-            const isDeliveredStage = stage === 'delivered' && isCurrent;
-            
+            const isFuture  = idx > currentIndex;
+
             return (
-              <div key={stage} className={`flex items-start gap-8 transition-all duration-700 ${
-                isCurrent ? 'opacity-100' : isPast ? 'opacity-100' : 'opacity-30'
-              }`}>
-                
-                {/* Status Dot - Enhanced with proper colors */}
-                <div className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 ${
-                  isCurrent 
-                    ? `${stageColor.dot} ring-8 ${stageColor.ring} scale-110 shadow-lg` 
-                    : isPast 
-                    ? `${stageColor.dot} shadow-md` 
-                    : 'bg-white border-2 border-black/10'
+              <div key={stage}
+                className={`relative flex items-start gap-5 transition-all duration-500 ${isFuture && !isCancelled ? 'opacity-20' : 'opacity-100'}`}
+              >
+                {/* Dot */}
+                <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 shrink-0 -ml-12 ${
+                  isCurrent ? `${cfg.dot} ring-8 ${cfg.ring} shadow-lg scale-110`
+                  : isPast ? `${cfg.dot} shadow-sm`
+                  : 'bg-white border-2 border-black/[0.1]'
                 }`}>
-                  {/* Inner dot for completed stages */}
-                  {(isPast || isCurrent) && (
-                    <div className="w-3 h-3 bg-white rounded-full"></div>
-                  )}
+                  {(isPast || isCurrent) && <div className="w-2.5 h-2.5 bg-white rounded-full" />}
                 </div>
 
-                {/* Status Text - Enhanced readability */}
-                <div className="flex-1 -mt-1">
-                  <h3 className={`text-[13px] font-black uppercase tracking-[0.25em] mb-2 ${
-                    isCurrent ? stageColor.text : isPast ? stageColor.text : 'text-black/30'
+                {/* Text */}
+                <div className="-mt-0.5">
+                  <p className={`text-[14px] font-black uppercase tracking-[0.15em] ${
+                    isCurrent ? cfg.color : isPast ? 'text-black/60' : 'text-black/20'
                   }`}>
-                    {stage}
-                  </h3>
-                  
-                  {/* Special handling for delivered stage */}
-                  {isDeliveredStage ? (
-                    <div className="space-y-2">
-                      <div className={`px-3 py-1.5 rounded-lg inline-block ${
-                        returnStatus.canReturn 
-                          ? 'bg-green-50 border border-green-200' 
-                          : 'bg-gray-50 border border-gray-200'
-                      }`}>
-                        <p className={`text-[9px] font-bold uppercase tracking-tight ${
-                          returnStatus.canReturn ? 'text-green-600' : 'text-gray-400'
-                        }`}>
-                          {returnStatus.message}
-                        </p>
-                      </div>
+                    {cfg.label}
+                  </p>
+
+                  {isCurrent && stage === 'delivered' && (
+                    <div className={`mt-2 inline-flex px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wide border ${
+                      returnStatus.canReturn ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-gray-50 text-gray-400 border-gray-200'
+                    }`}>
+                      {returnStatus.message}
                     </div>
-                  ) : isCurrent && !isDeliveredStage ? (
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${stageColor.dot} animate-pulse`}></div>
-                      <p className={`text-[10px] font-bold uppercase tracking-tight ${stageColor.text}`}>
-                        In Progress
-                      </p>
-                    </div>
-                  ) : isPast ? (
-                    <p className="text-[9px] font-semibold text-black/40 uppercase tracking-tight">
-                      Completed
-                    </p>
-                  ) : null}
+                  )}
+                  {isCurrent && stage !== 'delivered' && (
+                    <p className={`text-[11px] font-bold mt-0.5 uppercase tracking-tight ${cfg.color} opacity-70`}>Currently active</p>
+                  )}
+                  {isPast && (
+                    <p className="text-[10px] font-bold text-black/25 uppercase tracking-tight mt-0.5">Completed</p>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
 
-        {/* ORDER SUMMARY */}
-        <div className="mt-24 pt-10 border-t border-black/5">
-           <p className="text-[9px] font-black uppercase tracking-widest text-black/20 mb-8 italic">Secure Manifest</p>
-           <div className="space-y-4">
-             {order.order_items?.map((item, i) => (
-               <div key={i} className="flex justify-between items-center p-4 bg-white rounded-2xl border border-black/[0.02]">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-[#FDFBF7] border border-black/5 overflow-hidden">
-                      <img src={item.products?.image} className="w-full h-full object-cover" alt="" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-tight">{item.products?.name}</p>
-                      <p className="text-[9px] font-bold text-[#D4AF37]">Qty: {item.quantity}</p>
-                    </div>
-                  </div>
-                  <span className="text-[11px] font-serif italic text-black/40">GH₵{item.price?.toLocaleString()}</span>
-               </div>
-             ))}
-           </div>
-           
-           <div className="mt-10 pt-6 border-t border-dashed border-black/10 flex justify-between items-end">
-              <span className="text-[9px] font-black uppercase tracking-[0.4em] opacity-20">Total Settlement</span>
-              <span className="text-2xl font-serif italic">GH₵{order.total_amount?.toLocaleString()}</span>
-           </div>
+        {/* Manifest */}
+        <div className="bg-white rounded-[2.5rem] border border-black/[0.05] shadow-sm overflow-hidden">
+          <div className="px-7 py-5 border-b border-black/[0.05]">
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-black/25">Secure Manifest</p>
+          </div>
+          <div className="p-5 space-y-3">
+            {order.order_items?.map((item, i) => (
+              <div key={i} className="flex items-center gap-4 p-4 bg-[#F7F5F0] rounded-2xl">
+                <div className="w-12 h-12 rounded-xl overflow-hidden border border-black/[0.05] shrink-0">
+                  <img src={item.products?.image} className="w-full h-full object-cover" alt="" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-black uppercase tracking-tight truncate">{item.products?.name}</p>
+                  <p className="text-[11px] font-bold text-[#D4AF37] mt-0.5">Qty: {item.quantity}</p>
+                </div>
+                <span className="text-[13px] font-black text-black/40 shrink-0">GH₵{item.price?.toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+          <div className="px-7 py-5 border-t border-dashed border-black/[0.08] flex justify-between items-center">
+            <span className="text-[10px] font-black uppercase tracking-[0.35em] text-black/20">Total Settlement</span>
+            <span className="text-2xl font-serif italic text-[#D4AF37]">GH₵{order.total_amount?.toLocaleString()}</span>
+          </div>
         </div>
       </div>
     </div>

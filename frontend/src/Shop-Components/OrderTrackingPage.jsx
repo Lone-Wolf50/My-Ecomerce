@@ -30,7 +30,7 @@ const OrderTrackingPage = () => {
           .eq('id', Id).maybeSingle();
         if (error) throw error;
         setOrder(data);
-      } catch (err) { console.error(err.message); }
+      } catch (_err) { /* suppress — UI handles the null order state */ }
       finally { setLoading(false); }
     }
     fetchOrder();
@@ -39,7 +39,7 @@ const OrderTrackingPage = () => {
   const getReturnStatus = (o) => {
     if (!o || o.status?.toLowerCase() !== 'delivered') return { canReturn: false, message: '', daysRemaining: 0 };
     const days = Math.floor((new Date() - new Date(o.updated_at)) / 864e5);
-    const rem = 5 - days;
+    const rem = 1 - days;
     return { canReturn: rem > 0, message: rem > 0 ? `${rem} day${rem !== 1 ? 's' : ''} left to return` : 'Return window closed', daysRemaining: Math.max(0, rem) };
   };
 

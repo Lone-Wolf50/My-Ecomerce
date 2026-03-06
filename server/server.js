@@ -13,8 +13,8 @@ config();
 const REQUIRED_ENV = ["PAYSTACK_SECRET_KEY", "GMAIL_USER", "GMAIL_PASS", "ADMIN_SECRET_TOKEN", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"];
 for (const key of REQUIRED_ENV) {
   if (!process.env[key]) {
-    console.error(`FATAL: Missing required env var: ${key}`);
-    // NOTE: process.exit() removed — it would kill the Vercel serverless runtime on cold start
+    // Log to stderr only — never to stdout where it could leak to clients
+    process.stderr.write(`FATAL: Missing required env var: ${key}\n`);
   }
 }
 
@@ -24,12 +24,14 @@ const SUPABASE_URL         = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const IS_DEV = process.env.NODE_ENV !== "production";
 
+// ── Silent logger — NOTHING sensitive ever reaches the client ──
 const log = {
-  info:  (msg)      => IS_DEV && console.log(`[INFO] ${msg}`),
-  warn:  (msg)      => IS_DEV && console.warn(`[WARN] ${msg}`),
+  info:  (msg)      => IS_DEV && process.stdout.write(`[INFO] ${msg}\n`),
+  warn:  (msg)      => IS_DEV && process.stderr.write(`[WARN] ${msg}\n`),
+  // In production: log message only, never the error object (prevents stack/path leaks)
   error: (msg, err) => {
-    if (IS_DEV) console.error(`[ERROR] ${msg}`, err?.message || "");
-    else        console.error(`[ERROR] ${msg}`);
+    if (IS_DEV) process.stderr.write(`[ERROR] ${msg} — ${err?.message || ""}\n`);
+    else        process.stderr.write(`[ERROR] ${msg}\n`);
   },
 };
 
@@ -49,7 +51,7 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // allow server-to-server & Vercel health checks
+    if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
     callback(new Error("CORS policy violation"));
   },
@@ -57,7 +59,6 @@ app.use(cors({
   credentials: true,
 }));
 
-// Handle CORS preflight for all routes
 app.options(/.*/, cors());
 
 // ── Rate limiters ───────────────────────────────────────────────
@@ -76,23 +77,16 @@ const authLimiter = rateLimit({
   message: { success: false, error: "Too many attempts. Please wait before retrying." },
 });
 
-// Strict limiter for email-sending endpoints — prevents abuse
 const emailLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
+  windowMs: 60 * 60 * 1000,
   max: 20,
   message: { success: false, error: "Email limit reached. Please try again later." },
 });
-// NOTE: For production with multiple processes/dynos, replace MemoryStore with
-// a Redis store: npm install rate-limit-redis ioredis
-// then: store: new RedisStore({ client: redisClient })
 
 // ── Admin auth middleware ───────────────────────────────────────
-// Admin email endpoints require a secret token in the x-admin-token header.
-// Set ADMIN_SECRET_TOKEN in your .env — never expose it to the frontend.
 function requireAdminToken(req, res, next) {
   const token = req.headers["x-admin-token"];
   if (!token) return res.status(401).json({ success: false, error: "Unauthorized." });
-  // Constant-time comparison prevents timing attacks
   try {
     const provided = Buffer.from(String(token));
     const expected = Buffer.from(ADMIN_SECRET_TOKEN);
@@ -105,10 +99,9 @@ function requireAdminToken(req, res, next) {
   next();
 }
 
-// ── Idempotency store (in-memory; swap for Redis in production) ─
-// Prevents the same orderId being emailed more than once per event type.
-const emailSentLog = new Map(); // key: "type:orderId" → timestamp
-const EMAIL_DEDUP_TTL = 60 * 60 * 1000; // 1 hour
+// ── Idempotency store ──────────────────────────────────────────
+const emailSentLog = new Map();
+const EMAIL_DEDUP_TTL = 60 * 60 * 1000;
 
 function isAlreadySent(type, orderId) {
   const key = `${type}:${orderId}`;
@@ -117,7 +110,6 @@ function isAlreadySent(type, orderId) {
   emailSentLog.set(key, Date.now());
   return false;
 }
-// Clean expired dedup entries every hour
 setInterval(() => {
   const cutoff = Date.now() - EMAIL_DEDUP_TTL;
   for (const [key, ts] of emailSentLog) {
@@ -139,9 +131,8 @@ const isValidOtp   = (v) => typeof v === "string" && OTP_RE.test(v.trim());
 const isValidRef   = (v) => typeof v === "string" && REF_RE.test(v.trim());
 const safeStr      = (v, max = 200) => typeof v === "string" ? escapeHtml(v.trim()).slice(0, max) : "";
 
-// ── Supabase price lookup (server-side — never trust client prices) ─
+// ── Supabase price lookup ──────────────────────────────────────
 async function fetchProductPrices(productIds) {
-  // Uses service role key so RLS doesn't block reads
   const url = `${SUPABASE_URL}/rest/v1/products?id=in.(${productIds.join(",")})&select=id,price`;
   const res = await fetch(url, {
     headers: {
@@ -150,7 +141,7 @@ async function fetchProductPrices(productIds) {
     },
   });
   if (!res.ok) throw new Error("Failed to fetch product prices from DB");
-  return res.json(); // [{ id, price }, ...]
+  return res.json();
 }
 
 // ── OTP store ───────────────────────────────────────────────────
@@ -190,7 +181,6 @@ function verifyAndConsumeOtp(email, otp) {
   return { ok: true };
 }
 
-// Cleanup expired OTPs every 5 min
 setInterval(() => {
   const now = Date.now();
   for (const [email, rec] of otpStore) {
@@ -210,12 +200,45 @@ const transporter = nodemailer.createTransport({
 // ROUTES
 // ══════════════════════════════════════════════════════════════
 
-app.get("/health", (_req, res) => res.json({ status: "ok" }));
+// ── Root — confirms the API is live (used by health monitors) ──
+// FIX: Added root GET so hitting the base URL doesn't fall into the 404 handler.
+app.get("/", (_req, res) => {
+  res.json({ success: true, status: "Janina API is running" });
+});
+
+// ── Health check ───────────────────────────────────────────────
+// FIX: Expanded health check to verify critical services are reachable.
+app.get("/health", async (_req, res) => {
+  const checks = { api: "ok", smtp: "untested", db: "untested" };
+
+  // Test SMTP connection (non-blocking verify)
+  try {
+    await transporter.verify();
+    checks.smtp = "ok";
+  } catch {
+    checks.smtp = "degraded";
+  }
+
+  // Test Supabase reachability with a lightweight ping
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/`, {
+      headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` },
+    });
+    checks.db = r.ok ? "ok" : "degraded";
+  } catch {
+    checks.db = "degraded";
+  }
+
+  const allOk = Object.values(checks).every(v => v === "ok");
+  res.status(allOk ? 200 : 207).json({
+    success: allOk,
+    status: allOk ? "healthy" : "degraded",
+    checks,
+    timestamp: new Date().toISOString(),
+  });
+});
 
 // ── 1. Paystack Webhook ────────────────────────────────────────
-// NOTE: This only verifies the signature and acknowledges Paystack.
-// Emails are sent deliberately by the admin via status-change endpoints,
-// NOT here — removing this as an email trigger prevents duplicate sends.
 app.post("/paystack-webhook", express.raw({ type: "application/json", limit: "64kb" }), async (req, res) => {
   const sig  = req.headers["x-paystack-signature"];
   const body = req.body;
@@ -236,9 +259,8 @@ app.post("/paystack-webhook", express.raw({ type: "application/json", limit: "64
   try { event = JSON.parse(body); }
   catch { return res.status(400).send("Bad JSON"); }
 
-  // Acknowledge receipt — email is handled by admin status updates only
   if (event.event === "charge.success") {
-    log.info("Webhook charge.success acknowledged (no email sent — admin controls status emails)");
+    log.info("Webhook charge.success acknowledged");
   }
 
   res.sendStatus(200);
@@ -257,7 +279,6 @@ app.post("/validate-order", async (req, res) => {
   if (!["pickup", "delivery"].includes(delivery_method)) errors.push("Invalid delivery method.");
   if (!Array.isArray(cart) || cart.length === 0) errors.push("Cart is empty.");
 
-  // ── [FIX: CART-SIZE-BOMB] Cap cart size ──
   const MAX_CART_ITEMS = 50;
   if (Array.isArray(cart) && cart.length > MAX_CART_ITEMS) {
     errors.push(`Cart cannot exceed ${MAX_CART_ITEMS} items.`);
@@ -267,7 +288,6 @@ app.post("/validate-order", async (req, res) => {
     for (const item of cart) {
       if (!isValidUuid(String(item.id)) && typeof item.id !== "number") errors.push("Invalid product in cart.");
       if (typeof item.quantity !== "number" || item.quantity < 1 || item.quantity > 100) errors.push("Invalid quantity.");
-      // NOTE: We no longer validate client-supplied price here — we fetch from DB below
     }
   }
 
@@ -276,7 +296,6 @@ app.post("/validate-order", async (req, res) => {
     return res.status(422).json({ success: false, errors });
   }
 
-  // ── [FIX: VALIDATE-PRICE] Fetch authoritative prices from DB ──
   let dbProducts;
   try {
     const productIds = cart.map(i => String(i.id));
@@ -288,14 +307,12 @@ app.post("/validate-order", async (req, res) => {
 
   const priceMap = Object.fromEntries(dbProducts.map(p => [String(p.id), p.price]));
 
-  // Reject if any product ID not found in DB
   for (const item of cart) {
     if (priceMap[String(item.id)] === undefined) {
       return res.status(422).json({ success: false, error: "One or more products no longer exist." });
     }
   }
 
-  // Compute subtotal from DB prices only — client prices are ignored
   const subtotal    = cart.reduce((sum, item) => sum + (priceMap[String(item.id)] * item.quantity), 0);
   const FLAT_FEE    = 0.50;
   const PCT_RATE    = 0.015;
@@ -323,7 +340,6 @@ app.post("/initialize-payment", async (req, res) => {
   if (!isValidEmail(email))                      return res.status(422).json({ success: false, error: "Invalid email." });
   if (typeof amount !== "number" || amount <= 0) return res.status(422).json({ success: false, error: "Invalid amount." });
 
-  // ── [FIX: METADATA-UNVALIDATED] Whitelist only known safe metadata fields ──
   const safeMetadata = {};
   if (metadata && typeof metadata === "object" && !Array.isArray(metadata)) {
     if (isValidUuid(String(metadata.orderId   || ""))) safeMetadata.orderId   = metadata.orderId;
@@ -333,7 +349,6 @@ app.post("/initialize-payment", async (req, res) => {
     if (typeof metadata.customerName === "string") safeMetadata.customerName = safeStr(metadata.customerName, 100);
   }
 
-  // ── [FIX: ENV-NO-FALLBACK] Safe callback_url ──
   const callbackBase = process.env.ALLOWED_ORIGIN_1 || "https://my-ecomerce-gygn.vercel.app";
   const callbackUrl  = `${callbackBase}/order-confirmed`;
 
@@ -342,7 +357,7 @@ app.post("/initialize-payment", async (req, res) => {
       "https://api.paystack.co/transaction/initialize",
       {
         email,
-        amount: Math.round(amount), // amount already in pesewas/kobo from /validate-order
+        amount: Math.round(amount),
         metadata: safeMetadata,
         callback_url: callbackUrl,
       },
@@ -392,8 +407,7 @@ app.get("/verify-payment/:reference", async (req, res) => {
   }
 });
 
-// ── 5. Order confirmed email (sent once on successful payment) ─
-// Called by the frontend after payment verification — one-time only.
+// ── 5. Order confirmed email ───────────────────────────────────
 app.post("/send-order-confirmed-email", requireAdminToken, emailLimiter, async (req, res) => {
   const { email, customerName, orderId, totalAmount } = req.body;
 
@@ -404,9 +418,8 @@ app.post("/send-order-confirmed-email", requireAdminToken, emailLimiter, async (
   if (typeof totalAmount !== "number" || totalAmount < 0)
     return res.status(422).json({ success: false, error: "Invalid amount." });
 
-  // ── [FIX: EMAIL-IDEMPOTENCY] Deduplicate sends per orderId ──
   if (isAlreadySent("confirmed", orderId)) {
-    log.warn("Duplicate send-order-confirmed-email blocked — already sent");
+    log.warn("Duplicate send-order-confirmed-email blocked");
     return res.json({ success: true, deduplicated: true });
   }
 
@@ -455,7 +468,7 @@ app.post("/send-order-confirmed-email", requireAdminToken, emailLimiter, async (
   }
 });
 
-// ── 6. Shipped notification email (admin triggers) ────────────
+// ── 6. Shipped notification email ─────────────────────────────
 app.post("/send-shipped-email", requireAdminToken, emailLimiter, async (req, res) => {
   const { email, customerName, orderId } = req.body;
 
@@ -464,9 +477,8 @@ app.post("/send-shipped-email", requireAdminToken, emailLimiter, async (req, res
   if (!isValidRef(String(orderId || "")))
     return res.status(422).json({ success: false, error: "Invalid order ID." });
 
-  // ── [FIX: EMAIL-IDEMPOTENCY] ──
   if (isAlreadySent("shipped", orderId)) {
-    log.warn("Duplicate send-shipped-email blocked — already sent");
+    log.warn("Duplicate send-shipped-email blocked");
     return res.json({ success: true, deduplicated: true });
   }
 
@@ -499,7 +511,7 @@ app.post("/send-shipped-email", requireAdminToken, emailLimiter, async (req, res
             </div>
             <div style="background:#f9f5ff;border:1px solid #e9d5ff;border-radius:10px;padding:14px 18px;margin-bottom:24px;">
               <p style="margin:0;font-size:12px;color:#555;line-height:1.7;">
-                Once delivered, you'll have <strong>5 days</strong> to request a free return from your
+                Once delivered, you'll have <strong>1 day</strong> to request a free return from your
                 <a href="${siteUrl}/orders" style="color:#C9A227;font-weight:bold;">Orders page</a>.
               </p>
             </div>
@@ -520,7 +532,7 @@ app.post("/send-shipped-email", requireAdminToken, emailLimiter, async (req, res
   }
 });
 
-// ── 7. Delivered thank-you email (admin triggers — only email sent on delivery) ─
+// ── 7. Delivered thank-you email ───────────────────────────────
 app.post("/send-delivered-email", requireAdminToken, emailLimiter, async (req, res) => {
   const { email, customerName, orderId, totalAmount, items = [] } = req.body;
 
@@ -529,9 +541,8 @@ app.post("/send-delivered-email", requireAdminToken, emailLimiter, async (req, r
   if (!isValidRef(String(orderId || "")))
     return res.status(422).json({ success: false, error: "Invalid order ID." });
 
-  // ── [FIX: EMAIL-IDEMPOTENCY] ──
   if (isAlreadySent("delivered", orderId)) {
-    log.warn("Duplicate send-delivered-email blocked — already sent");
+    log.warn("Duplicate send-delivered-email blocked");
     return res.json({ success: true, deduplicated: true });
   }
 
@@ -574,18 +585,12 @@ app.post("/send-delivered-email", requireAdminToken, emailLimiter, async (req, r
       Your Janina piece has arrived. We hope it brings you as much joy as it brought us crafting it for you.
       Wear it with pride — it was made for someone who knows quality.
     </p>
-    <div style="background:#fff;border:1px solid rgba(201,162,39,0.2);border-radius:14px;overflow:hidden;margin-bottom:24px;">
-      <div style="background:#0A0A0A;padding:12px 20px;">
-        <p style="margin:0;font-size:8px;text-transform:uppercase;letter-spacing:4px;color:#C9A227;font-family:Helvetica,sans-serif;">Receipt · #${safeId}</p>
-      </div>
-      
-    </div>
     <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:12px;padding:16px 20px;margin-bottom:28px;">
-      <p style="margin:0 0 4px;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#15803d;font-family:Helvetica,sans-serif;">3-Day Return Window Open</p>
+      <p style="margin:0 0 4px;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#15803d;font-family:Helvetica,sans-serif;">1-Day Return Window Open</p>
       <p style="margin:0;font-size:12px;color:#166534;line-height:1.7;">
         Not fully in love? Request a free return from your
         <a href="${siteUrl}/orders" style="color:#C9A227;font-weight:bold;text-decoration:none;">Orders page</a>
-        within 5 days. No questions asked.
+        within 1 day. No questions asked.
       </p>
     </div>
     <p style="margin:0 0 4px;font-size:14px;color:#333;">With gratitude,</p>
@@ -659,28 +664,19 @@ app.post("/verify-otp", authLimiter, (req, res) => {
   res.json({ success: true, message: "Verified." });
 });
 
-// ── 10. send-status-update (alias called by CheckoutPage after payment) ──────
-// CheckoutPage fires this fire-and-forget after a successful order.
-// It forwards to the same logic as send-order-confirmed-email but does NOT
-// require the admin token — it's called by the authenticated client right
-// after their own payment, and is protected by:
-//   - Input validation
-//   - emailLimiter (20 per hour per IP)
-//   - isAlreadySent() dedup (keyed on orderId — one email per order)
+// ── 10. Send status update (post-payment confirmation) ────────
 app.post("/send-status-update", emailLimiter, async (req, res) => {
   const { email, customerName, orderId, totalAmount } = req.body;
 
   if (!isValidEmail(email))
     return res.status(422).json({ success: false, error: "Invalid email." });
 
-  // orderId here may be a Paystack reference (TRX-...) or a UUID
   const rawId = String(orderId || "").slice(0, 64);
   if (!rawId)
     return res.status(422).json({ success: false, error: "Missing order ID." });
 
-  // Dedup — only one confirmation email per orderId
   if (isAlreadySent("status-update", rawId)) {
-    log.warn("Duplicate send-status-update blocked — already sent");
+    log.warn("Duplicate send-status-update blocked");
     return res.json({ success: true, deduplicated: true });
   }
 
@@ -739,11 +735,6 @@ app.post("/send-status-update", emailLimiter, async (req, res) => {
 });
 
 // ── 11. Notify admin of new live chat session ──────────────────
-// Called by the client when they open Live Support.
-// NOT admin-token-protected (client calls it), secured by:
-//   - Input validation
-//   - emailLimiter (20 per hour per IP)
-//   - isAlreadySent() dedup keyed on sessionId (one email per session)
 app.post("/notify-admin-live-chat", emailLimiter, async (req, res) => {
   const { userName, userEmail, sessionId } = req.body;
 
@@ -757,13 +748,11 @@ app.post("/notify-admin-live-chat", emailLimiter, async (req, res) => {
   const safeSession = safeStr(sessionId, 100);
   const siteUrl     = process.env.SITE_URL || "https://my-ecomerce-gygn.vercel.app";
 
-  // One notification per session only
   if (isAlreadySent("live_chat_notify", safeSession)) {
-    log.warn("Duplicate live chat notify blocked — already sent");
+    log.warn("Duplicate live chat notify blocked");
     return res.json({ success: true, deduplicated: true });
   }
 
-  // 1. Create live_chat_sessions record so admin inbox shows it
   try {
     await fetch(`${SUPABASE_URL}/rest/v1/live_chat_sessions`, {
       method: "POST",
@@ -784,10 +773,8 @@ app.post("/notify-admin-live-chat", emailLimiter, async (req, res) => {
     log.info("Live chat session record created in Supabase");
   } catch (err) {
     log.warn("Could not create live chat session record", err);
-    // Non-fatal — still send the email below
   }
 
-  // 2. Email the admin
   const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_USER;
 
   try {
@@ -823,8 +810,6 @@ app.post("/notify-admin-live-chat", emailLimiter, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     log.error("Admin live chat email failed", err);
-    // Return success anyway — the session record was already created in Supabase
-    // so the admin will still see it in their inbox even without the email
     res.json({ success: false, error: "Email delivery failed but session is registered." });
   }
 });
@@ -838,11 +823,10 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ success: false, error: "An unexpected error occurred." });
 });
 
-// ── Vercel serverless export ───────────────────────────────────
-// Vercel calls this exported handler for every request instead of app.listen()
+// ── Local dev server ───────────────────────────────────────────
 if (process.env.NODE_ENV !== "production") {
   const PORT = process.env.PORT || 3001;
-  app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+  app.listen(PORT, () => process.stdout.write(`🚀 Server running on http://localhost:${PORT}\n`));
 }
 
 export default app;

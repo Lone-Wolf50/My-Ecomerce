@@ -22,7 +22,7 @@ function ReturnCountdown({ deliveredAt, onReturn, isReturning }) {
   useEffect(() => {
     if (!deliveredAt) return;
     const calc = () => {
-      const deadline = new Date(new Date(deliveredAt).getTime() + 3 * 24 * 60 * 60 * 1000);
+      const deadline = new Date(new Date(deliveredAt).getTime() + 1 * 24 * 60 * 60 * 1000);
       const msLeft   = deadline - Date.now();
       if (msLeft <= 0) { setTimeLeft(null); return; }
       const totalSecs  = Math.floor(msLeft / 1000);
@@ -40,7 +40,7 @@ function ReturnCountdown({ deliveredAt, onReturn, isReturning }) {
   if (!timeLeft) return null;
 
   const urgent = timeLeft.days === 0 && timeLeft.hours < 6;
-  const pct    = Math.max(0, Math.min(100, (timeLeft.totalSecs / (3 * 24 * 3600)) * 100));
+  const pct    = Math.max(0, Math.min(100, (timeLeft.totalSecs / (1 * 24 * 3600)) * 100));
 
   return (
     <div className={`mt-4 rounded-2xl overflow-hidden border transition-all ${
@@ -68,7 +68,7 @@ function ReturnCountdown({ deliveredAt, onReturn, isReturning }) {
                 Return Window
               </p>
               <p className={`text-[9px] font-bold ${urgent ? "text-orange-500" : "text-emerald-500"}`}>
-                {urgent ? "⚠ Expires very soon" : "3-day free return policy"}
+                {urgent ? "⚠ Expires very soon" : "1-day free return policy"}
               </p>
             </div>
           </div>
@@ -190,7 +190,7 @@ export default function Orders() {
       const { data, error: err } = await query;
       if (err) setError(err.message);
       else setOrders(data || []);
-    } catch (e) { setError(e.message); }
+    } catch (e) { setError("Could not load orders. Please try again."); }
     finally { setLoading(false); }
   }, [userId, userEmail]);
 
@@ -322,7 +322,7 @@ export default function Orders() {
           const isDelivered = order.status === "delivered";
           const deliveredAt = order.delivered_at || (isDelivered ? order.updated_at : null);
           const returnDeadline = deliveredAt
-            ? new Date(new Date(deliveredAt).getTime() + 3 * 24 * 60 * 60 * 1000)
+            ? new Date(new Date(deliveredAt).getTime() + 1 * 24 * 60 * 60 * 1000)
             : null;
           const showReturn = isDelivered && deliveredAt && returnDeadline && returnDeadline > new Date();
 

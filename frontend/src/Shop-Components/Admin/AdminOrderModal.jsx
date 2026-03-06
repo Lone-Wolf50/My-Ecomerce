@@ -16,10 +16,29 @@ const STATUS_STYLE = {
 const API_URL     = import.meta.env.VITE_API_URL     || 'http://localhost:3001';
 const ADMIN_TOKEN = import.meta.env.VITE_ADMIN_SECRET_TOKEN || '';
 
+if (!ADMIN_TOKEN) {
+  // Warn loudly in dev so the missing env var is obvious
+  console.warn('[AdminOrderModal] VITE_ADMIN_SECRET_TOKEN is not set — status emails will fail with 401.');
+}
+
 const adminHeaders = {
   'Content-Type': 'application/json',
   'x-admin-token': ADMIN_TOKEN,
 };
+
+// Wrapper: throws a descriptive error if the server rejects the request
+async function sendAdminEmail(endpoint, body) {
+  const res = await fetch(`${API_URL}${endpoint}`, {
+    method: 'POST',
+    headers: adminHeaders,
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => String(res.status));
+    throw new Error(`${endpoint} failed (${res.status}): ${text}`);
+  }
+  return res.json();
+}
 
 const AdminOrderModal = ({
   order,
@@ -40,24 +59,45 @@ const AdminOrderModal = ({
     if (newStatus === 'delivered' && prevStatus !== 'delivered') {
       updatePayload.delivered_at = new Date().toISOString();
     }
-    await supabase.from('orders').update(updatePayload).eq('id', orderId);
 
+    // 1. Update DB first
+    const { error: dbError } = await supabase.from('orders').update(updatePayload).eq('id', orderId);
+    if (dbError) {
+      alert(`Failed to update order status: ${dbError.message}`);
+      return;
+    }
+
+    // 2. Fire status emails — errors are surfaced so you know if delivery failed
     if (newStatus === 'shipped' && prevStatus !== 'shipped') {
       try {
-        await fetch(`${API_URL}/send-shipped-email`, {
-          method: 'POST', headers: adminHeaders,
-          body: JSON.stringify({ email, customerName: order.customer_name, orderId }),
+        await sendAdminEmail('/send-shipped-email', {
+          email,
+          customerName: order.customer_name,
+          orderId,
         });
-      } catch (err) { console.error('Shipped email failed:', err); }
+      } catch (err) {
+        // Don't block the UI — DB is already updated — but alert so admin knows
+        alert(`Order marked shipped ✓, but shipping email failed:
+${err.message}
+
+Check your VITE_ADMIN_SECRET_TOKEN env var.`);
+      }
     }
 
     if (newStatus === 'delivered' && prevStatus !== 'delivered') {
       try {
-        await fetch(`${API_URL}/send-delivered-email`, {
-          method: 'POST', headers: adminHeaders,
-          body: JSON.stringify({ email, customerName: order.customer_name, orderId, totalAmount: order.total_amount }),
+        await sendAdminEmail('/send-delivered-email', {
+          email,
+          customerName: order.customer_name,
+          orderId,
+          totalAmount: order.total_amount,
         });
-      } catch (err) { console.error('Delivered email failed:', err); }
+      } catch (err) {
+        alert(`Order marked delivered ✓, but delivery email failed:
+${err.message}
+
+Check your VITE_ADMIN_SECRET_TOKEN env var.`);
+      }
     }
 
     onStatusChange(orderId, newStatus, email);

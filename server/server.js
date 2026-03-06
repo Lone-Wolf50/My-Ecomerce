@@ -834,8 +834,8 @@ app.use((_req, res) => res.status(404).json({ success: false, error: "Not found.
 
 // ── Global error handler ───────────────────────────────────────
 app.use((err, _req, res, _next) => {
-  log.error("Unhandled exception", err);
-  res.status(500).json({ success: false, error: "An unexpected error occurred." });
+  console.error("[UNHANDLED]", err?.message, err?.stack);
+  res.status(500).json({ success: false, error: "An unexpected error occurred.", debug: err?.message });
 });
 
 // ── Vercel serverless export ───────────────────────────────────

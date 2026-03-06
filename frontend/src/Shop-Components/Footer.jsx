@@ -143,7 +143,7 @@ export default function Footer() {
             </h4>
             <ul className="space-y-3 mb-7">
               {[
-                "3-Day Free Returns",
+                "1-Day Free Returns",
                 "Authenticity Certified",
                 "Complimentary Shipping",
                 "Insured Packaging",

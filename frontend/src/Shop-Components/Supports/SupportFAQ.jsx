@@ -28,7 +28,7 @@ const FAQS = [
     items: [
       {
         q: 'What is your return policy?',
-        a: 'We offer a 3-day free return window from the date of delivery. To initiate a return, visit your Orders page and click "Return Item." Items must be unused and in original packaging.',
+        a: 'We offer a 1-day free return window from the date of delivery. To initiate a return, visit your Orders page and click "Return Item." Items must be unused and in original packaging.',
       },
       {
         q: 'How long do refunds take?',

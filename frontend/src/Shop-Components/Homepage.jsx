@@ -58,7 +58,7 @@ const HERO_SLIDES = [
 const FEATURES = [
   { icon: "verified",       title: "Certified Authentic", desc: "Every piece guaranteed genuine." },
   { icon: "local_shipping", title: "Premium Delivery",    desc: "Insured, fast shipping worldwide." },
-  { icon: "autorenew",      title: "3-Day Returns",       desc: "Hassle-free return policy." },
+  { icon: "autorenew",      title: "1-Day Returns",       desc: "Hassle-free return policy." },
   { icon: "support_agent",  title: "24/7 Concierge",      desc: "Always here when you need us." },
 ];
 

@@ -15,7 +15,7 @@ const STATUS_CONFIG = {
   returned:   { label: "Returned",  color: "text-gray-500",    bg: "bg-gray-50",     border: "border-gray-200",    icon: RotateCcw   },
 };
 
-/* ── Premium live 3-day return countdown ─────────────────── */
+/* ── Premium live 1-day return countdown ─────────────────── */
 function ReturnCountdown({ deliveredAt, onReturn, isReturning }) {
   const [timeLeft, setTimeLeft] = useState(null);
 
@@ -318,7 +318,7 @@ export default function Orders() {
 
           const canCancel = ["pending", "processing", "shipped"].includes(order.status);
 
-          /* Return: only delivered, within 3 days */
+          /* Return: only delivered, within 1 days */
           const isDelivered = order.status === "delivered";
           const deliveredAt = order.delivered_at || (isDelivered ? order.updated_at : null);
           const returnDeadline = deliveredAt
@@ -422,7 +422,7 @@ export default function Orders() {
                 </div>
               )}
 
-              {/* ── Return countdown (delivered, within 3 days) ── */}
+              {/* ── Return countdown (delivered, within 1 day) ── */}
               {showReturn && (
                 <div onClick={e => e.stopPropagation()}>
                   <ReturnCountdown

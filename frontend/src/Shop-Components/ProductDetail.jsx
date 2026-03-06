@@ -185,7 +185,7 @@ export default function ProductDetail() {
               {[
                 { icon: "verified",       text: "Authentic"     },
                 { icon: "local_shipping", text: "Door Delivery" },
-                { icon: "autorenew",      text: "3-Day Return"  },
+                { icon: "autorenew",      text: "1-Day Return"  },
               ].map(({ icon, text }) => (
                 <div key={icon} className="flex items-center gap-1.5">
                   <span className="material-symbols-outlined text-[16px] text-[#C9A227]">{icon}</span>

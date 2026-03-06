@@ -76,7 +76,6 @@ const CartProvider = ({ children }) => {
 
         if (error) throw error;
 
-        // Always update cart from cloud — even if cloud is empty (device logout)
         const cloudItems = Array.isArray(data)
           ? data
               .filter((item) => item.product_id && typeof item.quantity === "number")
@@ -90,12 +89,17 @@ const CartProvider = ({ children }) => {
               }))
           : [];
 
+        // Only replace local cart if cloud actually has items.
+        // An empty cloud result on refresh means the sync hasn't settled yet —
+        // don't wipe what's already loaded from localStorage.
+        if (cloudItems.length === 0) return;
+
         setCart((current) => {
           if (JSON.stringify(current) === JSON.stringify(cloudItems)) return current;
           return cloudItems;
         });
       } catch (err) {
-        console.error("Cart cloud sync error:", err.message);
+        /* cart sync failed silently — localStorage copy preserved */
       } finally {
         setIsSyncing(false);
       }
@@ -184,11 +188,11 @@ const CartProvider = ({ children }) => {
               category:   product.category || "",
             },
           ],
-          { onConflict: "user_id, product_id" }
+          { onConflict: "user_id,product_id" }
         );
         if (error) throw error;
       } catch (err) {
-        console.error("addToCart sync error:", err.message);
+        /* addToCart cloud sync failed silently */
       }
     },
     [cart, getUserUuid]
@@ -212,7 +216,7 @@ const CartProvider = ({ children }) => {
           .eq("product_id", id);
         if (error) throw error;
       } catch (err) {
-        console.error("removeFromCart sync error:", err.message);
+        /* removeFromCart cloud sync failed silently */
       }
     },
     [getUserUuid]
@@ -241,7 +245,7 @@ const CartProvider = ({ children }) => {
           .eq("product_id", id);
         if (error) throw error;
       } catch (err) {
-        console.error("updateQuantity sync error:", err.message);
+        /* updateQuantity cloud sync failed silently */
       }
     },
     [cart, getUserUuid]
@@ -264,7 +268,7 @@ const CartProvider = ({ children }) => {
         .eq("user_id", uuid);
       if (error) throw error;
     } catch (err) {
-      console.error("clearCart sync error:", err.message);
+      /* clearCart cloud sync failed silently */
     }
   }, [getUserUuid]);
 
@@ -320,7 +324,7 @@ const CartProvider = ({ children }) => {
         await clearCart();
         return { success: true };
       } catch (err) {
-        console.error("Order placement error:", err.message);
+        /* order placement error — returned to caller */
         return { success: false, error: err.message };
       } finally {
         setIsProcessing(false);

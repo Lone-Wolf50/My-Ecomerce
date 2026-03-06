@@ -98,6 +98,8 @@ const SupportLiveChat = ({ user, onClose }) => {
   const graceTimer     = useRef(null);   // 5-second grace period timer
   const sessionCreated = useRef(false);  // true once session row exists in DB
   const inputRef       = useRef(null);
+  // Capture user values on mount so commitSession never changes reference
+  const userRef        = useRef(user);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -108,25 +110,31 @@ const SupportLiveChat = ({ user, onClose }) => {
     if (sessionCreated.current) return;
     sessionCreated.current = true;
 
+    const u = userRef.current; // stable ref — never causes effect re-run
+
     await supabase.from('live_chat_sessions').insert([{
       session_id: sessionId,
-      user_id:    user.id,
-      user_email: user.email,
-      user_name:  user.name || 'Guest',
+      user_id:    u.id,
+      user_email: u.email,
+      user_name:  u.name || 'Guest',
       status:     'active',
       messages:   [],
     }]);
 
     try {
-      await fetch(`${API_URL}/notify-admin-live-chat`, {
+      const notifyRes = await fetch(`${API_URL}/notify-admin-live-chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userName: user.name || 'A client', userEmail: user.email, sessionId }),
+        body: JSON.stringify({ userName: u.name || 'A client', userEmail: u.email, sessionId }),
       });
+      if (!notifyRes.ok) {
+        const text = await notifyRes.text().catch(() => notifyRes.status);
+        console.warn(`[SupportLiveChat] Admin email notify returned ${notifyRes.status}:`, text);
+      }
     } catch (e) {
-      console.warn('Admin notify failed:', e);
+      console.warn('[SupportLiveChat] Admin notify network error:', e.message);
     }
-  }, [sessionId, user]);
+  }, [sessionId]); // sessionId is stable — user values read from ref, no dep needed
 
   /* ── Grace period: wait 5 s before creating session ───────── */
   // If the user closes the chat within 5 seconds, nothing is created.
@@ -203,8 +211,8 @@ const SupportLiveChat = ({ user, onClose }) => {
       const updatedMessages = [...(session?.messages || []), newMsg];
       await supabase.from('live_chat_sessions').update({ messages: updatedMessages }).eq('session_id', sessionId);
       setMessages(updatedMessages);
-    } catch (e) {
-      console.error('Send failed:', e);
+    } catch (_e) {
+      /* send failed — user can retry */
     } finally {
       setSending(false);
     }
@@ -227,7 +235,7 @@ const SupportLiveChat = ({ user, onClose }) => {
           </div>
           <div>
             <p className="text-[10px] font-black uppercase tracking-widest text-black/70">
-              {adminName || 'Luxe Support'}
+              {adminName || 'Janina Support'}
             </p>
             <div className="flex items-center gap-1.5 mt-0.5">
               <div className={`w-1.5 h-1.5 rounded-full ${resolved ? 'bg-emerald-400' : isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400 animate-pulse'}`} />
@@ -267,7 +275,7 @@ const SupportLiveChat = ({ user, onClose }) => {
                 <div className="max-w-[75%]">
                   <div className="flex items-center gap-2 mb-1.5">
                     <div className="w-6 h-6 rounded-lg bg-[#0A0A0A] flex items-center justify-center"><Shield size={11} className="text-[#D4AF37]" /></div>
-                    <span className="text-[8px] font-black uppercase tracking-wider text-black/30">{msg.admin_name || adminName || 'Concierge'}</span>
+                    <span className="text-[8px] font-black uppercase tracking-wider text-black/30">{msg.admin_name || adminName || 'Support'}</span>
                   </div>
                   <div className="bg-white border border-black/[0.07] px-5 py-3.5 rounded-[1.5rem] rounded-tl-lg shadow-sm">
                     <p className="text-[13px] text-black/65 leading-relaxed italic">"{msg.message}"</p>

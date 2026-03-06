@@ -141,6 +141,10 @@ const AdminSidebar = ({
   isSidebarOpen,
   setIsSidebarOpen,
   onAddReset,
+  // unreadInboxCount: pass the COMBINED count of unread messages + active live sessions.
+  // Wire this from your AdminDashboard like:
+  //   <AdminInbox onLiveCountChange={setUnreadInboxCount} ... />
+  //   <AdminSidebar unreadInboxCount={unreadInboxCount} ... />
   unreadInboxCount = 0,
 }) => {
   const closeSidebar = () => setIsSidebarOpen?.(false);

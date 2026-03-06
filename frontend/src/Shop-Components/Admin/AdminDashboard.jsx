@@ -155,7 +155,7 @@ const AdminDashboard = () => {
   const fetchOrders = useCallback(async () => {
     const { data, error } = await supabase.from("orders").select("*, order_items (*)").order("created_at", { ascending: false });
     if (!error) setOrders(data || []);
-    else console.error("Order fetch error:", error.message);
+    /* order fetch error — UI shows empty state */
   }, []);
 
   const fetchCategories = useCallback(async () => {
@@ -219,7 +219,7 @@ const AdminDashboard = () => {
       if (error) throw error;
       Swal.fire({ title: "Dispatched!", text: `Message sent to ${order.customer_name}`, icon: "success", confirmButtonColor: "#D4AF37" });
       setPersonalMsg("");
-    } catch (err) { console.error("Message error:", err.message); }
+    } catch (_err) { Swal.fire("Error", "Message could not be sent.", "error"); }
     finally { setLoading(false); }
   };
 
@@ -277,7 +277,7 @@ const AdminDashboard = () => {
       );
       if (ie) throw ie;
       toast("Broadcast delivered"); setBroadcastMsg("");
-    } catch (err) { console.error("Broadcast error:", err.message); }
+    } catch (err) { Swal.fire("Error", err.message, "error"); }
     finally { setLoading(false); }
   };
 
@@ -314,7 +314,7 @@ const AdminDashboard = () => {
         {/* Tab panels */}
         {activeTab === "inventory"  && <AdminInventory products={products} onEdit={handleEdit} onDelete={handleDelete} />}
         {activeTab === "orders"     && <AdminOrders orders={orders} onViewOrder={(o) => { setSelectedOrder(o); setIsOrderModalOpen(true); }} onRefresh={fetchOrders} />}
-        {activeTab === "inbox"      && <AdminInbox onReadUpdate={fetchUnreadCount} />}
+        {activeTab === "inbox"      && <AdminInbox onReadUpdate={fetchUnreadCount} onLiveCountChange={setUnreadInboxCount} />}
         {activeTab === "categories" && <AdminCategories onCategoriesChange={fetchCategories} />}
         {activeTab === "add"        && (
           <AdminProductForm

@@ -32,7 +32,7 @@ function DetailsNavBar() {
 
       {/* Cart */}
       <Link to="/cart" className="relative flex items-center gap-2 h-10 px-4 rounded-xl bg-black hover:bg-[#D4AF37] transition-all duration-300 group">
-        <span className="material-symbols-outlined text-[18px] text-white">shopping_bag</span>
+        <span className="material-symbols-outlined text-[18px] text-white" style={{ fontVariationSettings: "'FILL' 0, 'wght' 300" }}>local_mall</span>
         <span className="text-[11px] font-black text-white hidden md:block uppercase tracking-wide">Cart</span>
         {cartCount > 0 && (
           <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#D4AF37] group-hover:bg-black text-white text-[9px] font-black flex items-center justify-center rounded-full transition-colors shadow-sm">

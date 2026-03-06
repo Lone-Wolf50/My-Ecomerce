@@ -282,7 +282,7 @@ const ResolvedArchive = () => {
 };
 
 /* ─── Main AdminInbox ──────────────────────────────── */
-const AdminInbox = ({ onReadUpdate }) => {
+const AdminInbox = ({ onReadUpdate, onLiveCountChange }) => {
   const [messages, setMessages]           = useState([]);
   const [liveSessions, setLiveSessions]   = useState([]);
   const [loading, setLoading]             = useState(true);
@@ -293,6 +293,13 @@ const AdminInbox = ({ onReadUpdate }) => {
   const [activeSession, setActiveSession] = useState(null);
 
   useEffect(() => { fetchMessages(); fetchLiveSessions(); }, []);
+
+  // Bubble combined badge count (unread messages + active live sessions) up to sidebar
+  useEffect(() => {
+    const unread = messages.filter(m => m.status === 'unread').length;
+    const live   = liveSessions.length;
+    onLiveCountChange?.(unread + live);
+  }, [messages, liveSessions, onLiveCountChange]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -305,6 +312,9 @@ const AdminInbox = ({ onReadUpdate }) => {
     const channel = supabase
       .channel('live_sessions_admin')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'live_chat_sessions' }, () => {
+        fetchLiveSessions();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'live_chat_sessions' }, () => {
         fetchLiveSessions();
       })
       .subscribe();
@@ -337,7 +347,7 @@ const AdminInbox = ({ onReadUpdate }) => {
       }, {});
       setMessages(Object.values(grouped));
     } catch (err) {
-      console.error('Fetch error:', err);
+      /* fetch error — UI shows empty state */
     } finally {
       setLoading(false);
     }

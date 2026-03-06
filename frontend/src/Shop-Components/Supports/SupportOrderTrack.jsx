@@ -14,37 +14,67 @@ const STATUS_CONFIG = {
 const PROGRESS_STEPS = ['pending', 'processing', 'shipped', 'delivered'];
 
 const SupportOrderTrack = ({ onDone }) => {
-  const [inputId, setInputId] = useState('');
-  const [order, setOrder]     = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
+  const [inputId, setInputId]   = useState('');
+  const [order, setOrder]       = useState(null);
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState('');
   const [attempts, setAttempts] = useState(0);
 
   const handleSearch = async () => {
-    const clean = inputId.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    // Only hex characters are valid in a UUID prefix
+    const clean = inputId.trim().toUpperCase().replace(/[^A-F0-9]/g, '');
     if (clean.length < 6) { setError('Please enter at least 6 characters of your order ID.'); return; }
 
     setLoading(true); setError(''); setOrder(null);
 
     try {
-      // Search by short ID prefix (first 8 chars of UUID displayed to user)
-      const { data, error: err } = await supabase
-        .from('orders')
-        .select('id, status, customer_name, total_amount, created_at, order_items(*)')
-        .ilike('id', `${clean}%`)
-        .limit(1);
+      // PostgREST cannot apply ilike to a UUID column without a cast.
+      // We call a Postgres RPC function that does the cast server-side.
+      //
+      // ── Run this ONCE in your Supabase SQL Editor ──────────────────
+      //
+      //   CREATE OR REPLACE FUNCTION search_order_by_prefix(p_prefix text)
+      //   RETURNS TABLE (
+      //     id           uuid,
+      //     status       text,
+      //     customer_name text,
+      //     total_amount  numeric,
+      //     created_at    timestamptz
+      //   )
+      //   LANGUAGE sql STABLE SECURITY DEFINER AS $$
+      //     SELECT id, status, customer_name, total_amount, created_at
+      //     FROM orders
+      //     WHERE id::text ILIKE (p_prefix || '%')
+      //     LIMIT 1;
+      //   $$;
+      //
+      // ──────────────────────────────────────────────────────────────
 
-      if (err) throw err;
+      const prefix = clean.slice(0, 8).toLowerCase(); // UUIDs stored lowercase in Postgres
 
-      if (!data || data.length === 0) {
+      const { data: rows, error: rpcErr } = await supabase
+        .rpc('search_order_by_prefix', { p_prefix: prefix });
+
+      if (rpcErr) throw rpcErr;
+
+      if (!rows || rows.length === 0) {
         setAttempts(a => a + 1);
         setError(attempts >= 2
           ? "We couldn't find that order. Double-check your confirmation email for the order ID."
           : 'No order found with that ID. Please check and try again.');
-      } else {
-        setOrder(data[0]);
-        setAttempts(0);
+        return;
       }
+
+      // RPC returns flat rows — fetch order_items separately
+      const base = rows[0];
+      const { data: items } = await supabase
+        .from('order_items')
+        .select('*')
+        .eq('order_id', base.id);
+
+      setOrder({ ...base, order_items: items || [] });
+      setAttempts(0);
+
     } catch (e) {
       setError('Something went wrong. Please try again.');
     } finally {
@@ -52,14 +82,12 @@ const SupportOrderTrack = ({ onDone }) => {
     }
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') handleSearch();
-  };
+  const handleKeyDown = (e) => { if (e.key === 'Enter') handleSearch(); };
 
-  const cfg = order ? (STATUS_CONFIG[order.status] || STATUS_CONFIG.pending) : null;
+  const cfg  = order ? (STATUS_CONFIG[order.status] || STATUS_CONFIG.pending) : null;
   const Icon = cfg?.icon;
 
-  const stepIndex = order ? PROGRESS_STEPS.indexOf(order.status) : -1;
+  const stepIndex    = order ? PROGRESS_STEPS.indexOf(order.status) : -1;
   const showProgress = order && !['cancelled', 'returned'].includes(order.status);
 
   return (
@@ -77,7 +105,7 @@ const SupportOrderTrack = ({ onDone }) => {
               onChange={e => { setInputId(e.target.value); setError(''); }}
               onKeyDown={handleKeyDown}
               placeholder="e.g. 3FA2B91C"
-              maxLength={10}
+              maxLength={8}
               className="w-full bg-white border border-black/[0.08] rounded-2xl px-5 py-4 text-[14px] font-mono font-bold uppercase tracking-widest focus:border-[#D4AF37] focus:outline-none transition-colors placeholder:text-black/20 placeholder:font-sans placeholder:tracking-normal placeholder:normal-case"
             />
           </div>
@@ -93,11 +121,11 @@ const SupportOrderTrack = ({ onDone }) => {
           </button>
         </div>
         <p className="text-[9px] text-black/25 font-medium mt-2 pl-1">
-          Your order ID was sent to your email — it starts with the first 8 characters (e.g. <span className="font-mono">3FA2B91C</span>)
+          Enter the 8-character Order ID from your confirmation email or Order Confirmed page — e.g. <span className="font-mono font-bold text-black/40">3FA2B91C</span>
         </p>
       </div>
 
-      {/* Error state */}
+      {/* Error */}
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-2xl mb-5 animate-in slide-in-from-top-2 duration-300">
           <p className="text-[12px] font-black text-red-500">{error}</p>
@@ -107,23 +135,23 @@ const SupportOrderTrack = ({ onDone }) => {
       {/* Result */}
       {order && cfg && (
         <div className="bg-white rounded-[2rem] border border-black/[0.06] overflow-hidden shadow-lg shadow-black/[0.04] animate-in zoom-in-95 duration-400">
+
           {/* Status header */}
           <div className={`px-7 py-5 ${cfg.bg} border-b ${cfg.border}`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-2xl ${cfg.bg} border ${cfg.border} flex items-center justify-center`}>
-                  <Icon size={18} className={cfg.color} />
-                </div>
-                <div>
-                  <p className={`text-[9px] font-black uppercase tracking-widest ${cfg.color}`}>{cfg.label}</p>
-                  <p className="text-[11px] text-black/40 font-medium mt-0.5">{cfg.desc}</p>
-                </div>
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-2xl ${cfg.bg} border ${cfg.border} flex items-center justify-center`}>
+                <Icon size={18} className={cfg.color} />
+              </div>
+              <div>
+                <p className={`text-[9px] font-black uppercase tracking-widest ${cfg.color}`}>{cfg.label}</p>
+                <p className="text-[11px] text-black/40 font-medium mt-0.5">{cfg.desc}</p>
               </div>
             </div>
           </div>
 
           <div className="p-7 space-y-5">
-            {/* Order info */}
+
+            {/* Order info grid */}
             <div className="grid grid-cols-2 gap-3">
               {[
                 { label: 'Order ID',  value: `#${order.id.slice(0,8).toUpperCase()}` },
@@ -138,49 +166,48 @@ const SupportOrderTrack = ({ onDone }) => {
               ))}
             </div>
 
-            {/* Progress bar for active orders */}
+            {/* Progress stepper */}
             {showProgress && (
               <div>
                 <p className="text-[8px] font-black uppercase tracking-widest text-black/25 mb-3">Progress</p>
-                <div className="relative">
-                  <div className="flex items-center justify-between relative">
-                    {PROGRESS_STEPS.map((step, i) => {
-                      const done = i <= stepIndex;
-                      const active = i === stepIndex;
-                      return (
-                        <React.Fragment key={step}>
-                          <div className="flex flex-col items-center gap-1.5 z-10">
-                            <div className={`w-7 h-7 rounded-xl flex items-center justify-center transition-all ${
-                              done ? 'bg-[#D4AF37] shadow-md shadow-[#D4AF37]/30' : 'bg-black/[0.06]'
-                            } ${active ? 'ring-2 ring-[#D4AF37]/30 ring-offset-2' : ''}`}>
-                              <span className={`text-[8px] font-black ${done ? 'text-white' : 'text-black/25'}`}>{i + 1}</span>
-                            </div>
-                            <span className={`text-[7px] font-black uppercase tracking-wider ${done ? 'text-[#D4AF37]' : 'text-black/20'}`}>
-                              {step.slice(0,4)}
-                            </span>
+                <div className="flex items-center justify-between relative">
+                  {PROGRESS_STEPS.map((step, i) => {
+                    const done   = i <= stepIndex;
+                    const active = i === stepIndex;
+                    return (
+                      <React.Fragment key={step}>
+                        <div className="flex flex-col items-center gap-1.5 z-10">
+                          <div className={`w-7 h-7 rounded-xl flex items-center justify-center transition-all ${
+                            done ? 'bg-[#D4AF37] shadow-md shadow-[#D4AF37]/30' : 'bg-black/[0.06]'
+                          } ${active ? 'ring-2 ring-[#D4AF37]/30 ring-offset-2' : ''}`}>
+                            <span className={`text-[8px] font-black ${done ? 'text-white' : 'text-black/25'}`}>{i + 1}</span>
                           </div>
-                          {i < PROGRESS_STEPS.length - 1 && (
-                            <div className="flex-1 h-0.5 mx-1 mb-4">
-                              <div className="h-full bg-black/[0.05] rounded-full overflow-hidden">
-                                <div className={`h-full bg-[#D4AF37] rounded-full transition-all duration-700 ${i < stepIndex ? 'w-full' : 'w-0'}`} />
-                              </div>
+                          <span className={`text-[7px] font-black uppercase tracking-wider ${done ? 'text-[#D4AF37]' : 'text-black/20'}`}>
+                            {step.slice(0, 4)}
+                          </span>
+                        </div>
+                        {i < PROGRESS_STEPS.length - 1 && (
+                          <div className="flex-1 h-0.5 mx-1 mb-4">
+                            <div className="h-full bg-black/[0.05] rounded-full overflow-hidden">
+                              <div className={`h-full bg-[#D4AF37] rounded-full transition-all duration-700 ${i < stepIndex ? 'w-full' : 'w-0'}`} />
                             </div>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
-                  </div>
+                          </div>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {/* Done button */}
+            {/* Done */}
             <button
               onClick={onDone}
               className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-black text-white text-[9px] font-black uppercase tracking-widest hover:bg-[#D4AF37] transition-all active:scale-95"
             >
               Done <ArrowRight size={12} />
             </button>
+
           </div>
         </div>
       )}

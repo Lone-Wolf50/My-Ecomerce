@@ -25,7 +25,8 @@ const Field = ({ label, children, note }) => (
 
 const CheckoutPage = () => {
   const { cart, cartTotal, handleConfirmOrder, isProcessing } = useCart() || { cart: [] };
-  const navigate = useNavigate();
+  const navigate       = useNavigate();
+  const processingRef  = React.useRef(false); // guard against onSuccess firing twice
 
   const [formData, setFormData] = useState({
     customer_name: "",
@@ -62,7 +63,7 @@ const CheckoutPage = () => {
           }));
         }
       } catch (err) {
-        console.error("Checkout init error:", err.message);
+        /* checkout init error — form stays blank, user can re-enter */
       }
     };
     fetchUser();
@@ -218,6 +219,11 @@ const CheckoutPage = () => {
 
   /* ── Step 3: Verify on server, then persist order ───────────── */
   const handlePostPayment = async (reference) => {
+    // Guard: Paystack can fire onSuccess more than once in rare cases.
+    // This ref ensures the order is placed and email sent exactly once.
+    if (processingRef.current) return;
+    processingRef.current = true;
+
     try {
       // Verify reference server-side first — prevents replayed references
       const { data: verification } = await axios.get(
@@ -272,7 +278,7 @@ const CheckoutPage = () => {
         });
       }
     } catch (err) {
-      console.error("Post-payment error:", err.message);
+      processingRef.current = false; // allow retry on error
       Swal.fire({
         title: "Something Went Wrong",
         html: `<p>Your payment may have gone through. Please contact support with reference:<br><strong style="color:#C9A227">${reference}</strong></p>`,

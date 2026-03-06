@@ -10,7 +10,7 @@ import rateLimit     from "express-rate-limit";
 import { config } from "dotenv";
 config();
 // ── Validate required env vars on startup ──────────────────────
-const REQUIRED_ENV = ["PAYSTACK_SECRET_KEY", "GMAIL_USER", "GMAIL_PASS", "ADMIN_SECRET_TOKEN", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"];
+const REQUIRED_ENV = ["PAYSTACK_SECRET_KEY", "GMAIL_USER", "GMAIL_PASS", "ADMIN_SECRET_TOKEN", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "ADMIN_EMAIL"];
 for (const key of REQUIRED_ENV) {
   if (!process.env[key]) {
     // Log to stderr only — never to stdout where it could leak to clients
@@ -349,9 +349,6 @@ app.post("/initialize-payment", async (req, res) => {
     if (typeof metadata.customerName === "string") safeMetadata.customerName = safeStr(metadata.customerName, 100);
   }
 
-  const callbackBase = process.env.ALLOWED_ORIGIN_1 || "https://my-ecomerce-gygn.vercel.app";
-  const callbackUrl  = `${callbackBase}/order-confirmed`;
-
   try {
     const response = await axios.post(
       "https://api.paystack.co/transaction/initialize",
@@ -359,7 +356,9 @@ app.post("/initialize-payment", async (req, res) => {
         email,
         amount: Math.round(amount),
         metadata: safeMetadata,
-        callback_url: callbackUrl,
+        // No callback_url — using PaystackPop inline popup (onSuccess handles completion).
+        // A callback_url would cause Paystack to redirect the browser AND fire onSuccess,
+        // resulting in handlePostPayment running twice = double order / double email.
       },
       {
         headers: {
@@ -664,74 +663,15 @@ app.post("/verify-otp", authLimiter, (req, res) => {
   res.json({ success: true, message: "Verified." });
 });
 
-// ── 10. Send status update (post-payment confirmation) ────────
-app.post("/send-status-update", emailLimiter, async (req, res) => {
-  const { email, customerName, orderId, totalAmount } = req.body;
-
-  if (!isValidEmail(email))
-    return res.status(422).json({ success: false, error: "Invalid email." });
-
-  const rawId = String(orderId || "").slice(0, 64);
-  if (!rawId)
-    return res.status(422).json({ success: false, error: "Missing order ID." });
-
-  if (isAlreadySent("status-update", rawId)) {
-    log.warn("Duplicate send-status-update blocked");
-    return res.json({ success: true, deduplicated: true });
-  }
-
-  const safeName = escapeHtml(safeStr(customerName || "Valued Client", 100));
-  const safeId   = escapeHtml(rawId);
-  const shortId  = safeId.slice(0, 8).toUpperCase();
-  const safeAmt  = Number(totalAmount || 0).toFixed(2);
-  const siteUrl  = process.env.SITE_URL || "https://my-ecomerce-gygn.vercel.app";
-
-  try {
-    await transporter.sendMail({
-      from: `"Janina Luxury Bags" <${process.env.GMAIL_USER}>`,
-      to: email,
-      subject: `Order Confirmed #${shortId} ✦`,
-      html: `
-        <div style="font-family:Georgia,serif;max-width:520px;margin:auto;background:#FDFBF7;border:1px solid rgba(0,0,0,0.07);border-radius:16px;overflow:hidden;">
-          <div style="background:linear-gradient(135deg,#0A0A0A,#1a1a1a);padding:32px 40px;text-align:center;">
-            <p style="margin:0 0 8px;font-size:8px;text-transform:uppercase;letter-spacing:5px;color:#C9A227;font-family:Helvetica,sans-serif;">Janina Luxury Bags</p>
-            <h1 style="margin:0;font-size:26px;font-style:italic;color:#fff;font-weight:normal;">Order Confirmed</h1>
-          </div>
-          <div style="padding:32px 40px;">
-            <p style="margin:0 0 16px;font-size:14px;color:#222;">Dear <strong>${safeName}</strong>,</p>
-            <p style="margin:0 0 20px;font-size:13px;line-height:1.8;color:#555;">
-              Your order has been received and is being prepared with care.
-              We will notify you when it ships.
-            </p>
-            <div style="background:#fff;border:1px solid rgba(201,162,39,0.25);border-radius:12px;padding:20px;margin-bottom:20px;">
-              <p style="margin:0 0 4px;font-size:8px;text-transform:uppercase;letter-spacing:3px;color:#aaa;font-family:Helvetica,sans-serif;">Order ID</p>
-              <p style="margin:0 0 14px;font-weight:bold;font-size:18px;color:#111;letter-spacing:2px;font-family:monospace;">#${shortId}</p>
-              <p style="margin:0 0 4px;font-size:8px;text-transform:uppercase;letter-spacing:3px;color:#aaa;font-family:Helvetica,sans-serif;">Amount Paid</p>
-              <p style="margin:0 0 14px;font-weight:bold;color:#C9A227;font-size:20px;">GH&#8373; ${safeAmt}</p>
-              <div style="background:#FDFBF7;border:1px solid rgba(201,162,39,0.15);border-radius:8px;padding:12px 14px;">
-                <p style="margin:0 0 4px;font-size:8px;text-transform:uppercase;letter-spacing:3px;color:#aaa;font-family:Helvetica,sans-serif;">Track Your Order</p>
-                <p style="margin:0;font-size:12px;color:#555;line-height:1.6;">
-                  Go to <strong>Support &rarr; Track Order</strong> and enter
-                  <strong style="color:#C9A227;font-family:monospace;">#${shortId}</strong>
-                  to check your status at any time.
-                </p>
-              </div>
-            </div>
-            <div style="text-align:center;">
-              <a href="${siteUrl}/orders" style="display:inline-block;background:#C9A227;color:#000;text-decoration:none;font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:4px;padding:13px 28px;border-radius:100px;font-family:Helvetica,sans-serif;">View My Orders</a>
-            </div>
-          </div>
-          <div style="background:#0A0A0A;padding:18px 40px;text-align:center;">
-            <p style="margin:0;font-size:8px;text-transform:uppercase;letter-spacing:3px;color:#C9A227;font-family:Helvetica,sans-serif;">Janina Luxury Bags · Accra, Ghana · Authentic &amp; Certified</p>
-          </div>
-        </div>`,
-    });
-    log.info("Order status-update email dispatched");
-    res.json({ success: true });
-  } catch (err) {
-    log.error("Status-update email failed", err);
-    res.status(500).json({ success: false, error: "Could not send confirmation email." });
-  }
+// ── 10. send-status-update — REMOVED ─────────────────────────
+// This endpoint was sending a second "order confirmed" email that duplicated
+// Paystack's own automatic payment receipt.
+// Order confirmation emails are now sent exclusively via the admin-controlled
+// /send-order-confirmed-email endpoint (route 5) when the admin processes the order.
+app.post("/send-status-update", emailLimiter, (_req, res) => {
+  // Return success so any existing callers (e.g. useCart) don't show an error,
+  // but we do NOT send any email — Paystack already sent the receipt.
+  res.json({ success: true, skipped: true });
 });
 
 // ── 11. Notify admin of new live chat session ──────────────────
@@ -753,29 +693,13 @@ app.post("/notify-admin-live-chat", emailLimiter, async (req, res) => {
     return res.json({ success: true, deduplicated: true });
   }
 
-  try {
-    await fetch(`${SUPABASE_URL}/rest/v1/live_chat_sessions`, {
-      method: "POST",
-      headers: {
-        "Content-Type":  "application/json",
-        "apikey":         SUPABASE_SERVICE_KEY,
-        "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`,
-        "Prefer":        "return=minimal",
-      },
-      body: JSON.stringify({
-        session_id: safeSession,
-        user_email: safeEmail,
-        user_name:  safeName,
-        status:     "active",
-        created_at: new Date().toISOString(),
-      }),
-    });
-    log.info("Live chat session record created in Supabase");
-  } catch (err) {
-    log.warn("Could not create live chat session record", err);
+  // NOTE: The client (SupportLiveChat) already inserts the session row.
+  // The server only needs to send the admin notification email.
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (!adminEmail) {
+    log.error("ADMIN_EMAIL env var is not set — cannot send live chat notification");
+    return res.status(500).json({ success: false, error: "Admin email not configured." });
   }
-
-  const adminEmail = process.env.ADMIN_EMAIL || process.env.GMAIL_USER;
 
   try {
     await transporter.sendMail({

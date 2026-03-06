@@ -49,8 +49,8 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin && IS_DEV) return callback(null, true);
-    if (origin && allowedOrigins.includes(origin)) return callback(null, true);
+    if (!origin) return callback(null, true); // allow server-to-server & Vercel health checks
+    if (allowedOrigins.includes(origin)) return callback(null, true);
     callback(new Error("CORS policy violation"));
   },
   methods: ["GET", "POST"],
@@ -834,8 +834,8 @@ app.use((_req, res) => res.status(404).json({ success: false, error: "Not found.
 
 // ── Global error handler ───────────────────────────────────────
 app.use((err, _req, res, _next) => {
-  console.error("[UNHANDLED]", err?.message, err?.stack);
-  res.status(500).json({ success: false, error: "An unexpected error occurred.", debug: err?.message });
+  log.error("Unhandled exception", err);
+  res.status(500).json({ success: false, error: "An unexpected error occurred." });
 });
 
 // ── Vercel serverless export ───────────────────────────────────

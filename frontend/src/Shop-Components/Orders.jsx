@@ -15,14 +15,14 @@ const STATUS_CONFIG = {
   returned:   { label: "Returned",  color: "text-gray-500",    bg: "bg-gray-50",     border: "border-gray-200",    icon: RotateCcw   },
 };
 
-/* ── Premium live 5-day return countdown ─────────────────── */
+/* ── Premium live 3-day return countdown ─────────────────── */
 function ReturnCountdown({ deliveredAt, onReturn, isReturning }) {
   const [timeLeft, setTimeLeft] = useState(null);
 
   useEffect(() => {
     if (!deliveredAt) return;
     const calc = () => {
-      const deadline = new Date(new Date(deliveredAt).getTime() + 5 * 24 * 60 * 60 * 1000);
+      const deadline = new Date(new Date(deliveredAt).getTime() + 3 * 24 * 60 * 60 * 1000);
       const msLeft   = deadline - Date.now();
       if (msLeft <= 0) { setTimeLeft(null); return; }
       const totalSecs  = Math.floor(msLeft / 1000);
@@ -33,7 +33,6 @@ function ReturnCountdown({ deliveredAt, onReturn, isReturning }) {
       setTimeLeft({ days, hours, mins, secs, totalSecs, deadline });
     };
     calc();
-    // Update every second for live ticking
     const id = setInterval(calc, 1000);
     return () => clearInterval(id);
   }, [deliveredAt]);
@@ -41,7 +40,7 @@ function ReturnCountdown({ deliveredAt, onReturn, isReturning }) {
   if (!timeLeft) return null;
 
   const urgent = timeLeft.days === 0 && timeLeft.hours < 6;
-  const pct    = Math.max(0, Math.min(100, (timeLeft.totalSecs / (5 * 24 * 3600)) * 100));
+  const pct    = Math.max(0, Math.min(100, (timeLeft.totalSecs / (3 * 24 * 3600)) * 100));
 
   return (
     <div className={`mt-4 rounded-2xl overflow-hidden border transition-all ${
@@ -69,7 +68,7 @@ function ReturnCountdown({ deliveredAt, onReturn, isReturning }) {
                 Return Window
               </p>
               <p className={`text-[9px] font-bold ${urgent ? "text-orange-500" : "text-emerald-500"}`}>
-                {urgent ? "⚠ Expires very soon" : "5-day free return policy"}
+                {urgent ? "⚠ Expires very soon" : "3-day free return policy"}
               </p>
             </div>
           </div>
@@ -208,7 +207,6 @@ export default function Orders() {
         table: "orders",
       }, (payload) => {
         const updated = payload.new;
-        // Update local state live
         setOrders(prev => prev.map(o => o.id === updated.id ? { ...o, ...updated } : o));
       })
       .subscribe();
@@ -284,7 +282,6 @@ export default function Orders() {
 
       {/* Header */}
       <div className="max-w-2xl mx-auto px-5 pt-8 pb-6">
-        {/* ← Back button */}
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-2.5 mb-6 group"
@@ -319,14 +316,13 @@ export default function Orders() {
           const items = order.order_items || [];
           const preview = items[0];
 
-          /* Cancel: visible on pending, processing, shipped */
           const canCancel = ["pending", "processing", "shipped"].includes(order.status);
 
-          /* Return: only delivered, within 5 days — use delivered_at or updated_at as fallback */
+          /* Return: only delivered, within 3 days */
           const isDelivered = order.status === "delivered";
           const deliveredAt = order.delivered_at || (isDelivered ? order.updated_at : null);
           const returnDeadline = deliveredAt
-            ? new Date(new Date(deliveredAt).getTime() + 5 * 24 * 60 * 60 * 1000)
+            ? new Date(new Date(deliveredAt).getTime() + 3 * 24 * 60 * 60 * 1000)
             : null;
           const showReturn = isDelivered && deliveredAt && returnDeadline && returnDeadline > new Date();
 
@@ -390,7 +386,7 @@ export default function Orders() {
                 </div>
               </div>
 
-              {/* ── Shipped notice (email was sent) ── */}
+              {/* ── Shipped notice ── */}
               {order.status === "shipped" && (
                 <div onClick={e => e.stopPropagation()}>
                   <ShippedNotice order={order} />
@@ -404,7 +400,7 @@ export default function Orders() {
                 </div>
               )}
 
-              {/* ── Cancel button (pending / processing / shipped) ── */}
+              {/* ── Cancel button ── */}
               {canCancel && (
                 <div className="mt-3" onClick={e => e.stopPropagation()}>
                   <button
@@ -426,7 +422,7 @@ export default function Orders() {
                 </div>
               )}
 
-              {/* ── Premium Return countdown (delivered, within 5 days) ── */}
+              {/* ── Return countdown (delivered, within 3 days) ── */}
               {showReturn && (
                 <div onClick={e => e.stopPropagation()}>
                   <ReturnCountdown

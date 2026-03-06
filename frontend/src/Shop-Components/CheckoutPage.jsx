@@ -7,6 +7,7 @@ import Swal from "sweetalert2";
 import DetailsNavBar from "./DetailsNavBar.jsx";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+axios.defaults.timeout = 12000; // 12s — prevents silent hangs showing as "connection error"
 
 // ── Input sanitiser (strips HTML from user fields) ─────────────
 const sanitise = (str = "", max = 200) =>

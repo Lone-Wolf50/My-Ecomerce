@@ -7,6 +7,8 @@ import escapeHtml    from "escape-html";
 import helmet        from "helmet";
 import rateLimit     from "express-rate-limit";
 
+import { config } from "dotenv";
+config();
 // ── Validate required env vars on startup ──────────────────────
 const REQUIRED_ENV = ["PAYSTACK_SECRET_KEY", "GMAIL_USER", "GMAIL_PASS", "ADMIN_SECRET_TOKEN", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"];
 for (const key of REQUIRED_ENV) {
@@ -56,7 +58,7 @@ app.use(cors({
 }));
 
 // Handle CORS preflight for all routes
-app.options("*", cors());
+app.options(/.*/, cors());
 
 // ── Rate limiters ───────────────────────────────────────────────
 const globalLimiter = rateLimit({
@@ -579,7 +581,7 @@ app.post("/send-delivered-email", requireAdminToken, emailLimiter, async (req, r
       
     </div>
     <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:12px;padding:16px 20px;margin-bottom:28px;">
-      <p style="margin:0 0 4px;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#15803d;font-family:Helvetica,sans-serif;">5-Day Return Window Open</p>
+      <p style="margin:0 0 4px;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#15803d;font-family:Helvetica,sans-serif;">3-Day Return Window Open</p>
       <p style="margin:0;font-size:12px;color:#166534;line-height:1.7;">
         Not fully in love? Request a free return from your
         <a href="${siteUrl}/orders" style="color:#C9A227;font-weight:bold;text-decoration:none;">Orders page</a>
@@ -838,4 +840,9 @@ app.use((err, _req, res, _next) => {
 
 // ── Vercel serverless export ───────────────────────────────────
 // Vercel calls this exported handler for every request instead of app.listen()
+if (process.env.NODE_ENV !== "production") {
+  const PORT = process.env.PORT || 3001;
+  app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+}
+
 export default app;

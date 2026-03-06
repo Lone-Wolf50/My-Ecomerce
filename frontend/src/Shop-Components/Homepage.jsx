@@ -10,17 +10,18 @@ const HERO_SLIDES = [
   {
     id: 1,
     // Elegant woman in luxury fashion editorial
-    img: "https://images.unsplash.com/photo-1469334031218-e382a71b716b?auto=format&fit=crop&w=1600&q=85",
+    img: "https://www.shutterstock.com/shutterstock/photos/2479904535/display_1500/stock-photo-portrait-of-stylish-young-woman-in-a-suit-posing-with-lady-s-leather-handbag-on-a-brown-studio-2479904535.jpg",
     eyebrow: "Janina Luxury Bags",
     title: "Crafted for\nthe Remarkable",
     sub: "Every stitch a declaration. Every piece, a legacy.",
     align: "left",
+    
   },
   {
     id: 2,
     // Confident woman street fashion
-    img: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1600&q=85",
-    eyebrow: "The Atelier Collection",
+    img: "https://images.unsplash.com/photo-1765115070689-43485654f37b?w=500&auto=format&fit=crop&q=60",
+    eyebrow: "The Luxury Collection",
     title: "Where Luxury\nMeets Legacy",
     sub: "Handcrafted leather. Eternal elegance. Yours alone.",
     align: "center",
@@ -28,7 +29,7 @@ const HERO_SLIDES = [
   {
     id: 3,
     // Stylish woman editorial portrait
-    img: "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1600&q=85",
+    img: "https://i.pinimg.com/1200x/ba/ce/47/bace4744b2d2173afa57a9b2ca7f4799.jpg",
     eyebrow: "Signature Series",
     title: "The Art of\nPossession",
     sub: "Limited. Intentional. Irreplaceable.",
@@ -46,7 +47,7 @@ const HERO_SLIDES = [
   {
     id: 5,
     // Sophisticated woman luxury lifestyle
-    img: "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?auto=format&fit=crop&w=1600&q=85",
+    img: "https://i.pinimg.com/1200x/6b/34/b1/6b34b1565ee02f24512430b99e549eda.jpg",
     eyebrow: "New Season — Now Live",
     title: "Exclusive\nAccess",
     sub: "The vault is open. Claim yours before it closes.",
@@ -57,7 +58,7 @@ const HERO_SLIDES = [
 const FEATURES = [
   { icon: "verified",       title: "Certified Authentic", desc: "Every piece guaranteed genuine." },
   { icon: "local_shipping", title: "Premium Delivery",    desc: "Insured, fast shipping worldwide." },
-  { icon: "autorenew",      title: "5-Day Returns",       desc: "Hassle-free return policy." },
+  { icon: "autorenew",      title: "3-Day Returns",       desc: "Hassle-free return policy." },
   { icon: "support_agent",  title: "24/7 Concierge",      desc: "Always here when you need us." },
 ];
 

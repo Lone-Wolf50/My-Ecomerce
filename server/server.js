@@ -266,9 +266,15 @@ app.post("/paystack-webhook", express.raw({ type: "application/json", limit: "64
   res.sendStatus(200);
 });
 
+// ── Allowed delivery fees — must match the frontend DELIVERY_ZONES list ──
+const ALLOWED_DELIVERY_FEES = new Set([45, 65, 70, 75, 80, 85]);
+
 // ── 2. Pre-flight order validation ────────────────────────────
 app.post("/validate-order", async (req, res) => {
-  const { user_id, customer_name, customer_email, phone_number, delivery_method, cart } = req.body;
+  const {
+    user_id, customer_name, customer_email, phone_number,
+    delivery_method, delivery_fee, delivery_location, cart,
+  } = req.body;
 
   const errors = [];
 
@@ -278,6 +284,15 @@ app.post("/validate-order", async (req, res) => {
   if (!isValidPhone(phone_number))    errors.push("Phone must be exactly 10 digits.");
   if (!["pickup", "delivery"].includes(delivery_method)) errors.push("Invalid delivery method.");
   if (!Array.isArray(cart) || cart.length === 0) errors.push("Cart is empty.");
+
+  // Validate delivery fee when door delivery is chosen
+  const parsedDeliveryFee = delivery_method === "delivery" ? Number(delivery_fee) : 0;
+  if (delivery_method === "delivery") {
+    if (!safeStr(delivery_location || "", 200)) errors.push("Delivery location is required.");
+    if (!Number.isFinite(parsedDeliveryFee) || !ALLOWED_DELIVERY_FEES.has(parsedDeliveryFee)) {
+      errors.push("Invalid delivery fee. Please select a valid location.");
+    }
+  }
 
   const MAX_CART_ITEMS = 50;
   if (Array.isArray(cart) && cart.length > MAX_CART_ITEMS) {
@@ -313,7 +328,9 @@ app.post("/validate-order", async (req, res) => {
     }
   }
 
-  const subtotal    = cart.reduce((sum, item) => sum + (priceMap[String(item.id)] * item.quantity), 0);
+  const productSubtotal = cart.reduce((sum, item) => sum + (priceMap[String(item.id)] * item.quantity), 0);
+  // Grand subtotal = products + delivery fee (0 for pickup)
+  const subtotal    = productSubtotal + parsedDeliveryFee;
   const FLAT_FEE    = 0.50;
   const PCT_RATE    = 0.015;
   const FEE_CAP     = 2.00;
@@ -324,11 +341,13 @@ app.post("/validate-order", async (req, res) => {
 
   log.info("Order pre-validated successfully");
   res.json({
-    success: true,
-    message: "Order pre-validated. Proceed to payment.",
-    subtotal: parseFloat(subtotal.toFixed(2)),
-    fee:      parseFloat(actualFee.toFixed(2)),
-    total:    chargeGHS,
+    success:        true,
+    message:        "Order pre-validated. Proceed to payment.",
+    product_subtotal: parseFloat(productSubtotal.toFixed(2)),
+    delivery_fee:   parsedDeliveryFee,
+    subtotal:       parseFloat(subtotal.toFixed(2)),
+    fee:            parseFloat(actualFee.toFixed(2)),
+    total:          chargeGHS,
     amount_pesewas: chargeKobo,
   });
 });

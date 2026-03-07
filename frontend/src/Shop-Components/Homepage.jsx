@@ -98,7 +98,7 @@ export default function Homepage() {
   }, []);
 
   useEffect(() => {
-    supabase.from("products").select("*").then(({ data }) => {
+    supabase.from("products").select("*").eq("is_active", true).then(({ data }) => {
       if (data?.length) setAllProds([...data].sort(() => Math.random() - 0.5));
     });
   }, []);

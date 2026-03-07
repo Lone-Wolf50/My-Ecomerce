@@ -14,7 +14,7 @@ const CategoryPage = () => {
     const fetchCategoryProducts = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase.from("products").select("*");
+       const { data, error } = await supabase.from("products").select("*").eq("is_active", true);
         if (error) throw error;
         const matched = data.filter((p) => {
           const cat = p.category.toLowerCase();

@@ -282,18 +282,29 @@ const CartProvider = ({ children }) => {
         if (!uuid) throw new Error("User identification failed. Please log in again.");
 
         // STEP 1: Insert order
+        // Use the actual amount the client paid (includes delivery + processing fee)
+        // CheckoutPage passes this as formData.paid_total; fall back to cart subtotal
+        const paidTotal = formData.paid_total != null ? formData.paid_total : total;
+
         const { data: orderData, error: orderError } = await supabase
           .from("orders")
           .insert([
             {
-              user_id:         uuid,
-              customer_name:   formData.customer_name,
-              customer_email:  formData.customer_email,
-              phone_number:    formData.phone_number,
-              delivery_method: formData.delivery_method,
-              payment_method:  formData.payment_method,
-              total_amount:    total,
-              status:          "pending",
+              user_id:           uuid,
+              customer_name:     formData.customer_name,
+              customer_email:    formData.customer_email,
+              phone_number:      formData.phone_number,
+              delivery_method:   formData.delivery_method,
+              payment_method:    formData.payment_method,
+              total_amount:      paidTotal,
+              // Delivery details
+              delivery_type:     formData.delivery_method === "delivery" ? "door" : "pickup",
+              delivery_location: formData.delivery_location || null,
+              delivery_address:  formData.delivery_address  || null,
+              delivery_fee:      formData.delivery_fee      || 0,
+              // Payment reference
+              payment_reference: formData.payment_reference || null,
+              status:            "pending",
             },
           ])
           .select()
@@ -307,7 +318,7 @@ const CartProvider = ({ children }) => {
           .filter((item) => item.id && item.quantity > 0 && item.price >= 0)
           .map((item) => ({
             order_id:   orderId,
-            product_id: item.id,
+            product_id: String(item.id),
             quantity:   item.quantity,
             price:      item.price,
           }));
@@ -322,7 +333,7 @@ const CartProvider = ({ children }) => {
 
         // STEP 3: Clear cart
         await clearCart();
-        return { success: true };
+        return { success: true, orderId: orderData.id };
       } catch (err) {
         /* order placement error — returned to caller */
         return { success: false, error: err.message };

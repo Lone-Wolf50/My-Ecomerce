@@ -105,8 +105,10 @@ Check your VITE_ADMIN_SECRET_TOKEN env var.`);
 
   // Delivery type label
   const deliveryType = order.delivery_type || order.shipping_type || null;
-  const isDoor = deliveryType === 'door' || deliveryType === 'door_delivery';
-  const deliveryAddress = order.delivery_address || order.shipping_address || null;
+  const isDoor = deliveryType === 'door' || deliveryType === 'door_delivery' || order.delivery_method === 'delivery';
+  const deliveryAddress  = order.delivery_address  || order.shipping_address || null;
+  const deliveryLocation = order.delivery_location || null;
+  const deliveryFee      = order.delivery_fee != null ? Number(order.delivery_fee) : null;
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-lg z-[110] flex items-end md:items-center justify-center p-0 md:p-6">
@@ -193,8 +195,14 @@ Check your VITE_ADMIN_SECRET_TOKEN env var.`);
               <div className="min-w-0">
                 <p className="text-[8px] font-black uppercase tracking-wider text-black/30 mb-0.5">Delivery</p>
                 <p className={`text-[11px] font-black uppercase tracking-tight truncate ${isDoor ? 'text-emerald-700' : 'text-black/50'}`}>
-                  {deliveryType ? deliveryType.replace(/_/g, ' ') : 'Not specified'}
+                  {isDoor ? 'Door Delivery' : (order.delivery_method === 'pickup' ? 'Pickup' : 'Not specified')}
                 </p>
+                {deliveryLocation && (
+                  <p className="text-[10px] font-bold text-emerald-600 truncate">{deliveryLocation}</p>
+                )}
+                {deliveryFee != null && deliveryFee > 0 && (
+                  <p className="text-[10px] font-black text-[#D4AF37]">Fee: GH₵{deliveryFee.toLocaleString()}</p>
+                )}
               </div>
             </div>
           </div>
@@ -266,8 +274,13 @@ Check your VITE_ADMIN_SECRET_TOKEN env var.`);
           {/* ── Footer total ── */}
           <div className="flex justify-between items-center pt-4 border-t border-black/[0.07]">
             <div>
-              <p className="text-[8px] font-black uppercase tracking-[0.22em] text-black/25 mb-1">Manifest Total</p>
+              <p className="text-[8px] font-black uppercase tracking-[0.22em] text-black/25 mb-1">Total Paid</p>
               <p className="text-[2rem] font-serif italic text-[#D4AF37] leading-none">GH₵{order.total_amount?.toLocaleString()}</p>
+              {deliveryFee != null && deliveryFee > 0 && (
+                <p className="text-[10px] text-black/35 font-medium mt-1">
+                  Incl. GH₵{deliveryFee} delivery · {deliveryLocation || 'Door delivery'}
+                </p>
+              )}
             </div>
             <button
               onClick={onClose}

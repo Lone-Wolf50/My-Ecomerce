@@ -180,6 +180,7 @@ const CheckoutPage = () => {
     delivery_method: "pickup",
     payment_method: "paystack",
     delivery_location: "",
+    delivery_address: "",
   });
 
   const [deliveryFee, setDeliveryFee] = useState(0);
@@ -226,6 +227,7 @@ const CheckoutPage = () => {
       ...prev,
       delivery_method: method,
       delivery_location: "",
+      delivery_address: "",
     }));
     if (method !== "delivery") setDeliveryFee(0);
   };
@@ -245,6 +247,8 @@ const CheckoutPage = () => {
     if (!formData.user_id)                        errs.push("Session invalid. Please log in again.");
     if (formData.delivery_method === "delivery" && !sanitise(formData.delivery_location))
       errs.push("Please select a delivery location.");
+    if (formData.delivery_method === "delivery" && !sanitise(formData.delivery_address))
+      errs.push("Please enter your delivery address.");
     if (!cart || cart.length === 0)               errs.push("Your cart is empty.");
     return errs;
   };
@@ -380,8 +384,10 @@ const CheckoutPage = () => {
         ...formData,
         customer_name:     sanitise(formData.customer_name, 100),
         delivery_location: sanitise(formData.delivery_location, 200),
+        delivery_address:  sanitise(formData.delivery_address, 300),
         delivery_fee:      deliveryFee,
         payment_reference: reference,
+        paid_total:        displayTotal,   // ← actual amount client paid (products + delivery + processing fee)
         status: "paid",
       });
 
@@ -527,6 +533,24 @@ const CheckoutPage = () => {
                   <LocationPicker
                     selected={formData.delivery_location}
                     onSelect={handleLocationSelect}
+                  />
+                </Field>
+              )}
+
+              {/* ── Specific Delivery Address ── */}
+              {formData.delivery_method === "delivery" && (
+                <Field
+                  label="Delivery Address"
+                  note="Enter your street / neighbourhood e.g. Madina, Atomic Junction"
+                >
+                  <input
+                    name="delivery_address"
+                    value={formData.delivery_address}
+                    placeholder="e.g. Madina, Near Total Filling Station"
+                    onChange={handleInput}
+                    maxLength={300}
+                    autoComplete="street-address"
+                    className={inputCls}
                   />
                 </Field>
               )}

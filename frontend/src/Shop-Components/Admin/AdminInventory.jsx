@@ -1,16 +1,54 @@
-import React from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Pencil, Trash2, Search, X } from 'lucide-react';
 
 const AdminInventory = ({ products, onEdit, onDelete }) => {
+  const [search, setSearch] = useState('');
+
+  const filtered = products.filter((p) => {
+    const q = search.toLowerCase();
+    return (
+      !q ||
+      p.name?.toLowerCase().includes(q) ||
+      p.category?.toLowerCase().includes(q) ||
+      p.origin?.toLowerCase().includes(q) ||
+      p.series?.toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Header */}
-      <div className="mb-10">
+      <div className="mb-6">
         <p className="text-[10px] font-black uppercase tracking-[0.35em] text-black/20 mb-2">
           {products.length} Assets Archived
         </p>
         <h2 className="text-4xl font-serif italic">Current Collection</h2>
       </div>
+
+      {/* Search bar */}
+      <div className="relative mb-6">
+        <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-black/30 pointer-events-none" />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name, category, origin…"
+          className="w-full h-11 pl-10 pr-10 rounded-2xl border border-black/[0.10] bg-white text-[13px] font-medium text-black placeholder:text-black/30 outline-none focus:border-[#D4AF37]/50 transition-all"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-black/30 hover:text-black transition-colors"
+          >
+            <X size={14} />
+          </button>
+        )}
+      </div>
+
+      {search && (
+        <p className="text-[10px] font-black uppercase tracking-widest text-black/30 mb-4">
+          {filtered.length} result{filtered.length !== 1 ? 's' : ''} for "{search}"
+        </p>
+      )}
 
       {/* Desktop header row */}
       <div className="hidden md:grid grid-cols-[2fr_1fr_1fr_1fr_auto] px-6 mb-3 text-[9px] font-black uppercase tracking-[0.25em] text-black/25">
@@ -22,7 +60,7 @@ const AdminInventory = ({ products, onEdit, onDelete }) => {
       </div>
 
       <div className="space-y-2">
-        {products.map((p) => (
+        {filtered.map((p) => (
           <div
             key={p.id}
             className="flex flex-col md:grid md:grid-cols-[2fr_1fr_1fr_1fr_auto] items-center
@@ -90,9 +128,12 @@ const AdminInventory = ({ products, onEdit, onDelete }) => {
           </div>
         ))}
 
-        {products.length === 0 && (
+        {filtered.length === 0 && (
           <div className="py-24 text-center rounded-[2.5rem] border-2 border-dashed border-black/5">
-            <p className="text-black/20 font-serif italic text-xl">Vault is empty.</p>
+            {search
+              ? <p className="text-black/20 font-serif italic text-xl">No products match "{search}"</p>
+              : <p className="text-black/20 font-serif italic text-xl">Vault is empty.</p>
+            }
           </div>
         )}
       </div>

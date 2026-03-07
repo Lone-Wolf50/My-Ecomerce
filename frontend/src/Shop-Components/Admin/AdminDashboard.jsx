@@ -148,7 +148,9 @@ const AdminDashboard = () => {
 
   /* ── Fetching ── */
   const fetchProducts = useCallback(async () => {
-    const { data, error } = await supabase.from("products").select("*").order("created_at", { ascending: false });
+    console.log("[fetchProducts] Fetching active products...");
+    const { data, error } = await supabase.from("products").select("*").eq("is_active", true).order("created_at", { ascending: false });
+    console.log("[fetchProducts] Result — count:", data?.length, "| error:", error);
     if (!error) setProducts(data || []);
   }, []);
 
@@ -264,7 +266,37 @@ const AdminDashboard = () => {
 
   const handleDelete = async (id) => {
     const r = await Swal.fire({ title: "Confirm Deletion", text: "This artifact will be purged from the archives.", icon: "warning", showCancelButton: true, confirmButtonColor: "#000", confirmButtonText: "DELETE" });
-    if (r.isConfirmed) { await supabase.from("products").delete().eq("id", id); fetchProducts(); toast("Deleted"); }
+    if (r.isConfirmed) {
+      console.log("[handleDelete] Attempting soft delete for product id:", id);
+      try {
+        const { data, error } = await supabase
+          .from("products")
+          .update({ is_active: false })
+          .eq("id", id)
+          .select();
+
+        console.log("[handleDelete] Supabase response — data:", data, "| error:", error);
+
+        if (error) {
+          console.error("[handleDelete] Delete failed:", error.message, error.details, error.hint);
+          Swal.fire("Error", error.message, "error");
+          return;
+        }
+
+        if (!data || data.length === 0) {
+          console.warn("[handleDelete] No rows updated — does this product id exist?", id);
+          Swal.fire("Warning", "Product not found or already deleted.", "warning");
+          return;
+        }
+
+        console.log("[handleDelete] Success — product marked inactive:", data);
+        fetchProducts();
+        toast("Deleted");
+      } catch (err) {
+        console.error("[handleDelete] Unexpected error:", err);
+        Swal.fire("Error", err.message, "error");
+      }
+    }
   };
 
   const handleUpdateBroadcast = async () => {

@@ -3,6 +3,7 @@ import Swal from "sweetalert2";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 
+
 const supabaseUrl     = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase        = createClient(supabaseUrl, supabaseAnonKey);
@@ -360,7 +361,7 @@ const AuthPage = () => {
         const data = await res.json();
         if (!data.success) throw new Error(data.error || "Communication failure.");
         setTimer(120); setIsOtpPending(true); setView("otp");
-        luxeAlert("Code Sent", "Verification code dispatched to inbox.");
+        luxeAlert("Code Sent To Email", "Verification code dispatched to inbox.");
 
       } else if (view === "otp") {
         const enteredOtp  = otp.join("");

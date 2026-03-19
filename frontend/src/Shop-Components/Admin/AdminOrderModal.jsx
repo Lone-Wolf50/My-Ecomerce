@@ -278,7 +278,7 @@ Check your VITE_ADMIN_SECRET_TOKEN env var.`);
               <p className="text-[2rem] font-serif italic text-[#D4AF37] leading-none">GH₵{order.total_amount?.toLocaleString()}</p>
               {deliveryFee != null && deliveryFee > 0 && (
                 <p className="text-[10px] text-black/35 font-medium mt-1">
-                  Incl. GH₵{deliveryFee} delivery · {deliveryLocation || 'Door delivery'}
+                  Charges. GH₵{deliveryFee} delivery · {deliveryLocation || 'Door delivery'}
                 </p>
               )}
             </div>

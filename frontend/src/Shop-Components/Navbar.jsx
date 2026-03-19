@@ -15,6 +15,11 @@ export default function Navbar() {
   const [searchResults, setSearchResults] = useState([]);
   const [scrolled, setScrolled]           = useState(false);
   const [unreadCount, setUnreadCount]     = useState(0);
+
+  /* ── NEW: mobile profile popup state ── */
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef(null);
+
   const inputRef = useRef(null);
 
   const isLoggedIn = !!sessionStorage.getItem("userEmail");
@@ -28,6 +33,31 @@ export default function Navbar() {
     window.addEventListener("scroll", fn, { passive: true });
     return () => window.removeEventListener("scroll", fn);
   }, []);
+
+  /* ── Close profile popup when tapping outside ── */
+  useEffect(() => {
+    if (!profileOpen) return;
+    const handleOutside = (e) => {
+      if (profileRef.current && !profileRef.current.contains(e.target)) {
+        setProfileOpen(false);
+      }
+    };
+    // Use timeout so the same tap that opens doesn't immediately close
+    const t = setTimeout(() => {
+      document.addEventListener("touchstart", handleOutside, { passive: true });
+      document.addEventListener("mousedown", handleOutside);
+    }, 50);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener("touchstart", handleOutside);
+      document.removeEventListener("mousedown", handleOutside);
+    };
+  }, [profileOpen]);
+
+  /* ── Close profile popup on route change ── */
+  useEffect(() => {
+    setProfileOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     if (!isLoggedIn || !userEmail) return;
@@ -86,6 +116,7 @@ export default function Navbar() {
 
   /* ── Terminate Account ─────────────────────────────────────── */
   const handleTerminateAccount = async () => {
+    setProfileOpen(false);
     const { default: Swal } = await import("sweetalert2");
     const result = await Swal.fire({
       title: "Terminate Account?",
@@ -100,7 +131,6 @@ export default function Navbar() {
     });
     if (!result.isConfirmed) return;
 
-    // Second confirmation — type email
     const { value: typedEmail } = await Swal.fire({
       title: "Confirm your email",
       input: "email",
@@ -303,7 +333,6 @@ export default function Navbar() {
                     hover:opacity-100 hover:pointer-events-auto hover:translate-y-0
                     transition-all duration-200">
                     <div className="bg-white border border-black/[0.07] rounded-2xl shadow-2xl overflow-hidden">
-                      {/* User info header */}
                       <div className="px-4 py-3 bg-gradient-to-br from-[#0A0A0A] to-[#1a1a1a] border-b border-white/5">
                         <div className="flex items-center gap-2.5">
                           <div className="w-7 h-7 rounded-full bg-[#C9A227]/20 flex items-center justify-center ring-1 ring-[#C9A227]/40 shrink-0">
@@ -336,9 +365,7 @@ export default function Navbar() {
                         </Link>
                       ))}
 
-                      {/* Divider */}
                       <div className="border-t border-black/[0.08]" />
-
                       <button
                         onClick={handleLogout}
                         className="w-full flex items-center gap-2.5 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-black/50 hover:text-black hover:bg-[#F7F5F0] transition-colors cursor-pointer"
@@ -347,7 +374,6 @@ export default function Navbar() {
                         Sign Out
                       </button>
 
-                      {/* Terminate Account — danger zone */}
                       <div className="border-t border-red-100">
                         <button
                           onClick={handleTerminateAccount}
@@ -377,7 +403,7 @@ export default function Navbar() {
         </div>
       </header>
 
-      {/* ══ MOBILE BOTTOM TAB BAR — Glass on dark ═══════════════ */}
+      {/* ══ MOBILE BOTTOM TAB BAR ════════════════════════════════ */}
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0A0A0A]/85 backdrop-blur-2xl border-t border-white/[0.08]"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
@@ -408,36 +434,84 @@ export default function Navbar() {
           })}
 
           {isLoggedIn ? (
-            /* Profile / logout tab on mobile */
-            <div className="relative flex-1 group">
-              <button className="flex flex-col items-center justify-center gap-0.5 w-full h-full cursor-pointer">
-                <div className="w-5 h-5 rounded-full bg-[#C9A227]/20 flex items-center justify-center ring-1 ring-[#C9A227]/40">
-                  <span className="text-[9px] font-black text-[#C9A227]">{userName.charAt(0).toUpperCase()}</span>
+            /* ── Profile tab — state-driven popup ── */
+            <div ref={profileRef} className="relative flex-1">
+              <button
+                onTouchEnd={(e) => { e.preventDefault(); setProfileOpen(p => !p); }}
+                onClick={() => setProfileOpen(p => !p)}
+                className="flex flex-col items-center justify-center gap-0.5 w-full h-full cursor-pointer active:opacity-70 transition-opacity"
+              >
+                {profileOpen && (
+                  <>
+                    <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-[2px] rounded-full bg-[#C9A227]" />
+                    <span className="absolute inset-x-1 inset-y-0 rounded-2xl bg-white/[0.05]" />
+                  </>
+                )}
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center ring-1 transition-all ${profileOpen ? "bg-[#C9A227]/30 ring-[#C9A227]" : "bg-[#C9A227]/20 ring-[#C9A227]/40"}`}>
+                  <span className={`text-[9px] font-black transition-colors ${profileOpen ? "text-[#C9A227]" : "text-[#C9A227]"}`}>{userName.charAt(0).toUpperCase()}</span>
                 </div>
-                <span className="text-[8px] uppercase tracking-wider font-bold leading-none text-white/30">Me</span>
+                <span className={`text-[8px] uppercase tracking-wider font-bold leading-none transition-colors ${profileOpen ? "text-[#C9A227]" : "text-white/30"}`}>Me</span>
               </button>
 
-              {/* Mobile profile popup (tap) */}
-              <div className="absolute bottom-full right-0 mb-2 w-52
-                opacity-0 pointer-events-none scale-95 origin-bottom-right
-                group-focus-within:opacity-100 group-focus-within:pointer-events-auto group-focus-within:scale-100
-                transition-all duration-200">
+              {/* ── Profile popup — state controlled, animates in/out ── */}
+              <div
+                className={`absolute bottom-full right-0 mb-3 w-56 z-[60] transition-all duration-200 origin-bottom-right ${
+                  profileOpen
+                    ? "opacity-100 scale-100 pointer-events-auto"
+                    : "opacity-0 scale-95 pointer-events-none"
+                }`}
+              >
                 <div className="bg-[#0F0F0F] border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
                   {/* User header */}
-                  <div className="px-4 py-3 border-b border-white/[0.06]">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-white truncate">{userName}</p>
-                    <p className="text-[8px] text-white/30 font-medium truncate mt-0.5">{userEmail}</p>
+                  <div className="px-4 py-3 border-b border-white/[0.06] bg-gradient-to-br from-[#1a1a1a] to-[#0F0F0F]">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-[#C9A227]/20 flex items-center justify-center ring-1 ring-[#C9A227]/40 shrink-0">
+                        <span className="text-[11px] font-black text-[#C9A227]">{userName.charAt(0).toUpperCase()}</span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-white truncate">{userName}</p>
+                        <p className="text-[8px] text-white/30 font-medium truncate mt-0.5">{userEmail}</p>
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Nav links */}
+                  {[
+                    { to: "/orders",  icon: "inventory_2", label: "My Orders" },
+                    { to: "/reviews", icon: "star",        label: "Reviews"   },
+                    { to: "/inbox",   icon: "mail",        label: "Inbox", badge: unreadCount },
+                    { to: "/support", icon: "chat_bubble", label: "Support"   },
+                  ].map(({ to, icon, label, badge }, i, arr) => (
+                    <Link
+                      key={to} to={to}
+                      onClick={() => setProfileOpen(false)}
+                      className={`flex items-center gap-2.5 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-white/50 hover:text-white active:bg-white/[0.07] hover:bg-white/[0.05] transition-colors ${
+                        i < arr.length - 1 ? "border-b border-white/[0.05]" : ""
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[13px]">{icon}</span>
+                      <span className="flex-1">{label}</span>
+                      {badge > 0 && (
+                        <span className="min-w-[16px] h-4 px-0.5 bg-red-500 text-white text-[7px] font-black flex items-center justify-center rounded-full">
+                          {badge > 9 ? "9+" : badge}
+                        </span>
+                      )}
+                    </Link>
+                  ))}
+
+                  <div className="border-t border-white/[0.08]" />
+
                   <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center gap-2.5 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-white/50 hover:text-white hover:bg-white/[0.05] transition-colors border-b border-white/[0.05]"
+                    onClick={() => { setProfileOpen(false); handleLogout(); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-white/50 hover:text-white hover:bg-white/[0.05] active:bg-white/[0.07] transition-colors border-b border-white/[0.05]"
                   >
                     <span className="material-symbols-outlined text-[13px]">logout</span>
                     Sign Out
                   </button>
+
                   <button
                     onClick={handleTerminateAccount}
-                    className="w-full flex items-center gap-2.5 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-red-400 hover:bg-red-900/20 transition-colors"
+                    className="w-full flex items-center gap-2.5 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-red-400 hover:bg-red-900/20 active:bg-red-900/30 transition-colors"
                   >
                     <span className="material-symbols-outlined text-[13px]">delete_forever</span>
                     Terminate Account

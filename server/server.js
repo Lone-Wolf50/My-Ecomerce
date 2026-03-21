@@ -1,34 +1,49 @@
-import express       from "express";
-import nodemailer     from "nodemailer";
-import cors          from "cors";
-import axios         from "axios";
-import crypto        from "crypto";
-import escapeHtml    from "escape-html";
-import helmet        from "helmet";
-import rateLimit     from "express-rate-limit";
+import express    from "express";
+import nodemailer  from "nodemailer";
+import cors        from "cors";
+import axios       from "axios";
+import crypto      from "crypto";
+import escapeHtml  from "escape-html";
+import helmet      from "helmet";
+import rateLimit   from "express-rate-limit";
+import bcrypt      from "bcryptjs";
+import { createClient } from "@supabase/supabase-js";
 
 import { config } from "dotenv";
 config();
+
 // ── Validate required env vars on startup ──────────────────────
-const REQUIRED_ENV = ["PAYSTACK_SECRET_KEY", "GMAIL_USER", "GMAIL_PASS", "ADMIN_SECRET_TOKEN", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "ADMIN_EMAIL"];
+// FIX #1: Added process.exit(1) — previously server booted silently
+// with undefined secrets (e.g. PAYSTACK_SECRET_KEY=undefined would
+// make HMAC verification pass for any input in some Node versions).
+const REQUIRED_ENV = [
+  "PAYSTACK_SECRET_KEY", "GMAIL_USER", "GMAIL_PASS",
+  "ADMIN_SECRET_TOKEN", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "ADMIN_EMAIL",
+];
+let missingEnv = false;
 for (const key of REQUIRED_ENV) {
   if (!process.env[key]) {
-    // Log to stderr only — never to stdout where it could leak to clients
     process.stderr.write(`FATAL: Missing required env var: ${key}\n`);
+    missingEnv = true;
   }
 }
+if (missingEnv) process.exit(1);
 
 const PAYSTACK_SECRET_KEY  = process.env.PAYSTACK_SECRET_KEY;
 const ADMIN_SECRET_TOKEN   = process.env.ADMIN_SECRET_TOKEN;
 const SUPABASE_URL         = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const IS_DEV = process.env.NODE_ENV !== "production";
+const IS_DEV               = process.env.NODE_ENV !== "production";
 
-// ── Silent logger — NOTHING sensitive ever reaches the client ──
+// ── Supabase admin client (service role — server only, never sent to browser) ──
+const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+  auth: { persistSession: false },
+});
+
+// ── Silent logger ──────────────────────────────────────────────
 const log = {
-  info:  (msg)      => IS_DEV && process.stdout.write(`[INFO] ${msg}\n`),
-  warn:  (msg)      => IS_DEV && process.stderr.write(`[WARN] ${msg}\n`),
-  // In production: log message only, never the error object (prevents stack/path leaks)
+  info:  (msg)      => IS_DEV && process.stdout.write(`[INFO]  ${msg}\n`),
+  warn:  (msg)      => IS_DEV && process.stderr.write(`[WARN]  ${msg}\n`),
   error: (msg, err) => {
     if (IS_DEV) process.stderr.write(`[ERROR] ${msg} — ${err?.message || ""}\n`);
     else        process.stderr.write(`[ERROR] ${msg}\n`);
@@ -39,8 +54,6 @@ const app = express();
 
 app.use(helmet());
 app.use(express.json({ limit: "10kb" }));
-
-// Needed for express-rate-limit to work correctly behind Vercel's proxy
 app.set("trust proxy", 1);
 
 // ── CORS ───────────────────────────────────────────────────────
@@ -58,23 +71,70 @@ app.use(cors({
   methods: ["GET", "POST"],
   credentials: true,
 }));
+// FIX #9: Removed the overly-broad app.options(/.*/, cors()) catch-all.
+// The per-route cors() middleware already handles preflight for allowed routes.
+// A wildcard OPTIONS handler responds to every route including non-existent
+// ones, leaking internal route structure via OPTIONS probing.
 
-app.options(/.*/, cors());
+// ══════════════════════════════════════════════════════════════
+//  RATE LIMITERS
+// ══════════════════════════════════════════════════════════════
 
-// ── Rate limiters ───────────────────────────────────────────────
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { success: false, error: "Too many requests, please try again later." },
+  message: { success: false, error: "Too many requests. Please try again later." },
 });
 app.use(globalLimiter);
 
-const authLimiter = rateLimit({
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 8,
+  message: { success: false, error: "Too many login attempts. Please wait before retrying." },
+});
+
+const signupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { success: false, error: "Too many sign-up attempts. Please try again later." },
+});
+
+const otpSendLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { success: false, error: "OTP send limit reached. Please wait before requesting another." },
+});
+
+const otpVerifyLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
-  message: { success: false, error: "Too many attempts. Please wait before retrying." },
+  message: { success: false, error: "Too many verification attempts. Please wait." },
+});
+
+const forgotLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { success: false, error: "Too many reset requests. Please try again later." },
+});
+
+const resetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { success: false, error: "Too many reset attempts. Please wait." },
+});
+
+const completeSignupLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { success: false, error: "Too many requests. Please wait." },
+});
+
+const paymentLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { success: false, error: "Too many payment requests. Please wait before retrying." },
 });
 
 const emailLimiter = rateLimit({
@@ -83,10 +143,27 @@ const emailLimiter = rateLimit({
   message: { success: false, error: "Email limit reached. Please try again later." },
 });
 
+const chatNotifyLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: { success: false, error: "Too many chat notifications. Please wait." },
+});
+
 // ── Admin auth middleware ───────────────────────────────────────
-function requireAdminToken(req, res, next) {
-  const token = req.headers["x-admin-token"];
-  if (!token) return res.status(401).json({ success: false, error: "Unauthorized." });
+// FIX #2 & #3: Admin session is now a two-factor check:
+//   (a) static ADMIN_SECRET_TOKEN in x-admin-token (proves identity)
+//   (b) session ID in x-admin-session must match DB record (proves active session)
+// This means stolen tokens can be invalidated by rotating the session ID,
+// and every login generates a new session that implicitly revokes the old one.
+async function requireAdminToken(req, res, next) {
+  const token     = req.headers["x-admin-token"];
+  const sessionId = req.headers["x-admin-session"];
+
+  if (!token || !sessionId) {
+    return res.status(401).json({ success: false, error: "Unauthorized." });
+  }
+
+  // Constant-time compare for the static token (prevents timing oracle)
   try {
     const provided = Buffer.from(String(token));
     const expected = Buffer.from(ADMIN_SECRET_TOKEN);
@@ -96,11 +173,27 @@ function requireAdminToken(req, res, next) {
   } catch {
     return res.status(401).json({ success: false, error: "Unauthorized." });
   }
+
+  // Validate session ID against the stored value in DB
+  try {
+    const { data: adminRecord } = await supabaseAdmin
+      .from("admin_credentials")
+      .select("last_session_id")
+      .limit(1)
+      .maybeSingle();
+
+    if (!adminRecord || adminRecord.last_session_id !== sessionId) {
+      return res.status(401).json({ success: false, error: "Session expired. Please log in again." });
+    }
+  } catch {
+    return res.status(500).json({ success: false, error: "Authorization check failed." });
+  }
+
   next();
 }
 
-// ── Idempotency store ──────────────────────────────────────────
-const emailSentLog = new Map();
+// ── Idempotency store (email dedup) ────────────────────────────
+const emailSentLog    = new Map();
 const EMAIL_DEDUP_TTL = 60 * 60 * 1000;
 
 function isAlreadySent(type, orderId) {
@@ -117,34 +210,42 @@ setInterval(() => {
   }
 }, 60 * 60 * 1000);
 
-// ── Input validators ────────────────────────────────────────────
+// ── Input validators ───────────────────────────────────────────
 const EMAIL_RE = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+const GMAIL_RE = /^[a-zA-Z0-9._%+\-]+@gmail\.com$/i;
 const PHONE_RE = /^\d{10}$/;
 const UUID_RE  = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const OTP_RE   = /^\d{6}$/;
 const REF_RE   = /^[A-Za-z0-9_\-]{6,64}$/;
 
 const isValidEmail = (v) => typeof v === "string" && EMAIL_RE.test(v.trim());
+const isGmail      = (v) => typeof v === "string" && GMAIL_RE.test(v.trim());
 const isValidPhone = (v) => typeof v === "string" && PHONE_RE.test(v.trim());
 const isValidUuid  = (v) => typeof v === "string" && UUID_RE.test(v.trim());
 const isValidOtp   = (v) => typeof v === "string" && OTP_RE.test(v.trim());
 const isValidRef   = (v) => typeof v === "string" && REF_RE.test(v.trim());
 const safeStr      = (v, max = 200) => typeof v === "string" ? escapeHtml(v.trim()).slice(0, max) : "";
 
-// ── Supabase price lookup ──────────────────────────────────────
+const PASS_MIN      = 8;
+const PASS_MAX      = 72;
+const BCRYPT_ROUNDS = 12;
+const isValidPass   = (v) => typeof v === "string" && v.length >= PASS_MIN && v.length <= PASS_MAX;
+
+const DUMMY_HASH = "$2b$12$KIXXjQbsE.u.k2uQfCOvSuZuRX9eHfJVuKUqeXJ8kMfL3GiP1E6m6";
+
+// FIX #5: Replaced raw URL string interpolation with parameterized supabaseAdmin query.
+// Previously: `?id=in.(${productIds.join(",")})` — user-supplied IDs injected directly
+// into a URL query string, one regex change away from a REST injection vector.
 async function fetchProductPrices(productIds) {
-  const url = `${SUPABASE_URL}/rest/v1/products?id=in.(${productIds.join(",")})&select=id,price`;
-  const res = await fetch(url, {
-    headers: {
-      apikey:        SUPABASE_SERVICE_KEY,
-      Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
-    },
-  });
-  if (!res.ok) throw new Error("Failed to fetch product prices from DB");
-  return res.json();
+  const { data, error } = await supabaseAdmin
+    .from("products")
+    .select("id, price")
+    .in("id", productIds);
+  if (error) throw new Error("Failed to fetch product prices from DB");
+  return data;
 }
 
-// ── OTP store ───────────────────────────────────────────────────
+// ── OTP store ──────────────────────────────────────────────────
 const otpStore    = new Map();
 const OTP_TTL_MS  = 2 * 60 * 1000;
 const OTP_MAX_TRY = 5;
@@ -156,7 +257,8 @@ function hashOtp(otp) {
   return crypto.createHash("sha256").update(otp).digest("hex");
 }
 function storeOtp(email, otp) {
-  otpStore.set(email.toLowerCase(), {
+  const key = email.toLowerCase();
+  otpStore.set(key, {
     hash:      hashOtp(otp),
     expiresAt: Date.now() + OTP_TTL_MS,
     attempts:  0,
@@ -165,22 +267,18 @@ function storeOtp(email, otp) {
 function verifyAndConsumeOtp(email, otp) {
   const key    = email.toLowerCase();
   const record = otpStore.get(key);
-
-  if (!record)                        return { ok: false, reason: "No OTP found for this email." };
-  if (Date.now() > record.expiresAt)  { otpStore.delete(key); return { ok: false, reason: "OTP has expired." }; }
+  if (!record)                        return { ok: false, reason: "No code found. Please request a new one." };
+  if (Date.now() > record.expiresAt)  { otpStore.delete(key); return { ok: false, reason: "Code has expired." }; }
   if (record.attempts >= OTP_MAX_TRY) { otpStore.delete(key); return { ok: false, reason: "Too many failed attempts." }; }
-
   record.attempts++;
   const match = crypto.timingSafeEqual(
     Buffer.from(record.hash),
     Buffer.from(hashOtp(otp))
   );
-  if (!match) return { ok: false, reason: "Invalid OTP." };
-
+  if (!match) return { ok: false, reason: "Invalid code." };
   otpStore.delete(key);
   return { ok: true };
 }
-
 setInterval(() => {
   const now = Date.now();
   for (const [email, rec] of otpStore) {
@@ -188,53 +286,94 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
-// ── Nodemailer ──────────────────────────────────────────────────
+// FIX #6 (reset-password): verified reset store — short-lived proof that OTP
+// was completed for this email. /auth/reset-password checks this before
+// allowing a password change. Previously any caller who knew a valid email
+// could POST /auth/reset-password directly, bypassing OTP entirely.
+const verifiedResets    = new Map();
+const VERIFIED_RESET_TTL = 5 * 60 * 1000;
+
+function markResetVerified(email) {
+  verifiedResets.set(email.toLowerCase(), Date.now() + VERIFIED_RESET_TTL);
+}
+function consumeVerifiedReset(email) {
+  const key       = email.toLowerCase();
+  const expiresAt = verifiedResets.get(key);
+  if (!expiresAt || Date.now() > expiresAt) {
+    verifiedResets.delete(key);
+    return false;
+  }
+  verifiedResets.delete(key);
+  return true;
+}
+setInterval(() => {
+  const now = Date.now();
+  for (const [email, expiresAt] of verifiedResets) {
+    if (now > expiresAt) verifiedResets.delete(email);
+  }
+}, 5 * 60 * 1000);
+
+// ── Pending signup store ───────────────────────────────────────
+const pendingSignups  = new Map();
+const PENDING_TTL_MS  = 10 * 60 * 1000;
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [email, rec] of pendingSignups) {
+    if (now > rec.expiresAt) pendingSignups.delete(email);
+  }
+}, 5 * 60 * 1000);
+
+// ── Nodemailer ────────────────────────────────────────────────
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
+  host:   "smtp.gmail.com",
+  port:   465,
   secure: true,
-  auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_PASS },
+  auth:   { user: process.env.GMAIL_USER, pass: process.env.GMAIL_PASS },
 });
 
+// ── OTP email template ────────────────────────────────────────
+function otpEmailHtml(otp) {
+  return `
+<div style="font-family:Georgia,serif;max-width:480px;margin:auto;background:#FDFBF7;border:1px solid rgba(0,0,0,0.07);border-radius:16px;overflow:hidden;">
+  <div style="background:#0A0A0A;padding:24px 36px;text-align:center;">
+    <p style="margin:0;font-size:8px;text-transform:uppercase;letter-spacing:5px;color:#C9A227;font-family:Helvetica,sans-serif;">Janina Luxury Bags</p>
+  </div>
+  <div style="padding:32px 36px;text-align:center;">
+    <p style="font-size:13px;color:#555;margin:0 0 20px;">Your one-time verification code:</p>
+    <div style="display:inline-block;background:#0A0A0A;color:#C9A227;font-size:32px;font-weight:bold;letter-spacing:14px;padding:16px 28px;border-radius:12px;font-family:Courier,monospace;">${otp}</div>
+    <p style="font-size:11px;color:#888;margin:20px 0 0;">Expires in <strong>2 minutes</strong>. Do not share it with anyone.</p>
+  </div>
+  <div style="background:#0A0A0A;padding:16px;text-align:center;">
+    <p style="margin:0;font-size:8px;text-transform:uppercase;letter-spacing:3px;color:rgba(255,255,255,0.2);font-family:Helvetica,sans-serif;">Accra, Ghana · Authentic &amp; Certified</p>
+  </div>
+</div>`;
+}
+
 // ══════════════════════════════════════════════════════════════
-// ROUTES
+//  ROUTES
 // ══════════════════════════════════════════════════════════════
 
-// ── Root — confirms the API is live (used by health monitors) ──
-// FIX: Added root GET so hitting the base URL doesn't fall into the 404 handler.
 app.get("/", (_req, res) => {
   res.json({ success: true, status: "Janina API is running" });
 });
 
-// ── Health check ───────────────────────────────────────────────
-// FIX: Expanded health check to verify critical services are reachable.
-app.get("/health", async (_req, res) => {
+// FIX #8: /health now requires admin token + session to prevent topology leakage.
+// Previously unauthenticated callers could poll SMTP/DB degradation status
+// and time attacks around maintenance windows.
+app.get("/health", requireAdminToken, async (_req, res) => {
   const checks = { api: "ok", smtp: "untested", db: "untested" };
-
-  // Test SMTP connection (non-blocking verify)
+  try { await transporter.verify(); checks.smtp = "ok"; }
+  catch { checks.smtp = "degraded"; }
   try {
-    await transporter.verify();
-    checks.smtp = "ok";
-  } catch {
-    checks.smtp = "degraded";
-  }
-
-  // Test Supabase reachability with a lightweight ping
-  try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/`, {
-      headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` },
-    });
-    checks.db = r.ok ? "ok" : "degraded";
-  } catch {
-    checks.db = "degraded";
-  }
+    const { error } = await supabaseAdmin.from("profiles").select("id").limit(1);
+    checks.db = error ? "degraded" : "ok";
+  } catch { checks.db = "degraded"; }
 
   const allOk = Object.values(checks).every(v => v === "ok");
   res.status(allOk ? 200 : 207).json({
-    success: allOk,
-    status: allOk ? "healthy" : "degraded",
-    checks,
-    timestamp: new Date().toISOString(),
+    success: allOk, status: allOk ? "healthy" : "degraded",
+    checks, timestamp: new Date().toISOString(),
   });
 });
 
@@ -242,14 +381,9 @@ app.get("/health", async (_req, res) => {
 app.post("/paystack-webhook", express.raw({ type: "application/json", limit: "64kb" }), async (req, res) => {
   const sig  = req.headers["x-paystack-signature"];
   const body = req.body;
-
   if (!sig) return res.status(401).send("Missing signature");
 
-  const hash = crypto
-    .createHmac("sha512", PAYSTACK_SECRET_KEY)
-    .update(body)
-    .digest("hex");
-
+  const hash = crypto.createHmac("sha512", PAYSTACK_SECRET_KEY).update(body).digest("hex");
   if (!crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(sig))) {
     log.warn("Webhook signature mismatch — possible forged request");
     return res.status(401).send("Signature mismatch");
@@ -262,22 +396,20 @@ app.post("/paystack-webhook", express.raw({ type: "application/json", limit: "64
   if (event.event === "charge.success") {
     log.info("Webhook charge.success acknowledged");
   }
-
   res.sendStatus(200);
 });
 
-// ── Allowed delivery fees — must match the frontend DELIVERY_ZONES list ──
+// ── Allowed delivery fees ──────────────────────────────────────
 const ALLOWED_DELIVERY_FEES = new Set([45, 65, 70, 75, 80, 85]);
 
 // ── 2. Pre-flight order validation ────────────────────────────
-app.post("/validate-order", async (req, res) => {
+app.post("/validate-order", paymentLimiter, async (req, res) => {
   const {
     user_id, customer_name, customer_email, phone_number,
     delivery_method, delivery_fee, delivery_location, cart,
   } = req.body;
 
   const errors = [];
-
   if (!isValidUuid(user_id))          errors.push("Invalid user identity.");
   if (!safeStr(customer_name, 100))   errors.push("Customer name is required.");
   if (!isValidEmail(customer_email))  errors.push("Invalid email address.");
@@ -285,7 +417,6 @@ app.post("/validate-order", async (req, res) => {
   if (!["pickup", "delivery"].includes(delivery_method)) errors.push("Invalid delivery method.");
   if (!Array.isArray(cart) || cart.length === 0) errors.push("Cart is empty.");
 
-  // Validate delivery fee when door delivery is chosen
   const parsedDeliveryFee = delivery_method === "delivery" ? Number(delivery_fee) : 0;
   if (delivery_method === "delivery") {
     if (!safeStr(delivery_location || "", 200)) errors.push("Delivery location is required.");
@@ -298,14 +429,12 @@ app.post("/validate-order", async (req, res) => {
   if (Array.isArray(cart) && cart.length > MAX_CART_ITEMS) {
     errors.push(`Cart cannot exceed ${MAX_CART_ITEMS} items.`);
   }
-
   if (Array.isArray(cart) && cart.length <= MAX_CART_ITEMS) {
     for (const item of cart) {
       if (!isValidUuid(String(item.id)) && typeof item.id !== "number") errors.push("Invalid product in cart.");
       if (typeof item.quantity !== "number" || item.quantity < 1 || item.quantity > 100) errors.push("Invalid quantity.");
     }
   }
-
   if (errors.length > 0) {
     log.warn("Order validation failed");
     return res.status(422).json({ success: false, errors });
@@ -321,7 +450,6 @@ app.post("/validate-order", async (req, res) => {
   }
 
   const priceMap = Object.fromEntries(dbProducts.map(p => [String(p.id), p.price]));
-
   for (const item of cart) {
     if (priceMap[String(item.id)] === undefined) {
       return res.status(422).json({ success: false, error: "One or more products no longer exist." });
@@ -329,7 +457,6 @@ app.post("/validate-order", async (req, res) => {
   }
 
   const productSubtotal = cart.reduce((sum, item) => sum + (priceMap[String(item.id)] * item.quantity), 0);
-  // Grand subtotal = products + delivery fee (0 for pickup)
   const subtotal    = productSubtotal + parsedDeliveryFee;
   const FLAT_FEE    = 0.50;
   const PCT_RATE    = 0.015;
@@ -341,19 +468,19 @@ app.post("/validate-order", async (req, res) => {
 
   log.info("Order pre-validated successfully");
   res.json({
-    success:        true,
-    message:        "Order pre-validated. Proceed to payment.",
+    success:          true,
+    message:          "Order pre-validated. Proceed to payment.",
     product_subtotal: parseFloat(productSubtotal.toFixed(2)),
-    delivery_fee:   parsedDeliveryFee,
-    subtotal:       parseFloat(subtotal.toFixed(2)),
-    fee:            parseFloat(actualFee.toFixed(2)),
-    total:          chargeGHS,
-    amount_pesewas: chargeKobo,
+    delivery_fee:     parsedDeliveryFee,
+    subtotal:         parseFloat(subtotal.toFixed(2)),
+    fee:              parseFloat(actualFee.toFixed(2)),
+    total:            chargeGHS,
+    amount_pesewas:   chargeKobo,
   });
 });
 
 // ── 3. Initialize Paystack payment ────────────────────────────
-app.post("/initialize-payment", async (req, res) => {
+app.post("/initialize-payment", paymentLimiter, async (req, res) => {
   const { email, amount, metadata } = req.body;
 
   if (!isValidEmail(email))                      return res.status(422).json({ success: false, error: "Invalid email." });
@@ -361,29 +488,19 @@ app.post("/initialize-payment", async (req, res) => {
 
   const safeMetadata = {};
   if (metadata && typeof metadata === "object" && !Array.isArray(metadata)) {
-    if (isValidUuid(String(metadata.orderId   || ""))) safeMetadata.orderId   = metadata.orderId;
-    if (isValidUuid(String(metadata.userId    || ""))) safeMetadata.userId    = metadata.userId;
+    if (isValidUuid(String(metadata.orderId  || ""))) safeMetadata.orderId  = metadata.orderId;
+    if (isValidUuid(String(metadata.userId   || ""))) safeMetadata.userId   = metadata.userId;
     if (typeof metadata.deliveryMethod === "string" &&
-        ["pickup","delivery"].includes(metadata.deliveryMethod))    safeMetadata.deliveryMethod = metadata.deliveryMethod;
+        ["pickup","delivery"].includes(metadata.deliveryMethod)) safeMetadata.deliveryMethod = metadata.deliveryMethod;
     if (typeof metadata.customerName === "string") safeMetadata.customerName = safeStr(metadata.customerName, 100);
   }
 
   try {
     const response = await axios.post(
       "https://api.paystack.co/transaction/initialize",
+      { email, amount: Math.round(amount), metadata: safeMetadata },
       {
-        email,
-        amount: Math.round(amount),
-        metadata: safeMetadata,
-        // No callback_url — using PaystackPop inline popup (onSuccess handles completion).
-        // A callback_url would cause Paystack to redirect the browser AND fire onSuccess,
-        // resulting in handlePostPayment running twice = double order / double email.
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
-          "Content-Type": "application/json",
-        },
+        headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`, "Content-Type": "application/json" },
         timeout: 10000,
       }
     );
@@ -396,22 +513,16 @@ app.post("/initialize-payment", async (req, res) => {
 });
 
 // ── 4. Verify Paystack payment ─────────────────────────────────
-app.get("/verify-payment/:reference", async (req, res) => {
+app.get("/verify-payment/:reference", paymentLimiter, async (req, res) => {
   const { reference } = req.params;
-
   if (!isValidRef(reference)) {
     return res.status(422).json({ success: false, error: "Invalid reference format." });
   }
-
   try {
     const response = await axios.get(
       `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
-      {
-        headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}` },
-        timeout: 10000,
-      }
+      { headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}` }, timeout: 10000 }
     );
-
     if (response.data.data.status === "success") {
       log.info("Payment verified successfully");
       res.json({ success: true, data: response.data.data });
@@ -450,7 +561,7 @@ app.post("/send-order-confirmed-email", requireAdminToken, emailLimiter, async (
   try {
     await transporter.sendMail({
       from: `"Janina Luxury Bags" <${process.env.GMAIL_USER}>`,
-      to: email,
+      to:   email,
       subject: `Order Confirmed #${shortId} ✦`,
       html: `
         <div style="font-family:Georgia,serif;max-width:520px;margin:auto;background:#FDFBF7;border:1px solid rgba(0,0,0,0.07);border-radius:16px;overflow:hidden;">
@@ -460,14 +571,12 @@ app.post("/send-order-confirmed-email", requireAdminToken, emailLimiter, async (
           </div>
           <div style="padding:32px 40px;">
             <p style="margin:0 0 16px;font-size:14px;color:#222;">Dear <strong>${safeName}</strong>,</p>
-            <p style="margin:0 0 24px;font-size:13px;line-height:1.8;color:#555;">
-              Your order has been received and is being prepared. We will notify you when it ships.
-            </p>
+            <p style="margin:0 0 24px;font-size:13px;line-height:1.8;color:#555;">Your order has been received and is being prepared. We will notify you when it ships.</p>
             <div style="background:#fff;border:1px solid rgba(201,162,39,0.2);border-radius:12px;padding:20px;margin-bottom:24px;">
               <p style="margin:0 0 4px;font-size:8px;text-transform:uppercase;letter-spacing:3px;color:#aaa;font-family:Helvetica,sans-serif;">Order Reference</p>
               <p style="margin:0 0 14px;font-weight:bold;font-size:15px;color:#111;">#${safeId}</p>
               <p style="margin:0 0 4px;font-size:8px;text-transform:uppercase;letter-spacing:3px;color:#aaa;font-family:Helvetica,sans-serif;">Amount Paid</p>
-              <p style="margin:0;font-weight:bold;color:#C9A227;font-size:20px;">GH₵ ${safeAmt}</p>
+              <p style="margin:0;font-weight:bold;color:#C9A227;font-size:20px;">GH&#8373; ${safeAmt}</p>
             </div>
             <div style="text-align:center;">
               <a href="${siteUrl}/orders" style="display:inline-block;background:#C9A227;color:#000;text-decoration:none;font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:4px;padding:13px 28px;border-radius:100px;font-family:Helvetica,sans-serif;">View My Orders</a>
@@ -508,8 +617,8 @@ app.post("/send-shipped-email", requireAdminToken, emailLimiter, async (req, res
   try {
     await transporter.sendMail({
       from: `"Janina Luxury Bags" <${process.env.GMAIL_USER}>`,
-      to: email,
-      subject: `Your Order #${shortId} Has Shipped 🚚`,
+      to:   email,
+      subject: `Your Order #${shortId} Has Shipped`,
       html: `
         <div style="font-family:Georgia,serif;max-width:520px;margin:auto;background:#FDFBF7;border:1px solid rgba(0,0,0,0.07);border-radius:16px;overflow:hidden;">
           <div style="background:linear-gradient(135deg,#6d28d9,#7c3aed);padding:32px 40px;text-align:center;">
@@ -518,14 +627,12 @@ app.post("/send-shipped-email", requireAdminToken, emailLimiter, async (req, res
           </div>
           <div style="padding:32px 40px;">
             <p style="margin:0 0 16px;font-size:14px;color:#222;">Dear <strong>${safeName}</strong>,</p>
-            <p style="margin:0 0 24px;font-size:13px;line-height:1.8;color:#555;">
-              Your order has been carefully packaged and dispatched. It is now in transit.
-            </p>
+            <p style="margin:0 0 24px;font-size:13px;line-height:1.8;color:#555;">Your order has been carefully packaged and dispatched. It is now in transit.</p>
             <div style="background:#fff;border:1px solid rgba(0,0,0,0.06);border-radius:12px;padding:20px;margin-bottom:20px;">
               <p style="margin:0 0 4px;font-size:8px;text-transform:uppercase;letter-spacing:3px;color:#aaa;font-family:Helvetica,sans-serif;">Order Reference</p>
               <p style="margin:0 0 14px;font-weight:bold;font-size:15px;color:#111;">#${safeId}</p>
               <p style="margin:0 0 4px;font-size:8px;text-transform:uppercase;letter-spacing:3px;color:#aaa;font-family:Helvetica,sans-serif;">Status</p>
-              <p style="margin:0;font-weight:bold;font-size:13px;color:#7c3aed;">📦 Shipped &amp; In Transit</p>
+              <p style="margin:0;font-weight:bold;font-size:13px;color:#7c3aed;">Shipped &amp; In Transit</p>
             </div>
             <div style="background:#f9f5ff;border:1px solid #e9d5ff;border-radius:10px;padding:14px 18px;margin-bottom:24px;">
               <p style="margin:0;font-size:12px;color:#555;line-height:1.7;">
@@ -575,15 +682,15 @@ app.post("/send-delivered-email", requireAdminToken, emailLimiter, async (req, r
     ? items.map(item => `
         <tr>
           <td style="padding:9px 0;border-bottom:1px solid rgba(0,0,0,0.05);font-size:12px;color:#444;">${escapeHtml(String(item.name || ""))}</td>
-          <td style="padding:9px 0;border-bottom:1px solid rgba(0,0,0,0.05);text-align:right;font-size:12px;font-weight:bold;color:#111;">GH₵${Number(item.price * (item.quantity || 1)).toLocaleString()}</td>
+          <td style="padding:9px 0;border-bottom:1px solid rgba(0,0,0,0.05);text-align:right;font-size:12px;font-weight:bold;color:#111;">GH&#8373;${Number(item.price * (item.quantity || 1)).toLocaleString()}</td>
         </tr>`).join("")
     : "";
 
   try {
     await transporter.sendMail({
       from: `"Janina Luxury Bags" <${process.env.GMAIL_USER}>`,
-      to: email,
-      subject: `${firstName}, your order has arrived ✦`,
+      to:   email,
+      subject: `${firstName}, your order has arrived`,
       html: `
 <!DOCTYPE html>
 <html>
@@ -599,17 +706,10 @@ app.post("/send-delivered-email", requireAdminToken, emailLimiter, async (req, r
   </td></tr>
   <tr><td style="padding:36px 40px 28px;">
     <p style="margin:0 0 18px;font-size:15px;line-height:1.85;color:#222;">Dear <strong>${safeName}</strong>,</p>
-    <p style="margin:0 0 28px;font-size:14px;line-height:1.9;color:#555;">
-      Your Janina piece has arrived. We hope it brings you as much joy as it brought us crafting it for you.
-      Wear it with pride — it was made for someone who knows quality.
-    </p>
+    <p style="margin:0 0 28px;font-size:14px;line-height:1.9;color:#555;">Your Janina piece has arrived. We hope it brings you as much joy as it brought us crafting it for you. Wear it with pride — it was made for someone who knows quality.</p>
     <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:12px;padding:16px 20px;margin-bottom:28px;">
       <p style="margin:0 0 4px;font-size:9px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;color:#15803d;font-family:Helvetica,sans-serif;">1-Day Return Window Open</p>
-      <p style="margin:0;font-size:12px;color:#166534;line-height:1.7;">
-        Not fully in love? Request a free return from your
-        <a href="${siteUrl}/orders" style="color:#C9A227;font-weight:bold;text-decoration:none;">Orders page</a>
-        within 1 day. No questions asked.
-      </p>
+      <p style="margin:0;font-size:12px;color:#166534;line-height:1.7;">Not fully in love? Request a free return from your <a href="${siteUrl}/orders" style="color:#C9A227;font-weight:bold;text-decoration:none;">Orders page</a> within 1 day. No questions asked.</p>
     </div>
     <p style="margin:0 0 4px;font-size:14px;color:#333;">With gratitude,</p>
     <p style="margin:0 0 28px;font-size:18px;font-style:italic;color:#111;font-weight:bold;">The Janina Team</p>
@@ -635,27 +735,36 @@ app.post("/send-delivered-email", requireAdminToken, emailLimiter, async (req, r
   }
 });
 
-// ── 8. Send OTP ────────────────────────────────────────────────
-app.post("/send-otp", authLimiter, async (req, res) => {
+// ── 8. Send OTP (resend path) ─────────────────────────────────
+app.post("/send-otp", otpSendLimiter, async (req, res) => {
   const { email } = req.body;
-
   if (!isValidEmail(email)) {
     return res.status(422).json({ success: false, error: "Invalid email address." });
   }
-
   const normalised = email.trim().toLowerCase();
+
+  const existing = otpStore.get(normalised);
+  if (existing && (Date.now() < existing.expiresAt)) {
+    const secsLeft = Math.ceil((existing.expiresAt - Date.now()) / 1000);
+    return res.status(429).json({
+      success: false,
+      error: `A code was already sent. Please wait ${secsLeft}s before requesting another.`,
+    });
+  }
+
   const otp = generateOTP();
   storeOtp(normalised, otp);
 
   try {
     await transporter.sendMail({
-      from: `"Security Team" <${process.env.GMAIL_USER}>`,
-      to: normalised,
-      subject: "Your Verification Code",
-      text: `Your one-time code is: ${otp}\n\nThis code expires in 2 minutes and can only be used once. Do not share it.`,
+      from:    `"Janina Security" <${process.env.GMAIL_USER}>`,
+      to:      normalised,
+      subject: "Your Verification Code — Janina",
+      text:    `Your code is: ${otp}\n\nExpires in 2 minutes. Do not share it.`,
+      html:    otpEmailHtml(otp),
     });
     log.info("OTP email dispatched");
-    res.json({ success: true, message: "If that email is registered, a code has been sent." });
+    res.json({ success: true, message: "Verification code sent." });
   } catch (err) {
     log.error("OTP send failed", err);
     otpStore.delete(normalised);
@@ -663,38 +772,28 @@ app.post("/send-otp", authLimiter, async (req, res) => {
   }
 });
 
-// ── 9. Verify OTP ──────────────────────────────────────────────
-app.post("/verify-otp", authLimiter, (req, res) => {
+// ── 9. Verify OTP (legacy endpoint — kept for backward compat) ─
+app.post("/verify-otp", otpVerifyLimiter, (req, res) => {
   const { email, otp } = req.body;
-
   if (!isValidEmail(email) || !isValidOtp(otp)) {
     return res.status(422).json({ success: false, message: "Invalid input." });
   }
-
   const result = verifyAndConsumeOtp(email.trim().toLowerCase(), otp.trim());
-
   if (!result.ok) {
     log.warn("OTP verification failed");
     return res.status(400).json({ success: false, message: result.reason });
   }
-
-  log.info("OTP verified successfully");
+  log.info("OTP verified");
   res.json({ success: true, message: "Verified." });
 });
 
-// ── 10. send-status-update — REMOVED ─────────────────────────
-// This endpoint was sending a second "order confirmed" email that duplicated
-// Paystack's own automatic payment receipt.
-// Order confirmation emails are now sent exclusively via the admin-controlled
-// /send-order-confirmed-email endpoint (route 5) when the admin processes the order.
+// ── 10. send-status-update (no-op stub) ───────────────────────
 app.post("/send-status-update", emailLimiter, (_req, res) => {
-  // Return success so any existing callers (e.g. useCart) don't show an error,
-  // but we do NOT send any email — Paystack already sent the receipt.
   res.json({ success: true, skipped: true });
 });
 
-// ── 11. Notify admin of new live chat session ──────────────────
-app.post("/notify-admin-live-chat", emailLimiter, async (req, res) => {
+// ── 11. Notify admin of live chat ─────────────────────────────
+app.post("/notify-admin-live-chat", chatNotifyLimiter, async (req, res) => {
   const { userName, userEmail, sessionId } = req.body;
 
   if (!sessionId || typeof sessionId !== "string" || sessionId.length > 100)
@@ -712,11 +811,9 @@ app.post("/notify-admin-live-chat", emailLimiter, async (req, res) => {
     return res.json({ success: true, deduplicated: true });
   }
 
-  // NOTE: The client (SupportLiveChat) already inserts the session row.
-  // The server only needs to send the admin notification email.
   const adminEmail = process.env.ADMIN_EMAIL;
   if (!adminEmail) {
-    log.error("ADMIN_EMAIL env var is not set — cannot send live chat notification");
+    log.error("ADMIN_EMAIL not set");
     return res.status(500).json({ success: false, error: "Admin email not configured." });
   }
 
@@ -724,7 +821,7 @@ app.post("/notify-admin-live-chat", emailLimiter, async (req, res) => {
     await transporter.sendMail({
       from:    `"Janina Support" <${process.env.GMAIL_USER}>`,
       to:      adminEmail,
-      subject: `🔔 Live Chat Request — ${escapeHtml(safeName)}`,
+      subject: `Live Chat Request — ${escapeHtml(safeName)}`,
       html: `
         <div style="font-family:Georgia,serif;max-width:500px;margin:auto;background:#FDFBF7;border:1px solid rgba(0,0,0,0.07);border-radius:16px;overflow:hidden;">
           <div style="background:#0A0A0A;padding:28px 36px;text-align:center;">
@@ -749,11 +846,324 @@ app.post("/notify-admin-live-chat", emailLimiter, async (req, res) => {
           </div>
         </div>`,
     });
-    log.info("Admin live chat notification email sent");
+    log.info("Admin live chat notification sent");
     res.json({ success: true });
   } catch (err) {
     log.error("Admin live chat email failed", err);
     res.json({ success: false, error: "Email delivery failed but session is registered." });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+//  AUTH ROUTES
+// ══════════════════════════════════════════════════════════════
+
+// ── POST /auth/login ───────────────────────────────────────────
+// FIX #2/#3: Admin login now stores the session ID in admin_credentials.
+// The session ID is required on all subsequent admin-protected requests via
+// requireAdminToken, giving us real session invalidation for admin accounts.
+app.post("/auth/login", loginLimiter, async (req, res) => {
+  const { email, password } = req.body;
+  if (typeof email !== "string" || typeof password !== "string") {
+    return res.status(422).json({ success: false, error: "Invalid request." });
+  }
+
+  const emailVal = email.trim().toLowerCase().slice(0, 254);
+  const passVal  = password.slice(0, PASS_MAX);
+
+  try {
+    // 1. Admin check
+    const { data: adminRecord } = await supabaseAdmin
+      .from("admin_credentials")
+      .select("email, password")
+      .eq("email", emailVal)
+      .maybeSingle();
+
+    if (adminRecord) {
+      const ok = await bcrypt.compare(passVal, adminRecord.password || DUMMY_HASH);
+      if (!ok) return res.status(401).json({ success: false, error: "Invalid credentials." });
+
+      // FIX: Persist admin session ID to DB so requireAdminToken can validate it.
+      // Previously this was generated but never stored — no real session existed.
+      const sid = crypto.randomUUID();
+      const { error: sidErr } = await supabaseAdmin
+        .from("admin_credentials")
+        .update({ last_session_id: sid })
+        .eq("email", emailVal);
+      if (sidErr) throw sidErr;
+
+      log.info("Admin login successful");
+      return res.json({
+        success: true,
+        user: { email: emailVal, id: "admin", fullName: "Admin", isAdmin: true, sessionId: sid },
+      });
+    }
+
+    // 2. Regular user
+    const { data: user, error: dbErr } = await supabaseAdmin
+      .from("profiles")
+      .select("id, email, password, full_name")
+      .eq("email", emailVal)
+      .maybeSingle();
+
+    if (dbErr) throw dbErr;
+
+    if (!user || !user.password) {
+      await bcrypt.compare(passVal, DUMMY_HASH);
+      return res.status(401).json({ success: false, error: "Invalid credentials." });
+    }
+
+    const match = await bcrypt.compare(passVal, user.password);
+    if (!match) return res.status(401).json({ success: false, error: "Invalid credentials." });
+
+    const sid = crypto.randomUUID();
+    const { error: updateErr } = await supabaseAdmin
+      .from("profiles")
+      .update({ last_session_id: sid })
+      .eq("id", user.id);
+    if (updateErr) throw updateErr;
+
+    log.info("User login successful");
+    return res.json({
+      success: true,
+      user: { email: user.email, id: user.id, fullName: user.full_name || "", isAdmin: false, sessionId: sid },
+    });
+
+  } catch (err) {
+    log.error("Login error", err);
+    return res.status(500).json({ success: false, error: "An error occurred. Please try again." });
+  }
+});
+
+// ── POST /auth/initiate-signup ─────────────────────────────────
+app.post("/auth/initiate-signup", signupLimiter, async (req, res) => {
+  const { email, password, fullName } = req.body;
+
+  if (!isGmail(email))
+    return res.status(422).json({ success: false, error: "Only Gmail addresses are accepted." });
+  if (!isValidPass(password))
+    return res.status(422).json({ success: false, error: `Password must be ${PASS_MIN}–${PASS_MAX} characters.` });
+  if (!fullName || typeof fullName !== "string" || !fullName.trim())
+    return res.status(422).json({ success: false, error: "Full name is required." });
+
+  const emailVal = email.trim().toLowerCase();
+  const nameVal  = fullName.trim().slice(0, 100);
+
+  try {
+    const { data: existing } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("email", emailVal)
+      .maybeSingle();
+
+    if (existing) return res.status(409).json({ success: false, error: "Email is already registered." });
+
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+    pendingSignups.set(emailVal, {
+      hashedPassword,
+      fullName: nameVal,
+      expiresAt: Date.now() + PENDING_TTL_MS,
+    });
+
+    const existingOtp = otpStore.get(emailVal);
+    if (existingOtp && Date.now() < existingOtp.expiresAt) {
+      const secsLeft = Math.ceil((existingOtp.expiresAt - Date.now()) / 1000);
+      return res.status(429).json({
+        success: false,
+        error: `A code was already sent. Please wait ${secsLeft}s before requesting another.`,
+      });
+    }
+
+    const otp = generateOTP();
+    storeOtp(emailVal, otp);
+
+    await transporter.sendMail({
+      from:    `"Janina Security" <${process.env.GMAIL_USER}>`,
+      to:      emailVal,
+      subject: "Your Sign-Up Code — Janina",
+      text:    `Your code: ${otp}\n\nExpires in 2 minutes. Do not share it.`,
+      html:    otpEmailHtml(otp),
+    });
+
+    log.info("Signup OTP dispatched");
+    return res.json({ success: true, message: "Verification code sent to your Gmail." });
+
+  } catch (err) {
+    pendingSignups.delete(emailVal);
+    log.error("Initiate signup failed", err);
+    return res.status(500).json({ success: false, error: "Could not start registration. Please try again." });
+  }
+});
+
+// ── POST /auth/verify-otp ──────────────────────────────────────
+// FIX #6: After a successful OTP verification for a password-reset flow,
+// we mark the email as "reset-verified" in a short-lived store. The
+// /auth/reset-password endpoint consumes and deletes this proof before
+// proceeding — bypassing OTP by posting directly to reset-password is no
+// longer possible.
+app.post("/auth/verify-otp", otpVerifyLimiter, (req, res) => {
+  const { email, otp } = req.body;
+  if (!isValidEmail(email) || !isValidOtp(otp)) {
+    return res.status(422).json({ success: false, error: "Invalid input." });
+  }
+  const emailVal = email.trim().toLowerCase();
+  const result   = verifyAndConsumeOtp(emailVal, otp.trim());
+  if (!result.ok) {
+    log.warn("OTP verify failed");
+    return res.status(400).json({ success: false, error: result.reason });
+  }
+
+  // If this email has a pending password reset (i.e. it came through forgot-password),
+  // stamp it as verified so reset-password can proceed.
+  markResetVerified(emailVal);
+
+  log.info("OTP verified");
+  return res.json({ success: true });
+});
+
+// ── POST /auth/complete-signup ─────────────────────────────────
+app.post("/auth/complete-signup", completeSignupLimiter, async (req, res) => {
+  const { email } = req.body;
+  if (!isValidEmail(email)) {
+    return res.status(422).json({ success: false, error: "Invalid email." });
+  }
+
+  const emailVal = email.trim().toLowerCase();
+  const pending  = pendingSignups.get(emailVal);
+
+  if (!pending) {
+    return res.status(400).json({ success: false, error: "No pending registration found. Please restart sign-up." });
+  }
+  if (Date.now() > pending.expiresAt) {
+    pendingSignups.delete(emailVal);
+    return res.status(400).json({ success: false, error: "Registration session expired. Please restart sign-up." });
+  }
+
+  try {
+    const { data: existing } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("email", emailVal)
+      .maybeSingle();
+
+    if (existing) {
+      pendingSignups.delete(emailVal);
+      return res.status(409).json({ success: false, error: "Email is already registered." });
+    }
+
+    const sid = crypto.randomUUID();
+
+    const { data: newUser, error: insertErr } = await supabaseAdmin
+      .from("profiles")
+      .insert({
+        email:           emailVal,
+        password:        pending.hashedPassword,
+        full_name:       pending.fullName,
+        last_session_id: sid,
+        created_at:      new Date().toISOString(),
+      })
+      .select("id, email, full_name")
+      .single();
+
+    if (insertErr) throw insertErr;
+
+    pendingSignups.delete(emailVal);
+
+    log.info("Signup completed");
+    return res.json({
+      success: true,
+      user: { id: newUser.id, email: newUser.email, fullName: newUser.full_name || "", sessionId: sid },
+    });
+
+  } catch (err) {
+    log.error("Complete signup failed", err);
+    return res.status(500).json({ success: false, error: "Registration failed. Please try again." });
+  }
+});
+
+// ── POST /auth/forgot-password ─────────────────────────────────
+app.post("/auth/forgot-password", forgotLimiter, async (req, res) => {
+  const GENERIC_MSG = "If that address has an account, a code has been sent.";
+
+  if (!isValidEmail(req.body?.email)) {
+    return res.json({ success: true, message: GENERIC_MSG });
+  }
+
+  const emailVal = req.body.email.trim().toLowerCase();
+
+  try {
+    const { data } = await supabaseAdmin
+      .from("profiles")
+      .select("email")
+      .eq("email", emailVal)
+      .maybeSingle();
+
+    if (data) {
+      const existingOtp = otpStore.get(emailVal);
+      if (!existingOtp || Date.now() >= existingOtp.expiresAt) {
+        const otp = generateOTP();
+        storeOtp(emailVal, otp);
+        await transporter.sendMail({
+          from:    `"Janina Security" <${process.env.GMAIL_USER}>`,
+          to:      emailVal,
+          subject: "Password Reset Code — Janina",
+          text:    `Your reset code: ${otp}\n\nExpires in 2 minutes.`,
+          html:    otpEmailHtml(otp),
+        });
+      }
+    }
+  } catch (err) {
+    log.error("Forgot password error", err);
+  }
+
+  return res.json({ success: true, message: GENERIC_MSG });
+});
+
+// ── POST /auth/reset-password ──────────────────────────────────
+// FIX #6: Now requires OTP verification proof via consumeVerifiedReset().
+// Attackers who know a valid email can no longer skip straight to this
+// endpoint — they must complete the OTP step first.
+app.post("/auth/reset-password", resetLimiter, async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!isValidEmail(email))
+    return res.status(422).json({ success: false, error: "Invalid email." });
+  if (!isValidPass(password))
+    return res.status(422).json({ success: false, error: `Password must be ${PASS_MIN}–${PASS_MAX} characters.` });
+
+  const emailVal = email.trim().toLowerCase();
+
+  // Proof of OTP completion required — consume and delete in one step
+  if (!consumeVerifiedReset(emailVal)) {
+    log.warn("Reset password attempted without OTP verification");
+    return res.status(403).json({ success: false, error: "Verification required. Please complete the OTP step first." });
+  }
+
+  try {
+    const { data: user } = await supabaseAdmin
+      .from("profiles")
+      .select("id")
+      .eq("email", emailVal)
+      .maybeSingle();
+
+    if (!user) return res.status(404).json({ success: false, error: "Account not found." });
+
+    const hashed = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+    const { error: updateErr } = await supabaseAdmin
+      .from("profiles")
+      .update({ password: hashed })
+      .eq("id", user.id);
+
+    if (updateErr) throw updateErr;
+
+    log.info("Password reset successful");
+    return res.json({ success: true });
+
+  } catch (err) {
+    log.error("Reset password error", err);
+    return res.status(500).json({ success: false, error: "Could not reset password. Please try again." });
   }
 });
 
@@ -769,7 +1179,7 @@ app.use((err, _req, res, _next) => {
 // ── Local dev server ───────────────────────────────────────────
 if (process.env.NODE_ENV !== "production") {
   const PORT = process.env.PORT || 3001;
-  app.listen(PORT, () => process.stdout.write(`🚀 Server running on http://localhost:${PORT}\n`));
+  app.listen(PORT, () => process.stdout.write(`Server running on http://localhost:${PORT}\n`));
 }
 
 export default app;

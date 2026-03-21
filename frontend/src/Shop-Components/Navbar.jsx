@@ -345,27 +345,6 @@ export default function Navbar() {
                         </div>
                       </div>
 
-                      {[
-                        { to: "/orders",  icon: "inventory_2", label: "My Orders" },
-                        { to: "/reviews", icon: "star",        label: "Reviews"   },
-                        { to: "/inbox",   icon: "mail",        label: "Inbox", badge: unreadCount },
-                        { to: "/support", icon: "chat_bubble", label: "Support"   },
-                      ].map(({ to, icon, label, badge }, i, arr) => (
-                        <Link
-                          key={to} to={to}
-                          className={`flex items-center gap-2.5 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-black/55 hover:text-black hover:bg-[#F7F5F0] transition-colors ${i < arr.length - 1 ? "border-b border-black/[0.05]" : ""}`}
-                        >
-                          <span className="material-symbols-outlined text-[13px]">{icon}</span>
-                          <span className="flex-1">{label}</span>
-                          {badge > 0 && (
-                            <span className="min-w-[16px] h-4 px-0.5 bg-red-500 text-white text-[7px] font-black flex items-center justify-center rounded-full">
-                              {badge > 9 ? "9+" : badge}
-                            </span>
-                          )}
-                        </Link>
-                      ))}
-
-                      <div className="border-t border-black/[0.08]" />
                       <button
                         onClick={handleLogout}
                         className="w-full flex items-center gap-2.5 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-black/50 hover:text-black hover:bg-[#F7F5F0] transition-colors cursor-pointer"
@@ -474,32 +453,6 @@ export default function Navbar() {
                       </div>
                     </div>
                   </div>
-
-                  {/* Nav links */}
-                  {[
-                    { to: "/orders",  icon: "inventory_2", label: "My Orders" },
-                    { to: "/reviews", icon: "star",        label: "Reviews"   },
-                    { to: "/inbox",   icon: "mail",        label: "Inbox", badge: unreadCount },
-                    { to: "/support", icon: "chat_bubble", label: "Support"   },
-                  ].map(({ to, icon, label, badge }, i, arr) => (
-                    <Link
-                      key={to} to={to}
-                      onClick={() => setProfileOpen(false)}
-                      className={`flex items-center gap-2.5 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-white/50 hover:text-white active:bg-white/[0.07] hover:bg-white/[0.05] transition-colors ${
-                        i < arr.length - 1 ? "border-b border-white/[0.05]" : ""
-                      }`}
-                    >
-                      <span className="material-symbols-outlined text-[13px]">{icon}</span>
-                      <span className="flex-1">{label}</span>
-                      {badge > 0 && (
-                        <span className="min-w-[16px] h-4 px-0.5 bg-red-500 text-white text-[7px] font-black flex items-center justify-center rounded-full">
-                          {badge > 9 ? "9+" : badge}
-                        </span>
-                      )}
-                    </Link>
-                  ))}
-
-                  <div className="border-t border-white/[0.08]" />
 
                   <button
                     onClick={() => { setProfileOpen(false); handleLogout(); }}

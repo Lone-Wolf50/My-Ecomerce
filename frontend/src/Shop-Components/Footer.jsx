@@ -10,14 +10,15 @@ const COLS = {
     { label: "Summer / Picnic", path: "/shop/picnic"   },
     { label: "Limited Edition", path: "/shop/limited"  },
   ],
-  service: [
-    { label: "My Orders",  path: "/orders"  },
-    { label: "Track Order",path: "/orders"  },
-    { label: "Support",    path: "/support" },
-    { label: "Reviews",    path: "/reviews" },
-    { label: "Sign In",    path: "/login"   },
-  ],
 };
+
+const ABOUT_ITEMS = [
+  { icon: "storefront",   label: "About Janina",   text: "Luxury bags curated in Accra, Ghana — Est. 2024." },
+  { icon: "schedule",     label: "Business Hours", text: "Mon – Sat · 9 AM – 7 PM GMT" },
+  { icon: "location_on",  label: "Flagship Store", text: "Accra, Greater Accra, Ghana" },
+  { icon: "mail_outline", label: "Email Us",       text: "angelboadi95@gmail.com" },
+  { icon: "phone_iphone", label: "WhatsApp",       text: "+233 53 571 4287" },
+];
 
 export default function Footer() {
   const [email, setEmail]       = useState("");
@@ -25,7 +26,10 @@ export default function Footer() {
 
   const handleJoin = (e) => {
     e.preventDefault();
-    if (email.trim()) { setSubmitted(true); setEmail(""); }
+    if (email.trim()) {
+      setSubmitted(true);
+      setEmail("");
+    }
   };
 
   return (
@@ -62,17 +66,17 @@ export default function Footer() {
 
             {/* Newsletter */}
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.42em] text-white/28 mb-3">The Vault — Insider Access</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.42em] text-white/28 mb-3">The Voice — Insider Access</p>
               {submitted ? (
                 <div className="flex items-center gap-2.5 text-emerald-400">
                   <span className="material-symbols-outlined text-[20px]">check_circle</span>
-                  <span className="text-[12px] font-black uppercase tracking-wider">You're in the vault.</span>
+                  <span className="text-[12px] font-black uppercase tracking-wider">Thank You,WELCOME.</span>
                 </div>
               ) : (
                 <form onSubmit={handleJoin} className="flex gap-2">
                   <input
                     type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                    placeholder="your@email.com"
+                    placeholder="your@gmail.com"
                     className="flex-1 h-11 bg-white/[0.06] border border-white/[0.1] rounded-xl px-4 text-[13px] font-bold text-white placeholder:text-white/18 outline-none focus:border-[#C9A227]/50 transition-colors"
                   />
                   <button type="submit"
@@ -82,21 +86,6 @@ export default function Footer() {
                   </button>
                 </form>
               )}
-            </div>
-
-            {/* Social */}
-            <div className="flex items-center gap-3">
-              {[
-                { icon: "photo_camera", label: "Instagram" },
-                { icon: "chat",         label: "WhatsApp"  },
-                { icon: "language",     label: "Website"   },
-              ].map(({ icon, label }) => (
-                <button key={icon} aria-label={label}
-                  className="w-10 h-10 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center hover:bg-[#C9A227]/20 hover:border-[#C9A227]/40 transition-all group"
-                >
-                  <span className="material-symbols-outlined text-[18px] text-white/30 group-hover:text-[#C9A227] transition-colors">{icon}</span>
-                </button>
-              ))}
             </div>
           </div>
 
@@ -118,19 +107,19 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* ── Service ─────────────── */}
+          {/* ── About ───────────────── */}
           <div>
             <h4 className="text-[10px] font-black uppercase tracking-[0.48em] text-[#C9A227] mb-5 pb-3 border-b border-white/[0.06]">
-              Service
+              About Us
             </h4>
-            <ul className="space-y-3">
-              {COLS.service.map(({ label, path }) => (
-                <li key={label}>
-                  <Link to={path}
-                    className="text-[13px] font-bold text-white/40 hover:text-white hover:pl-1.5 uppercase tracking-wide transition-all duration-200"
-                  >
-                    {label}
-                  </Link>
+            <ul className="space-y-4">
+              {ABOUT_ITEMS.map(({ icon, label, text }) => (
+                <li key={label} className="flex items-start gap-2.5">
+                  <span className="material-symbols-outlined text-[15px] text-[#C9A227]/55 shrink-0 mt-0.5">{icon}</span>
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-wider text-white/28 mb-0.5">{label}</p>
+                    <p className="text-[12px] font-bold text-white/45 leading-snug">{text}</p>
+                  </div>
                 </li>
               ))}
             </ul>

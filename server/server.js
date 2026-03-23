@@ -40,13 +40,19 @@ const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
   auth: { persistSession: false },
 });
 
-// ── Silent logger ──────────────────────────────────────────────
+// ── Logger — always on (visible in Vercel Function logs) ───────
 const log = {
-  info:  (msg)      => IS_DEV && process.stdout.write(`[INFO]  ${msg}\n`),
-  warn:  (msg)      => IS_DEV && process.stderr.write(`[WARN]  ${msg}\n`),
+  info:  (msg, data) => {
+    const out = data !== undefined ? `[INFO]  ${msg} ${JSON.stringify(data)}` : `[INFO]  ${msg}`;
+    process.stdout.write(out + "\n");
+  },
+  warn:  (msg, data) => {
+    const out = data !== undefined ? `[WARN]  ${msg} ${JSON.stringify(data)}` : `[WARN]  ${msg}`;
+    process.stderr.write(out + "\n");
+  },
   error: (msg, err) => {
-    if (IS_DEV) process.stderr.write(`[ERROR] ${msg} — ${err?.message || ""}\n`);
-    else        process.stderr.write(`[ERROR] ${msg}\n`);
+    process.stderr.write(`[ERROR] ${msg} — ${err?.message || ""}\n`);
+    if (err?.stack) process.stderr.write(err.stack + "\n");
   },
 };
 
@@ -56,6 +62,14 @@ app.use(helmet());
 app.use(express.json({ limit: "10kb" }));
 app.set("trust proxy", 1);
 
+// ── Request logger — logs every incoming request on Vercel ─────
+app.use((req, _res, next) => {
+  process.stdout.write(
+    `[REQ]   ${req.method} ${req.path} — origin: ${req.headers.origin || "none"} — ip: ${req.ip}\n`
+  );
+  next();
+});
+
 // ── CORS ───────────────────────────────────────────────────────
 const allowedOrigins = [
   ...(IS_DEV ? ["http://localhost:3000", "http://localhost:5173"] : []),
@@ -64,18 +78,19 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
+    process.stdout.write(`[CORS]  Request from origin: ${origin || "no-origin"}\n`);
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      process.stdout.write(`[CORS]  Origin ALLOWED: ${origin}\n`);
+      return callback(null, true);
+    }
+    process.stderr.write(`[CORS]  Origin BLOCKED: ${origin} — not in allowedOrigins: ${JSON.stringify(allowedOrigins)}\n`);
     callback(new Error("CORS policy violation"));
   },
   methods: ["GET", "POST"],
   credentials: true,
 }));
-
 // ── Preflight handler for /auth/* routes ───────────────────────
-// Scoped to /auth/* only — avoids exposing non-existent routes to
-// OPTIONS probing while still satisfying browser preflight checks
-// required when credentials:true is set (Vercel serverless-safe).
 const corsOptions = {
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
@@ -85,7 +100,11 @@ const corsOptions = {
   methods: ["GET", "POST"],
   credentials: true,
 };
-app.options("/auth/*", cors(corsOptions));
+app.options("/auth/{*path}", cors(corsOptions));
+app.options("{*path}", (req, res) => {
+  process.stderr.write(`[PREFLIGHT] OPTIONS hit on unhandled route: ${req.path} from ${req.headers.origin || "no-origin"}\n`);
+  res.status(404).json({ success: false, error: "Not found." });
+});
 
 // ══════════════════════════════════════════════════════════════
 //  RATE LIMITERS
@@ -892,7 +911,10 @@ app.post("/auth/login", loginLimiter, async (req, res) => {
 
     if (adminRecord) {
       const ok = await bcrypt.compare(passVal, adminRecord.password || DUMMY_HASH);
-      if (!ok) return res.status(401).json({ success: false, error: "Invalid credentials." });
+      if (!ok) {
+        console.warn("[LOGIN] Admin password mismatch — possible brute force");
+        return res.status(401).json({ success: false, error: "Invalid credentials." });
+      }
 
       // FIX: Persist admin session ID to DB so requireAdminToken can validate it.
       // Previously this was generated but never stored — no real session existed.
@@ -917,7 +939,10 @@ app.post("/auth/login", loginLimiter, async (req, res) => {
       .eq("email", emailVal)
       .maybeSingle();
 
-    if (dbErr) throw dbErr;
+    if (dbErr) {
+      console.error("[LOGIN] DB error:", dbErr.message);
+      throw dbErr;
+    }
 
     if (!user || !user.password) {
       await bcrypt.compare(passVal, DUMMY_HASH);
@@ -925,7 +950,10 @@ app.post("/auth/login", loginLimiter, async (req, res) => {
     }
 
     const match = await bcrypt.compare(passVal, user.password);
-    if (!match) return res.status(401).json({ success: false, error: "Invalid credentials." });
+    if (!match) {
+      console.warn("[LOGIN] Password mismatch — invalid credentials");
+      return res.status(401).json({ success: false, error: "Invalid credentials." });
+    }
 
     const sid = crypto.randomUUID();
     const { error: updateErr } = await supabaseAdmin
@@ -941,6 +969,7 @@ app.post("/auth/login", loginLimiter, async (req, res) => {
     });
 
   } catch (err) {
+    console.error("[LOGIN] Unexpected error:", err?.message, err?.stack);
     log.error("Login error", err);
     return res.status(500).json({ success: false, error: "An error occurred. Please try again." });
   }
@@ -967,7 +996,10 @@ app.post("/auth/initiate-signup", signupLimiter, async (req, res) => {
       .eq("email", emailVal)
       .maybeSingle();
 
-    if (existing) return res.status(409).json({ success: false, error: "Email is already registered." });
+    if (existing) {
+      console.warn("[SIGNUP] Registration attempt for already-registered email");
+      return res.status(409).json({ success: false, error: "Email is already registered." });
+    }
 
     const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
@@ -1021,6 +1053,7 @@ app.post("/auth/verify-otp", otpVerifyLimiter, (req, res) => {
   const emailVal = email.trim().toLowerCase();
   const result   = verifyAndConsumeOtp(emailVal, otp.trim());
   if (!result.ok) {
+    console.warn("[OTP] Verification failed");
     log.warn("OTP verify failed");
     return res.status(400).json({ success: false, error: result.reason });
   }
@@ -1044,6 +1077,7 @@ app.post("/auth/complete-signup", completeSignupLimiter, async (req, res) => {
   const pending  = pendingSignups.get(emailVal);
 
   if (!pending) {
+    console.warn("[COMPLETE-SIGNUP] No pending signup found — possible replay or expired session");
     return res.status(400).json({ success: false, error: "No pending registration found. Please restart sign-up." });
   }
   if (Date.now() > pending.expiresAt) {
@@ -1182,7 +1216,10 @@ app.post("/auth/reset-password", resetLimiter, async (req, res) => {
 app.use((_req, res) => res.status(404).json({ success: false, error: "Not found." }));
 
 // ── Global error handler ───────────────────────────────────────
-app.use((err, _req, res, _next) => {
+app.use((err, req, res, _next) => {
+  console.error("[GLOBAL ERROR] Unhandled exception on", req.method, req.path);
+  console.error("[GLOBAL ERROR] Message:", err?.message);
+  console.error("[GLOBAL ERROR] Stack:", err?.stack);
   log.error("Unhandled exception", err);
   res.status(500).json({ success: false, error: "An unexpected error occurred." });
 });

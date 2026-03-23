@@ -71,10 +71,21 @@ app.use(cors({
   methods: ["GET", "POST"],
   credentials: true,
 }));
-// FIX #9: Removed the overly-broad app.options(/.*/, cors()) catch-all.
-// The per-route cors() middleware already handles preflight for allowed routes.
-// A wildcard OPTIONS handler responds to every route including non-existent
-// ones, leaking internal route structure via OPTIONS probing.
+
+// ── Preflight handler for /auth/* routes ───────────────────────
+// Scoped to /auth/* only — avoids exposing non-existent routes to
+// OPTIONS probing while still satisfying browser preflight checks
+// required when credentials:true is set (Vercel serverless-safe).
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error("CORS policy violation"));
+  },
+  methods: ["GET", "POST"],
+  credentials: true,
+};
+app.options("/auth/*", cors(corsOptions));
 
 // ══════════════════════════════════════════════════════════════
 //  RATE LIMITERS

@@ -1,6 +1,6 @@
-# My Shop — Janina Luxury Bags
+#  Janina Luxury Bags
 
-My Shop is a **full‑stack e‑commerce platform** for **Janina Luxury Bags**, built with a modern React frontend and a secure Node.js/Express backend.
+Janina Luxury Bags is a **full‑stack e‑commerce platform** for **Janina Luxury Bags**, built with a modern React frontend and a secure Node.js/Express backend.
 It handles product browsing, cart and checkout, Paystack payments in GHS, OTP-based verification flows, and rich email + live-chat based customer support.
 
 ---

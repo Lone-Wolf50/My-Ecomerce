@@ -25,7 +25,7 @@ It handles product browsing, cart and checkout, Paystack payments in GHS, OTP-ba
 
 ## Overview
 
-**My Shop** provides a complete online store experience for a single brand:
+**Janina Luxury Bags** provides a complete online store experience for a single brand:
 
 - **Customer store** with luxury bag catalogue, cart, checkout, and order confirmation.
 - **Secure payments** with **Paystack** (server-side validation, fee calculation, and anti-tampering checks).
